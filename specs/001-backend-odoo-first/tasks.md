@@ -9,7 +9,7 @@ Estado: pendiente
   Test primero: `test_account_tax_l10n_ve_type_field` (en rojo).
   Hecho cuando: test pasa + grep muestra Selection con 8 valores.
 
-- [ ] **T2. `vat.book.line`: campos source, account_move_id, auditoría.**
+- [x] **T2. `vat.book.line`: campos source, account_move_id, auditoría.**
   RF-9, RF-10.
   Tests: `test_source_and_audit_fields`, `test_multi_base_field`.
   Hecho cuando: 2 tests pasan + campos existen con tipos correctos.
