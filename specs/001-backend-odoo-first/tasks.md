@@ -29,7 +29,7 @@ Estado: pendiente
   Tests: `test_post_regenerates_safely`, `test_button_draft_deletes_odoo_lines`.
   Hecho cuando: 2 tests pasan + reversión borra solo source='odoo_invoice'.
 
-- [x] **T6. Botón regenerar + wizard confirm.**
+- [ ] **T6. Botón regenerar + wizard confirm.**
   RF-3, RF-14.
   Modelo: `l10n.ve.regenerate.confirm.wizard`.
   Test: `test_regenerate_confirm_wizard_flow`.
