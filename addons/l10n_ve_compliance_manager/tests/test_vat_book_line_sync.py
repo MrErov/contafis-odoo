@@ -92,3 +92,105 @@ class TestVatBookLineSync(TransactionCase):
             ('source', '=', 'odoo_invoice'),
         ])
         self.assertEqual(len(vbl2), 1, "Segunda llamada no debe duplicar la línea")
+
+    def test_post_regenerates_safely(self):
+        """Verifica que action_post() llama a _generate_vat_book_line() y crea vbl."""
+        move = self.env['account.move'].create({
+            'move_type': 'in_invoice',
+            'partner_id': self.partner.id,
+            'invoice_date': '2026-08-15',
+            'journal_id': self.journal.id,
+            'l10n_ve_control_number': 'CTRL-002',
+            'line_ids': [
+                (0, 0, {
+                    'name': 'Producto Test',
+                    'account_id': self.account_expense.id,
+                    'price_unit': 1000.0,
+                    'quantity': 1.0,
+                    'tax_ids': [(6, 0, [self.tax_general.id])],
+                }),
+            ],
+        })
+
+        # action_post() debe crear la vbl automáticamente
+        move.action_post()
+
+        self.assertEqual(move.state, 'posted', "Factura debe estar posteada")
+        self.assertGreater(move.amount_total, 0, "Total debe ser > 0")
+
+        vbl = self.env['l10n.ve.vat.book.line'].search([
+            ('account_move_id', '=', move.id),
+            ('source', '=', 'odoo_invoice'),
+        ])
+        self.assertEqual(len(vbl), 1, "Debe existir 1 vat.book.line tras post")
+        self.assertEqual(vbl.source, 'odoo_invoice')
+        self.assertEqual(vbl.book_type, 'purchase')
+        self.assertEqual(vbl.operation_code, '33')
+
+    def test_button_draft_deletes_odoo_lines(self):
+        """Verifica que button_draft() borra solo source='odoo_invoice'."""
+        move = self.env['account.move'].create({
+            'move_type': 'in_invoice',
+            'partner_id': self.partner.id,
+            'invoice_date': '2026-08-15',
+            'journal_id': self.journal.id,
+            'l10n_ve_control_number': 'CTRL-003',
+            'line_ids': [
+                (0, 0, {
+                    'name': 'Producto Test',
+                    'account_id': self.account_expense.id,
+                    'price_unit': 1000.0,
+                    'quantity': 1.0,
+                    'tax_ids': [(6, 0, [self.tax_general.id])],
+                }),
+            ],
+        })
+        move.action_post()
+
+        # Verificar vbl odoo_invoice creada
+        vbl_odoo = self.env['l10n.ve.vat.book.line'].search([
+            ('account_move_id', '=', move.id),
+            ('source', '=', 'odoo_invoice'),
+        ])
+        self.assertEqual(len(vbl_odoo), 1, "Debe existir 1 vbl odoo_invoice tras post")
+
+        # Crear manualmente vbl con source='manual' vinculada al mismo move
+        # Usar operation_code distinto para evitar constraint unique
+        vbl_manual = self.env['l10n.ve.vat.book.line'].create({
+            'book_type': 'purchase',
+            'period_month': '2026-08',
+            'partner_id': self.partner.id,
+            'invoice_number': move.name,
+            'control_number': 'CTRL-003-MANUAL',
+            'operation_code': '30',  # no_credit/not_subject
+            'base_not_subject': 500.0,
+            'account_move_id': move.id,
+            'source': 'manual',
+            'company_id': self.company.id,
+        })
+
+        # Verificar que ambas existen
+        self.assertEqual(
+            self.env['l10n.ve.vat.book.line'].search_count([('account_move_id', '=', move.id)]),
+            2, "Deben existir 2 vbl (odoo_invoice + manual)"
+        )
+
+        # button_draft()
+        move.button_draft()
+
+        # Verificar estado
+        self.assertEqual(move.state, 'draft', "Factura debe estar en borrador")
+
+        # Verificar que solo odoo_invoice fue borrada
+        vbl_odoo_remaining = self.env['l10n.ve.vat.book.line'].search([
+            ('account_move_id', '=', move.id),
+            ('source', '=', 'odoo_invoice'),
+        ])
+        self.assertEqual(len(vbl_odoo_remaining), 0, "vbl odoo_invoice debe ser borrada")
+
+        vbl_manual_remaining = self.env['l10n.ve.vat.book.line'].search([
+            ('account_move_id', '=', move.id),
+            ('source', '=', 'manual'),
+        ])
+        self.assertEqual(len(vbl_manual_remaining), 1, "vbl manual debe permanecer")
+        self.assertEqual(vbl_manual_remaining.id, vbl_manual.id)

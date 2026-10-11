@@ -117,6 +117,21 @@ class AccountMove(models.Model):
 
                 self.env['l10n.ve.vat.book.line'].create(vals)
 
+    def _post(self, soft=True):
+        res = super()._post(soft)
+        for move in self.filtered(lambda m: m.move_type in ('in_invoice', 'out_invoice')):
+            move._generate_vat_book_line()
+        return res
+
+    def button_draft(self):
+        res = super().button_draft()
+        for move in self:
+            self.env['l10n.ve.vat.book.line'].search([
+                ('account_move_id', '=', move.id),
+                ('source', '=', 'odoo_invoice')
+            ]).unlink()
+        return res
+
     @api.depends('retention_ids.amount')
     def _compute_retention_amount(self):
         for move in self:
