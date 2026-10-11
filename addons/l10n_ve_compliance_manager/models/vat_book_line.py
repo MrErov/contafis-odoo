@@ -118,6 +118,65 @@ class VatBookLine(models.Model):
         ondelete='cascade',
     )
 
+    source = fields.Selection([
+        ('odoo_invoice', 'Factura Odoo'),
+        ('excel_import', 'Importación Excel'),
+        ('manual', 'Manual'),
+        ('adjustment', 'Ajuste'),
+    ], string='Origen', default='manual', required=True, index=True)
+
+    account_move_id = fields.Many2one(
+        'account.move',
+        string='Asiento Contable',
+        ondelete='set null',
+        readonly=True,
+        index=True,
+    )
+
+    modified_by = fields.Many2one(
+        'res.users',
+        string='Modificado por',
+    )
+
+    modified_at = fields.Datetime(
+        string='Modificado en',
+        readonly=True,
+    )
+
+    is_manually_modified = fields.Boolean(
+        string='Editado Manual',
+        compute='_compute_is_manually_modified',
+        store=True,
+        readonly=True,
+    )
+
+    @api.depends('modified_by', 'create_uid')
+    def _compute_is_manually_modified(self):
+        for record in self:
+            record.is_manually_modified = bool(record.modified_by) and record.modified_by != record.create_uid
+
+    @api.model
+    def _get_operation_code(self, rate_type: str, book_type: str) -> str:
+        """
+        Retorna código SENIAT según rate_type y book_type.
+        rate_type: 'import', 'general', 'reduced', 'no_credit', 'not_subject', 'non_contrib'
+        book_type: 'purchase', 'sale'
+        """
+        if book_type == 'purchase':
+            if rate_type == 'import':
+                return '31'
+            elif rate_type == 'general':
+                return '33'
+            elif rate_type == 'reduced':
+                return '333'
+            else:  # no_credit, not_subject
+                return '30'
+        else:  # sale
+            if rate_type in ('general', 'non_contrib'):
+                return '42'
+            else:  # not_subject, not_taxed
+                return '40'
+
     _unique_line = models.Constraint(
         'UNIQUE(partner_id, invoice_number, control_number, period_month, company_id, operation_code, retention_direction)',
         'Ya existe una línea para esta factura en el período con ese código de operación y dirección de retención.',

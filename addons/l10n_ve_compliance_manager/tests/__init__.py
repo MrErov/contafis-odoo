@@ -12,5 +12,6 @@ from . import (
     test_vat_book_export,
     test_vat_book_generate,
     test_vat_book_line,
+    test_vat_book_line_fields,
     test_vat_return,
 )

@@ -1062,23 +1062,6 @@ class ImportWizard(models.TransientModel):
             'target': 'new',
         }
 
-    def _get_vat_book_operation_code(self, rate_type, book_type):
-        """Mapea _rate_type → operation_code SENIAT."""
-        if book_type == 'purchase':
-            if rate_type == 'import':
-                return '31'
-            elif rate_type == 'general':
-                return '33'
-            elif rate_type == 'reduced':
-                return '333'
-            else:  # not_subject, no_credit
-                return '30'
-        else:  # sale
-            if rate_type in ('general', 'non_contrib'):
-                return '42'
-            else:  # not_subject, not_taxed
-                return '40'
-
     def _build_vat_book_vals(self, data, book_type, partner_id, operation_code, retention_direction):
         """Construye vals para UNA línea vat.book.line según _rate_type."""
         rate = data.get('_rate_type', 'general')
@@ -1188,7 +1171,7 @@ class ImportWizard(models.TransientModel):
                         ) % line.row_index)
 
                 rate_type = data.get('_rate_type', 'general')
-                operation_code = self._get_vat_book_operation_code(rate_type, book_type)
+                operation_code = self.env['l10n.ve.vat.book.line']._get_operation_code(rate_type, book_type)
                 period_month = self.period_month
                 company_id = self.company_id.id
 
