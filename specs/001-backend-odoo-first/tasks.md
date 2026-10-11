@@ -24,7 +24,7 @@ Estado: pendiente
   Test primero: `test_account_move_control_number_field` + `test_post_invoice_generates_vat_book_line`.
   Hecho cuando: 2 tests pasan + método deriva línea con source='odoo_invoice' + operation_code correcto.
 
-- [ ] **T5. `account.move`: overrides `_post()` y `button_draft()`.**
+- [x] **T5. `account.move`: overrides `_post()` y `button_draft()`.**
   RF-2, RF-8.
   Tests: `test_post_regenerates_safely`, `test_button_draft_deletes_odoo_lines`.
   Hecho cuando: 2 tests pasan + reversión borra solo source='odoo_invoice'.
