@@ -19,7 +19,7 @@ Estado: pendiente
   Test primero: `test_get_operation_code_helper`.
   Hecho cuando: test pasa + llamadas existentes en import_wizard actualizadas + 107 tests siguen verdes.
 
-- [ ] **T4. `account.move`: campo `l10n_ve_control_number` + `_generate_vat_book_line()`.**
+- [x] **T4. `account.move`: campo `l10n_ve_control_number` + `_generate_vat_book_line()`.**
   RF-2, RF-16.
   Test primero: `test_account_move_control_number_field` + `test_post_invoice_generates_vat_book_line`.
   Hecho cuando: 2 tests pasan + método deriva línea con source='odoo_invoice' + operation_code correcto.
