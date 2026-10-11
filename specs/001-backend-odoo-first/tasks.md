@@ -29,7 +29,7 @@ Estado: pendiente
   Tests: `test_post_regenerates_safely`, `test_button_draft_deletes_odoo_lines`.
   Hecho cuando: 2 tests pasan + reversión borra solo source='odoo_invoice'.
 
-- [ ] **T6. Botón regenerar + wizard confirm.**
+- [x] **T6. Botón regenerar + wizard confirm.**
   RF-3, RF-14.
   Modelo: `l10n.ve.regenerate.confirm.wizard`.
   Test: `test_regenerate_confirm_wizard_flow`.
@@ -41,7 +41,7 @@ Estado: pendiente
   Tests: `test_wizard_create_purchase_invoice`, `test_wizard_create_sale_invoice`, `test_wizard_validates_rif_module_11`, `test_wizard_creates_partner_inline`, `test_wizard_physical_total_warning`.
   Hecho cuando: 5 tests pasan.
 
-- [ ] **T8. Vistas XML: wizard, account.move, vat.book.line.**
+- [x] **T8. Vistas XML: wizard, account.move, vat.book.line.**
   RF-1, RF-3, RF-9, RF-10, RF-13, RF-14.
   Verificación: pre-commit run check-xml + visual manual.
   Hecho cuando: 3 archivos XML cargan sin error + 107 tests verdes + sin attrs= + sin confirm= en botones.
