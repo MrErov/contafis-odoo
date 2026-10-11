@@ -451,7 +451,7 @@ docker compose run --rm web odoo -d contea \
   --test-tags /l10n_ve_compliance_manager
 ```
 
-### Tests por archivo (12 nuevos)
+### Tests por archivo (15 nuevos)
 
 #### `test_physical_invoice_wizard.py` (5 tests)
 | Test | RFs | Qué verifica |
@@ -523,4 +523,4 @@ docker compose run --rm web odoo -d contea \
 
 ---
 
-**Entrega:** `specs/001-backend-odoo-first/plan.md` — Plan técnico completo con 12 archivos a tocar, 5 funciones puras, 2 algoritmos clave, 3 vistas XML, 5 decisiones justificadas, 14 tests mapeados a RFs, 3 preguntas abiertas pendientes.
+**Entrega:** `specs/001-backend-odoo-first/plan.md` — Plan técnico completo con 12 archivos a tocar, 5 funciones puras, 2 algoritmos clave, 3 vistas XML, 5 decisiones justificadas, 15 tests mapeados a RFs, 3 preguntas abiertas pendientes.

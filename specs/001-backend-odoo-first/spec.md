@@ -52,7 +52,7 @@ Estos campos se actualizan vía override de write() cuando el usuario es distint
 - Rendimiento: `_generate_vat_book_line()` ejecuta en <200ms para factura típica (5 líneas base).
 - Trazabilidad: `vat.book.line` registra `account_move_id` para auditoría bidireccional.
 - Multi-cliente: todo filtra por `company_id` (heredado de `account.move`).
-- Tests: 14 tests nuevos (4 mínimos + 5 adicionales + 3 por RF-12/13/14 + 2 por RF-15/16) + 107 existentes = 121 total pasando.
+- Tests: 15 tests nuevos (4 mínimos + 5 adicionales + 3 por RF-12/13/14 + 2 por RF-15/16 + 1 test_multi_base_field) + 107 existentes = 122 total pasando.
 
 ## Casos límite
 
@@ -82,7 +82,7 @@ Estos campos se actualizan vía override de write() cuando el usuario es distint
 
 ## Criterios de finalización
 
-- 121 tests pasando (107 base + 14 nuevos).
+- 122 tests pasando (107 base + 15 nuevos).
 - Ruff limpio.
 - Verificación manual end-to-end: crear factura compra por wizard → verificar `account.move` posteado + `vat.book.line` con `source='odoo_invoice'` y bases/IVAs correctos → export XLSX válido con totales cuadrados.
 
