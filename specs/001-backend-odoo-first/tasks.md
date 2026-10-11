@@ -4,7 +4,7 @@ Estado: pendiente
 
 ## Tareas
 
-- [ ] **T1. `account.tax`: campo `l10n_ve_tax_type`.**
+- [x] **T1. `account.tax`: campo `l10n_ve_tax_type`.**
   RF-15.
   Test primero: `test_account_tax_l10n_ve_type_field` (en rojo).
   Hecho cuando: test pasa + grep muestra Selection con 8 valores.
