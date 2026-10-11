@@ -14,7 +14,7 @@ Estado: pendiente
   Tests: `test_source_and_audit_fields`, `test_multi_base_field`.
   Hecho cuando: 2 tests pasan + campos existen con tipos correctos.
 
-- [ ] **T3. Refactor `_get_operation_code()` (import_wizard → vat_book_line).**
+- [x] **T3. Refactor `_get_operation_code()` (import_wizard → vat_book_line).**
   RF-12.
   Test primero: `test_get_operation_code_helper`.
   Hecho cuando: test pasa + llamadas existentes en import_wizard actualizadas + 107 tests siguen verdes.
