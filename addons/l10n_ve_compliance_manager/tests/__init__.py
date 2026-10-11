@@ -1,4 +1,5 @@
 from . import (
+    test_account_tax,
     test_cartelera_evidence,
     test_cartelera_status,
     test_compliance_client,

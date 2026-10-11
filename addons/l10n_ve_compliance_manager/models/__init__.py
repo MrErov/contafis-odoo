@@ -1,5 +1,6 @@
 from . import (
     account_move,
+    account_tax,
     alert,
     cartelera_evidence,
     cartelera_evidence_wizard,
