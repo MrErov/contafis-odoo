@@ -153,7 +153,15 @@ class VatBookLine(models.Model):
     @api.depends('modified_by', 'create_uid')
     def _compute_is_manually_modified(self):
         for record in self:
-            record.is_manually_modified = bool(record.modified_by) and record.modified_by != record.create_uid
+            # True si ha sido modificada (modified_by tiene valor), independientemente de quién la creó
+            record.is_manually_modified = bool(record.modified_by)
+
+    def write(self, vals):
+        """Actualiza campos de auditoría al editar manualmente."""
+        if 'modified_by' not in vals:
+            vals['modified_by'] = self.env.user.id
+        vals['modified_at'] = fields.Datetime.now()
+        return super().write(vals)
 
     @api.model
     def _get_operation_code(self, rate_type: str, book_type: str) -> str:

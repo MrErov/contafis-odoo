@@ -1,4 +1,5 @@
-from odoo import api, fields, models
+from odoo import _, api, fields, models
+from odoo.exceptions import UserError
 
 
 class AccountMove(models.Model):
@@ -18,31 +19,35 @@ class AccountMove(models.Model):
     )
     obligation_ids = fields.One2many('l10n.ve.obligation', 'move_id', string='Obligaciones')
 
-    def _generate_vat_book_line(self):
+    def _generate_vat_book_line(self, force=False):
         """Deriva vat.book.line desde account.move.
 
+        Args:
+            force (bool): Si True, omite la verificación de líneas editadas manualmente.
+
         Returns:
-            dict: Acción para abrir wizard si hay líneas editadas manualmente,
+            dict: Acción para abrir wizard si hay líneas editadas manualmente y no force,
                   None si se procesó normalmente.
         """
         self.ensure_one()
 
-        # Verificar líneas editadas manualmente
-        manual_lines = self.env['l10n.ve.vat.book.line'].search([
-            ('account_move_id', '=', self.id),
-            ('source', '=', 'odoo_invoice'),
-            ('is_manually_modified', '=', True)
-        ])
-        if manual_lines:
-            # Retornar acción para abrir wizard de confirmación (se implementa en T6)
-            return {
-                'name': 'Confirmar Regeneración',
-                'type': 'ir.actions.act_window',
-                'res_model': 'l10n.ve.regenerate.confirm.wizard',
-                'view_mode': 'form',
-                'target': 'new',
-                'context': {'default_move_id': self.id},
-            }
+        # Verificar líneas editadas manualmente (solo si no force)
+        if not force:
+            manual_lines = self.env['l10n.ve.vat.book.line'].search([
+                ('account_move_id', '=', self.id),
+                ('source', '=', 'odoo_invoice'),
+                ('is_manually_modified', '=', True)
+            ])
+            if manual_lines:
+                # Retornar acción para abrir wizard de confirmación
+                return {
+                    'name': 'Confirmar Regeneración',
+                    'type': 'ir.actions.act_window',
+                    'res_model': 'l10n.ve.regenerate.confirm.wizard',
+                    'view_mode': 'form',
+                    'target': 'new',
+                    'context': {'default_move_id': self.id},
+                }
 
         # Borrar líneas odoo_invoice existentes
         self.env['l10n.ve.vat.book.line'].search([
@@ -141,3 +146,39 @@ class AccountMove(models.Model):
         service = self.env['l10n.ve.retention.service']
         for move in self:
             service.generate_retentions(move)
+
+    def action_regenerate_vat_book_line(self):
+        """Regenera líneas del libro fiscal para esta factura."""
+        self.ensure_one()
+        if self.state != 'posted':
+            raise UserError(_('Solo facturas posteadas pueden regenerar el libro.'))
+
+        # Verificar si hay líneas editadas manualmente
+        manual_lines = self.env['l10n.ve.vat.book.line'].search([
+            ('account_move_id', '=', self.id),
+            ('source', '=', 'odoo_invoice'),
+            ('is_manually_modified', '=', True)
+        ])
+        if manual_lines:
+            return {
+                'name': _('Confirmar Regeneración'),
+                'type': 'ir.actions.act_window',
+                'res_model': 'l10n.ve.regenerate.confirm.wizard',
+                'view_mode': 'form',
+                'target': 'new',
+                'context': {'default_move_id': self.id},
+            }
+
+        # Sin ediciones manuales → regenerar directo
+        self._generate_vat_book_line()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': _('Líneas del libro regeneradas: %d') % len(self.env['l10n.ve.vat.book.line'].search([
+                    ('account_move_id', '=', self.id),
+                    ('source', '=', 'odoo_invoice'),
+                ])),
+            }
+        }

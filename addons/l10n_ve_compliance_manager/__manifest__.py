@@ -47,6 +47,7 @@ Incluye:
         'views/vat_book_generate_views.xml',
         'views/vat_return_views.xml',
         'views/vat_book_export_views.xml',
+        'views/regenerate_confirm_wizard_views.xml',
     ],
     'demo': [
         'demo/demo_data.xml',

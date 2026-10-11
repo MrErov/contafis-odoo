@@ -194,3 +194,80 @@ class TestVatBookLineSync(TransactionCase):
         ])
         self.assertEqual(len(vbl_manual_remaining), 1, "vbl manual debe permanecer")
         self.assertEqual(vbl_manual_remaining.id, vbl_manual.id)
+
+    def test_regenerate_confirm_wizard_flow(self):
+        """Verifica flujo del wizard de confirmación para regenerar."""
+        # Crear factura y postear
+        move = self.env['account.move'].create({
+            'move_type': 'in_invoice',
+            'partner_id': self.partner.id,
+            'invoice_date': '2026-08-15',
+            'journal_id': self.journal.id,
+            'l10n_ve_control_number': 'CTRL-004',
+            'line_ids': [
+                (0, 0, {
+                    'name': 'Producto Test',
+                    'account_id': self.account_expense.id,
+                    'price_unit': 1000.0,
+                    'quantity': 1.0,
+                    'tax_ids': [(6, 0, [self.tax_general.id])],
+                }),
+            ],
+        })
+        move.action_post()
+
+        # Verificar vbl creada
+        vbl = self.env['l10n.ve.vat.book.line'].search([
+            ('account_move_id', '=', move.id),
+            ('source', '=', 'odoo_invoice'),
+        ])
+        self.assertEqual(len(vbl), 1)
+
+        # Editar la vbl manualmente para marcar is_manually_modified=True
+        vbl.write({'base_general': 1500.0})
+        self.assertTrue(vbl.is_manually_modified, "vbl debe marcarse como editada manualmente")
+
+        # Llamar action_regenerate_vat_book_line() - debe devolver acción para abrir wizard
+        action = move.action_regenerate_vat_book_line()
+        self.assertEqual(action['res_model'], 'l10n.ve.regenerate.confirm.wizard')
+        self.assertEqual(action['target'], 'new')
+        self.assertEqual(action['context']['default_move_id'], move.id)
+
+        # Crear wizard y confirmar
+        wizard = self.env['l10n.ve.regenerate.confirm.wizard'].create({
+            'move_id': move.id,
+        })
+        wizard.action_confirm()
+
+        # Verificar que vbl fue regenerada (is_manually_modified=False)
+        # Buscar la nueva vbl (la anterior fue borrada y recreada)
+        vbl_new = self.env['l10n.ve.vat.book.line'].search([
+            ('account_move_id', '=', move.id),
+            ('source', '=', 'odoo_invoice'),
+        ])
+        self.assertEqual(len(vbl_new), 1, "Debe existir 1 vbl tras regeneración")
+        self.assertFalse(vbl_new.is_manually_modified, "vbl debe regenerarse y is_manually_modified=False")
+        self.assertEqual(vbl_new.base_general, 1000.0, "base_general debe volver al valor original")
+
+        # Caso sin ediciones manuales: action_regenerate_vat_book_line() debe devolver notificación
+        move2 = self.env['account.move'].create({
+            'move_type': 'in_invoice',
+            'partner_id': self.partner.id,
+            'invoice_date': '2026-08-15',
+            'journal_id': self.journal.id,
+            'l10n_ve_control_number': 'CTRL-005',
+            'line_ids': [
+                (0, 0, {
+                    'name': 'Producto Test 2',
+                    'account_id': self.account_expense.id,
+                    'price_unit': 500.0,
+                    'quantity': 1.0,
+                    'tax_ids': [(6, 0, [self.tax_general.id])],
+                }),
+            ],
+        })
+        move2.action_post()
+
+        action2 = move2.action_regenerate_vat_book_line()
+        self.assertEqual(action2['tag'], 'display_notification')
+        self.assertEqual(action2['params']['type'], 'success')

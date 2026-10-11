@@ -15,6 +15,7 @@ from . import (
     institution,
     obligation,
     obligation_type,
+    regenerate_confirm_wizard,
     res_partner,
     retention,
     retention_service,
