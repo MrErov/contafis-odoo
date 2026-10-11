@@ -35,7 +35,7 @@ Estado: pendiente
   Test: `test_regenerate_confirm_wizard_flow`.
   Hecho cuando: test pasa + acción abre wizard si hay is_manually_modified=True + toast si no.
 
-- [ ] **T7. Wizard factura física: modelo completo.**
+- [x] **T7. Wizard factura física: modelo completo.**
   RF-1, RF-4, RF-5, RF-6, RF-7, RF-13.
   Modelo: `l10n.ve.physical.invoice.wizard`.
   Tests: `test_wizard_create_purchase_invoice`, `test_wizard_create_sale_invoice`, `test_wizard_validates_rif_module_11`, `test_wizard_creates_partner_inline`, `test_wizard_physical_total_warning`.
