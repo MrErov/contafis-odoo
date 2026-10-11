@@ -48,3 +48,5 @@ access_l10n_ve_vat_book_generate_manager,l10n.ve.vat.book.generate.manager,model
 access_l10n_ve_vat_return_user,l10n.ve.vat.return.user,model_l10n_ve_vat_return,account.group_account_user,1,0,0,0
 access_l10n_ve_vat_return_manager,l10n.ve.vat.return.manager,model_l10n_ve_vat_return,account.group_account_manager,1,1,1,1
 access_l10n_ve_vat_return_accountant,l10n.ve.vat.return.accountant,model_l10n_ve_vat_return,l10n_ve_compliance_accountant,1,1,1,1
+access_l10n_ve_physical_invoice_wizard_user,l10n.ve.physical.invoice.wizard.user,model_l10n_ve_physical_invoice_wizard,base.group_user,1,1,1,1
+access_l10n_ve_physical_invoice_wizard_manager,l10n.ve.physical.invoice.wizard.manager,model_l10n_ve_physical_invoice_wizard,account.group_account_manager,1,1,1,1

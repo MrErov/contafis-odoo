@@ -15,6 +15,7 @@ from . import (
     institution,
     obligation,
     obligation_type,
+    physical_invoice_wizard,
     regenerate_confirm_wizard,
     res_partner,
     retention,

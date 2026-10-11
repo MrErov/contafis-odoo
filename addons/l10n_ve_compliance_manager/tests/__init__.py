@@ -8,6 +8,7 @@ from . import (
     test_import_vat_book,
     test_import_wizard,
     test_obligation,
+    test_physical_invoice_wizard,
     test_retention_service,
     test_vat_book_export,
     test_vat_book_generate,
