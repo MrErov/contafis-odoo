@@ -7,9 +7,14 @@
             <xpath expr="//form/header" position="inside">
                 <button name="action_generate_retention"
                         type="object"
-                        string="Generar Retención"
+                        string="Generar Retenci&#243;n"
                         class="btn-secondary"
                         invisible="move_type != 'in_invoice'"/>
+                <button name="action_regenerate_vat_book_line"
+                        type="object"
+                        string="Regenerar Libro"
+                        class="btn-secondary"
+                        invisible="state != 'posted' or move_type not in ('in_invoice','out_invoice')"/>
             </xpath>
             <xpath expr="//form/sheet/notebook" position="inside">
                 <page string="Retenciones" name="retentions">

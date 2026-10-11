@@ -24,6 +24,9 @@
                 <field name="retention_number" string="N&#176; Retenci&#243;n" optional="hide"/>
                 <field name="vat_retained" string="IVA Retenido" optional="hide" widget="float" sum="Retenido"/>
                 <field name="retention_direction" string="Dir. Retenci&#243;n" optional="hide"/>
+                <field name="source" invisible="1"/>
+                <field name="account_move_id" optional="hide"/>
+                <field name="is_manually_modified" invisible="1"/>
                 <field name="company_id" groups="base.group_multi_company" optional="hide"/>
             </list>
         </field>
@@ -57,6 +60,13 @@
                         <field name="retention_number"/>
                         <field name="vat_retained"/>
                         <field name="retention_direction"/>
+                    </group>
+                    <group string="Trazabilidad">
+                        <field name="source" readonly="1"/>
+                        <field name="account_move_id" readonly="1"/>
+                        <field name="modified_by" readonly="1"/>
+                        <field name="modified_at" readonly="1"/>
+                        <field name="is_manually_modified" readonly="1"/>
                     </group>
                 </sheet>
             </form>
