@@ -121,6 +121,17 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Fix derivado: item_35 suma solo bases
 - ✅ Commits: 5ef4224, 5a29e97
 
+### Backend Odoo-First (spec 001) — COMPLETADA
+- ✅ Wizard factura física (l10n.ve.physical.invoice.wizard)
+- ✅ Sync automático account.move → vat.book.line (override _post)
+- ✅ Botón "Regenerar Libro" + wizard de confirmación
+- ✅ Campos auditoría en vat.book.line (source, modified_by, is_manually_modified)
+- ✅ Refactor _get_operation_code() a vat_book_line.py
+- ✅ Campos l10n_ve_tax_type (account.tax) + l10n_ve_control_number (account.move)
+- ✅ ACLs + post_init_hook + export regression test
+- ✅ 121 tests (2 fallos pre-existentes en test_vat_book_generate)
+- ✅ Commits: d75f1b8, d6cf23d, 7eb86bd, + marcas de Tn
+
 ### DevOps.1: Pre-commit hooks + ruff config (COMPLETADA)
 - ✅ pyproject.toml con ruff (E/W/F/I/UP, line-length=120)
 - ✅ .pre-commit-config.yaml con 7 hooks (trailing-whitespace, end-of-file-fixer, check-yaml, check-xml, check-added-large-files, mixed-line-ending, ruff)
@@ -153,13 +164,12 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 ### Trabajo Futuro
 - ⬜ Spec 11: Conciliación ISLR
-- ⬜ Migrar `_sql_constraints` a `models.Constraint` (Odoo 19 lo
-  marcó deprecated, aparecen 2 warnings en logs)
+- ⬜ Fix 2 tests pre-existentes en test_vat_book_generate
+- ⬜ post_init_hook: hacerlo efectivo con schema change (nullable source)
+- ⬜ Migrar `_sql_constraints` a `models.Constraint`
 - ⬜ Warning cartelera_status_current_ids no searchable
-- ⬜ Fase backend: asientos contables + wizard factura física + source en líneas
-- ⬜ Fase H: E2E con Playwright (subida de Excel vía UI)
-- ⬜ Tests de integración con fixtures de cartelera y
-  conciliación fiscal (ya en repo, sin tests)
+- ⬜ country_id guard en _post() para multi-país
+- ⬜ Menú directo para vat.book.line list
 - ⬜ Importación de asientos contables (account.move)
 - ⬜ Integración MCP Odoo (mart337i/odoo-dev-mcp)
 - ⬜ Fix RIF None en export XLSX cuando company.vat está vacío
