@@ -129,8 +129,9 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Refactor _get_operation_code() a vat_book_line.py
 - ✅ Campos l10n_ve_tax_type (account.tax) + l10n_ve_control_number (account.move)
 - ✅ ACLs + post_init_hook + export regression test
-- ✅ 121 tests (2 fallos pre-existentes en test_vat_book_generate)
-- ✅ Commits: d75f1b8, d6cf23d, 7eb86bd, + marcas de Tn
+- ✅ Fix retention_direction en _post() y action_generate() (T5 sync)
+- ✅ 121 tests pasando (fix tests pre-existentes)
+- ✅ Commits: d75f1b8, d6cf23d, 7eb86bd, 972fe19, + marcas de Tn
 
 ### DevOps.1: Pre-commit hooks + ruff config (COMPLETADA)
 - ✅ pyproject.toml con ruff (E/W/F/I/UP, line-length=120)
@@ -166,7 +167,6 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ⬜ Spec 11: Conciliación ISLR
 - ⬜ Fase H: E2E con Playwright (subida de Excel vía UI)
 - ⬜ Tests de integración con fixtures de cartelera y conciliación fiscal (ya en repo, sin tests)
-- ⬜ Fix 2 tests pre-existentes en test_vat_book_generate
 - ⬜ post_init_hook: hacerlo efectivo con schema change (nullable source)
 - ⬜ Migrar `_sql_constraints` a `models.Constraint`
 - ⬜ Warning cartelera_status_current_ids no searchable
@@ -178,13 +178,16 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ⬜ DevOps.1b: ruff-format (opcional, reformatearía 30+ archivos)
 - ⬜ DevOps.2: GitHub Actions CI (lint + test jobs)
 
+### Deuda Técnica (nueva)
+- Helper `_get_or_create_tax_group()` duplicado en 4 test files (test_account_tax, test_export_regression, test_physical_invoice_wizard, test_vat_book_line_sync, test_vat_book_line_fields). Extraer a `tests/common.py` para evitar duplicación.
+
 ## Estado del Portafolio
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/specs/, opencode.json)
-- ✅ 107 tests pasando
-- ✅ Ruff limpio en E/W/F/I/UP (nuevo)
-- ✅ Pre-commit configurado con ruff (nuevo)
+- ✅ 121 tests pasando
+- ✅ Ruff limpio en E/W/F/I/UP
+- ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`
 - ⬜ Capturas de pantalla en docs/screenshots/
 - ⬜ Topics GitHub
