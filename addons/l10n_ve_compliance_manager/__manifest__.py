@@ -20,6 +20,7 @@ Incluye:
     """,
     'license': 'LGPL-3',
     'depends': ['base', 'account', 'mail', 'l10n_ve'],
+    'post_init_hook': 'hooks.post_init_hook',
     'data': [
         'security/groups.xml',
         'security/ir.model.access.csv',

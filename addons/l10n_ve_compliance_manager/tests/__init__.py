@@ -4,6 +4,7 @@ from . import (
     test_cartelera_status,
     test_compliance_client,
     test_document_types,
+    test_export_regression,
     test_import_cartelera,
     test_import_vat_book,
     test_import_wizard,
