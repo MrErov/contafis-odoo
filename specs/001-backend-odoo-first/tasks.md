@@ -46,7 +46,7 @@ Estado: pendiente
   Verificación: pre-commit run check-xml + visual manual.
   Hecho cuando: 3 archivos XML cargan sin error + 107 tests verdes + sin attrs= + sin confirm= en botones.
 
-- [ ] **T9. ACLs, manifest, post_init_hook, export regression.**
+- [x] **T9. ACLs, manifest, post_init_hook, export regression.**
   RF-9, RF-11.
   Test primero: `test_export_xlsx_includes_odoo_lines`.
   Hecho cuando: test pasa + hook ejecuta UPDATE source en líneas existentes + módulo instala limpio.
