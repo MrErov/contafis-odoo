@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_l10n_ve_physical_invoice_wizard_form" model="ir.ui.view">
+        <field name="name">l10n.ve.physical.invoice.wizard.form</field>
+        <field name="model">l10n.ve.physical.invoice.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Factura Física Rápida">
+                <header>
+                    <button name="action_create_and_post" string="Crear y Postear"
+                            type="object" class="btn-primary"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </header>
+                <sheet>
+                    <group string="Información General">
+                        <group>
+                            <field name="type" required="true"/>
+                            <field name="partner_vat" required="true"
+                                   help="RIF del proveedor/cliente (ej: J-12345678-9)"/>
+                            <field name="partner_id" invisible="not partner_id"/>
+                            <field name="partner_name" invisible="not partner_id" readonly="1"/>
+                            <field name="invoice_number" required="true"/>
+                            <field name="control_number" required="true"/>
+                            <field name="invoice_date" required="true"/>
+                            <field name="invoice_date_due"/>
+                            <field name="currency_id" required="true"/>
+                        </group>
+                        <group>
+                            <field name="concept"/>
+                            <field name="physical_total" optional="show"/>
+                            <field name="computed_total" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <group string="Bases e IVA" col="4">
+                        <group>
+                            <field name="base_general" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"/>
+                            <field name="vat_general" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="base_reduced" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"/>
+                            <field name="vat_reduced" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="base_additional" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"/>
+                            <field name="vat_additional" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="base_no_credit" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"/>
+                            <field name="vat_no_credit" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="base_not_subject" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"/>
+                        </group>
+                        <group>
+                            <field name="base_not_taxed" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"/>
+                        </group>
+                    </group>
+
+                    <group string="Retención" col="4" invisible="type != 'purchase'">
+                        <group>
+                            <field name="retention_number"/>
+                            <field name="retention_vat" widget="monetary"
+                                   options="{'currency_field': 'currency_id'}"/>
+                            <field name="retention_direction"/>
+                        </group>
+                    </group>
+
+                    <group string="Nuevo Partner" col="4" invisible="partner_id">
+                        <group>
+                            <field name="new_partner_name" required="1"/>
+                            <field name="new_partner_type" required="1"/>
+                        </group>
+                        <group>
+                            <field name="new_partner_street"/>
+                            <field name="new_partner_email"/>
+                        </group>
+                        <group>
+                            <field name="new_partner_phone"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Wizard Action -->
+    <record id="action_l10n_ve_physical_invoice_wizard" model="ir.actions.act_window">
+        <field name="name">Factura Física Rápida</field>
+        <field name="res_model">l10n.ve.physical.invoice.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

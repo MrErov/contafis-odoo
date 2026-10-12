@@ -27,6 +27,12 @@
               action="action_l10n_ve_alert"
               sequence="40"/>
 
+    <menuitem id="menu_l10n_ve_physical_invoice"
+              name="Factura Física Rápida"
+              parent="menu_l10n_ve_compliance_root"
+              action="action_l10n_ve_physical_invoice_wizard"
+              sequence="45"/>
+
     <menuitem id="menu_l10n_ve_compliance_config"
               name="Configuración"
               parent="menu_l10n_ve_compliance_root"
