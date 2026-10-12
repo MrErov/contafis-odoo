@@ -51,7 +51,7 @@ Estado: pendiente
   Test primero: `test_export_xlsx_includes_odoo_lines`.
   Hecho cuando: test pasa + hook ejecuta UPDATE source en líneas existentes + módulo instala limpio.
 
-- [ ] **T10. Regresión completa + verificación visual.**
+- [x] **T10. Regresión completa + verificación visual.**
   Todos los RFs.
   Comando: `docker compose run --rm web odoo -d contea -u l10n_ve_compliance_manager --test-enable --stop-after-init --workers 0 --test-tags /l10n_ve_compliance_manager`
   Hecho cuando: 0 failed, 0 error(s) of 122 tests + Ruff limpio + creación manual de factura por wizard end-to-end verificada.
