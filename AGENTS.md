@@ -273,3 +273,17 @@ vistas. El fallo está en la capa navegador ↔ servidor. Orden de comprobación
    payload lo dan `load_web_menus` por HTTP autenticado (73 nodos con la BD
    reparada) y por ORM. Cualquier discrepancia entre el navegador y esos dos
    números es problema de entorno (WSL/service worker/localStorage).
+
+## Rutas (crítico)
+
+- ✅ Usar SIEMPRE rutas Unix/WSL: /mnt/c/Users/hp/Desktop/ContaFis/...
+- ❌ NUNCA usar rutas Windows: C:\Users\hp\Desktop\...
+- ❌ NUNCA crear archivos cuyo nombre contenga backslashes literales
+
+Razón: al escribir a C:\... desde WSL, los backslashes se vuelven
+caracteres literales del nombre → archivos basura que contaminan el
+working tree (ocurrió en esta sesión con C:UsershpDesktop...odoo.js).
+
+Reglas:
+- ❌ NO reformatear
+- ✅ Editar con edit
