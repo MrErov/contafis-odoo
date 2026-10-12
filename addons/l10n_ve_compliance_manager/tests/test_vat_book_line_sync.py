@@ -11,14 +11,47 @@ class TestVatBookLineSync(TransactionCase):
             'vat': 'J-12345678-9',
         })
         self.company = self.env.company
-        self.journal = self.env['account.journal'].search([
-            ('type', '=', 'purchase'),
-            ('company_id', '=', self.company.id),
+        self.country = self.env['res.country'].search([('code', '=', 'VE')], limit=1)
+        if not self.country:
+            self.country = self.env['res.country'].create({'name': 'Venezuela', 'code': 'VE'})
+        self.company.account_fiscal_country_id = self.country
+
+        # Create proper accounts for testing
+        self.account_payable = self.env['account.account'].search([
+            ('account_type', '=', 'liability_payable'),
+            ('company_ids', 'in', [self.company.id]),
         ], limit=1)
+        if not self.account_payable:
+            self.account_payable = self.env['account.account'].create({
+                'name': 'Cuentas por Pagar Test', 'code': '210000', 'account_type': 'liability_payable',
+                'company_ids': [(6, 0, [self.company.id])],
+            })
+
         self.account_expense = self.env['account.account'].search([
             ('account_type', '=', 'expense'),
             ('company_ids', 'in', [self.company.id]),
         ], limit=1)
+        if not self.account_expense:
+            self.account_expense = self.env['account.account'].create({
+                'name': 'Gastos Test', 'code': '610000', 'account_type': 'expense',
+                'company_ids': [(6, 0, [self.company.id])],
+            })
+
+        self.partner.property_account_payable_id = self.account_payable
+
+        self.journal = self.env['account.journal'].search([
+            ('type', '=', 'purchase'),
+            ('company_id', '=', self.company.id),
+        ], limit=1)
+        if not self.journal:
+            self.journal = self.env['account.journal'].create({
+                'name': 'Compras Test', 'code': 'PURTEST', 'type': 'purchase',
+                'company_id': self.company.id,
+                'default_account_id': self.account_expense.id,
+            })
+
+        self.tax_group = self._get_or_create_tax_group()
+
         self.tax_general = self.env['account.tax'].search([
             ('amount_type', '=', 'percent'),
             ('amount', '=', 16.0),
@@ -34,7 +67,24 @@ class TestVatBookLineSync(TransactionCase):
                 'l10n_ve_tax_type': 'general',
                 'type_tax_use': 'purchase',
                 'company_id': self.company.id,
+                'tax_group_id': self.tax_group.id,
+                'country_id': self.country.id,
             })
+
+    def _get_or_create_tax_group(self):
+        group = self.env['account.tax.group'].search([
+            ('company_id', '=', self.company.id)
+        ], limit=1)
+        if not group:
+            group = self.env['account.tax.group'].create({
+                'name': 'IVA', 'country_id': self.country.id,
+            })
+        else:
+            if group.country_id and group.country_id.id != self.country.id:
+                group.write({'country_id': self.country.id})
+            if 'IVA' not in (group.name or '').upper():
+                group.write({'name': 'IVA'})
+        return group
 
     def test_account_move_control_number_field(self):
         """Verifica que account.move tiene campo l10n_ve_control_number (Char, copy=False)."""

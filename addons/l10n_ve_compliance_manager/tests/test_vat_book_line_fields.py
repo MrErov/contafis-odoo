@@ -10,6 +10,40 @@ class TestVatBookLineFields(TransactionCase):
         self.company = self.env.company
         self.user = self.env.user
 
+        # Create proper accounts for testing
+        self.account_payable = self.env['account.account'].search([
+            ('account_type', '=', 'liability_payable'),
+            ('company_ids', 'in', [self.company.id]),
+        ], limit=1)
+        if not self.account_payable:
+            self.account_payable = self.env['account.account'].create({
+                'name': 'Cuentas por Pagar Test', 'code': '210000', 'account_type': 'liability_payable',
+                'company_ids': [(6, 0, [self.company.id])],
+            })
+
+        self.account_expense = self.env['account.account'].search([
+            ('account_type', '=', 'expense'),
+            ('company_ids', 'in', [self.company.id]),
+        ], limit=1)
+        if not self.account_expense:
+            self.account_expense = self.env['account.account'].create({
+                'name': 'Gastos Test', 'code': '610000', 'account_type': 'expense',
+                'company_ids': [(6, 0, [self.company.id])],
+            })
+
+        self.partner.property_account_payable_id = self.account_payable
+
+        self.journal = self.env['account.journal'].search([
+            ('type', '=', 'purchase'),
+            ('company_id', '=', self.company.id),
+        ], limit=1)
+        if not self.journal:
+            self.journal = self.env['account.journal'].create({
+                'name': 'Compras Test', 'code': 'PURTEST', 'type': 'purchase',
+                'company_id': self.company.id,
+                'default_account_id': self.account_expense.id,
+            })
+
     def test_source_and_audit_fields(self):
         """Verifica que vat.book.line tiene campos source, account_move_id, auditoría."""
         model = self.env['l10n.ve.vat.book.line']
@@ -77,12 +111,12 @@ class TestVatBookLineFields(TransactionCase):
             'move_type': 'in_invoice',
             'partner_id': self.partner.id,
             'invoice_date': '2026-08-15',
-            'journal_id': self.env['account.journal'].search([('type', '=', 'purchase')], limit=1).id,
+            'journal_id': self.journal.id,
             'name': 'TEST-001',
             'line_ids': [
                 (0, 0, {
                     'name': 'Base General',
-                    'account_id': self.env['account.account'].search([('account_type', '=', 'expense')], limit=1).id,
+                    'account_id': self.account_expense.id,
                     'debit': 1000.0,
                     'credit': 0.0,
                 }),

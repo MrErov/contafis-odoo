@@ -88,6 +88,12 @@ class AccountMove(models.Model):
 
                 operation_code = self.env['l10n.ve.vat.book.line']._get_operation_code(rate_type, book_type)
 
+                # Calcular retention_direction igual que el wizard
+                if self.move_type in ('out_invoice', 'out_refund'):
+                    retention_direction = 'by_buyer'
+                else:
+                    retention_direction = 'to_vendor'
+
                 vals = {
                     'account_move_id': self.id,
                     'source': 'odoo_invoice',
@@ -98,6 +104,7 @@ class AccountMove(models.Model):
                     'control_number': self.l10n_ve_control_number or self.ref or self.name or '',
                     'period_month': period_month,
                     'company_id': self.company_id.id,
+                    'retention_direction': retention_direction,
                 }
 
                 # Asignar según rate_type

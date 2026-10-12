@@ -180,6 +180,7 @@ class VatBookGenerate(models.Model):
                     ('period_month', '=', vals['period_month']),
                     ('company_id', '=', vals['company_id']),
                     ('operation_code', '=', vals['operation_code']),
+                    ('retention_direction', '=', vals['retention_direction']),
                 ], limit=1)
 
                 if existing:

@@ -8,27 +8,85 @@ class TestPhysicalInvoiceWizard(TransactionCase):
     def setUp(self):
         super().setUp()
         self.company = self.env.company
+        self.country = self.env['res.country'].search([('code', '=', 'VE')], limit=1)
+        if not self.country:
+            self.country = self.env['res.country'].create({'name': 'Venezuela', 'code': 'VE'})
+        self.company.account_fiscal_country_id = self.country
+
         self.partner = self.env['res.partner'].create({
             'name': 'Proveedor Test',
             'vat': 'J-31527189-4',  # RIF válido
         })
         self.company_id = self.company.id
-        self.journal_purchase = self.env['account.journal'].search([
-            ('type', '=', 'purchase'),
-            ('company_id', '=', self.company_id),
+
+        # Create proper accounts for testing
+        self.account_payable = self.env['account.account'].search([
+            ('account_type', '=', 'liability_payable'),
+            ('company_ids', 'in', [self.company_id]),
         ], limit=1)
-        self.journal_sale = self.env['account.journal'].search([
-            ('type', '=', 'sale'),
-            ('company_id', '=', self.company_id),
+        if not self.account_payable:
+            self.account_payable = self.env['account.account'].create({
+                'name': 'Cuentas por Pagar Test', 'code': '210000', 'account_type': 'liability_payable',
+                'company_ids': [(6, 0, [self.company_id])],
+            })
+
+        self.account_receivable = self.env['account.account'].search([
+            ('account_type', '=', 'asset_receivable'),
+            ('company_ids', 'in', [self.company_id]),
         ], limit=1)
+        if not self.account_receivable:
+            self.account_receivable = self.env['account.account'].create({
+                'name': 'Cuentas por Cobrar Test', 'code': '110000', 'account_type': 'asset_receivable',
+                'company_ids': [(6, 0, [self.company_id])],
+            })
+
         self.account_expense = self.env['account.account'].search([
             ('account_type', '=', 'expense'),
             ('company_ids', 'in', [self.company_id]),
         ], limit=1)
+        if not self.account_expense:
+            self.account_expense = self.env['account.account'].create({
+                'name': 'Gastos Test', 'code': '610000', 'account_type': 'expense',
+                'company_ids': [(6, 0, [self.company_id])],
+            })
+
         self.account_income = self.env['account.account'].search([
             ('account_type', '=', 'income'),
             ('company_ids', 'in', [self.company_id]),
         ], limit=1)
+        if not self.account_income:
+            self.account_income = self.env['account.account'].create({
+                'name': 'Ingresos Test', 'code': '410000', 'account_type': 'income',
+                'company_ids': [(6, 0, [self.company_id])],
+            })
+
+        # Set partner payable/receivable accounts
+        self.partner.property_account_payable_id = self.account_payable
+        self.partner.property_account_receivable_id = self.account_receivable
+
+        self.journal_purchase = self.env['account.journal'].search([
+            ('type', '=', 'purchase'),
+            ('company_id', '=', self.company_id),
+        ], limit=1)
+        if not self.journal_purchase:
+            self.journal_purchase = self.env['account.journal'].create({
+                'name': 'Compras Test', 'code': 'PTEST', 'type': 'purchase',
+                'company_id': self.company_id,
+                'default_account_id': self.account_expense.id,
+            })
+
+        self.journal_sale = self.env['account.journal'].search([
+            ('type', '=', 'sale'),
+            ('company_id', '=', self.company_id),
+        ], limit=1)
+        if not self.journal_sale:
+            self.journal_sale = self.env['account.journal'].create({
+                'name': 'Ventas Test', 'code': 'STEST', 'type': 'sale',
+                'company_id': self.company_id,
+                'default_account_id': self.account_income.id,
+            })
+
+        self.tax_group = self._get_or_create_tax_group()
 
         # Crear impuestos para purchase
         self.tax_general_purchase = self.env['account.tax'].search([
@@ -46,6 +104,8 @@ class TestPhysicalInvoiceWizard(TransactionCase):
                 'l10n_ve_tax_type': 'general',
                 'type_tax_use': 'purchase',
                 'company_id': self.company_id,
+                'tax_group_id': self.tax_group.id,
+                'country_id': self.country.id,
             })
 
         self.tax_reduced_purchase = self.env['account.tax'].search([
@@ -63,6 +123,8 @@ class TestPhysicalInvoiceWizard(TransactionCase):
                 'l10n_ve_tax_type': 'reduced',
                 'type_tax_use': 'purchase',
                 'company_id': self.company_id,
+                'tax_group_id': self.tax_group.id,
+                'country_id': self.country.id,
             })
 
         self.tax_additional_purchase = self.env['account.tax'].search([
@@ -80,6 +142,8 @@ class TestPhysicalInvoiceWizard(TransactionCase):
                 'l10n_ve_tax_type': 'additional',
                 'type_tax_use': 'purchase',
                 'company_id': self.company_id,
+                'tax_group_id': self.tax_group.id,
+                'country_id': self.country.id,
             })
 
         self.tax_no_credit_purchase = self.env['account.tax'].search([
@@ -97,6 +161,8 @@ class TestPhysicalInvoiceWizard(TransactionCase):
                 'l10n_ve_tax_type': 'no_credit',
                 'type_tax_use': 'purchase',
                 'company_id': self.company_id,
+                'tax_group_id': self.tax_group.id,
+                'country_id': self.country.id,
             })
 
         # Crear impuestos para sale
@@ -115,6 +181,8 @@ class TestPhysicalInvoiceWizard(TransactionCase):
                 'l10n_ve_tax_type': 'general',
                 'type_tax_use': 'sale',
                 'company_id': self.company_id,
+                'tax_group_id': self.tax_group.id,
+                'country_id': self.country.id,
             })
 
         self.tax_reduced_sale = self.env['account.tax'].search([
@@ -132,6 +200,8 @@ class TestPhysicalInvoiceWizard(TransactionCase):
                 'l10n_ve_tax_type': 'reduced',
                 'type_tax_use': 'sale',
                 'company_id': self.company_id,
+                'tax_group_id': self.tax_group.id,
+                'country_id': self.country.id,
             })
 
         self.tax_additional_sale = self.env['account.tax'].search([
@@ -149,6 +219,8 @@ class TestPhysicalInvoiceWizard(TransactionCase):
                 'l10n_ve_tax_type': 'additional',
                 'type_tax_use': 'sale',
                 'company_id': self.company_id,
+                'tax_group_id': self.tax_group.id,
+                'country_id': self.country.id,
             })
 
         self.tax_no_credit_sale = self.env['account.tax'].search([
@@ -166,6 +238,8 @@ class TestPhysicalInvoiceWizard(TransactionCase):
                 'l10n_ve_tax_type': 'no_credit',
                 'type_tax_use': 'sale',
                 'company_id': self.company_id,
+                'tax_group_id': self.tax_group.id,
+                'country_id': self.country.id,
             })
 
         self.tax_general = self.tax_general_purchase  # Para compatibilidad
@@ -177,6 +251,21 @@ class TestPhysicalInvoiceWizard(TransactionCase):
             ('account_type', '=', 'income'),
             ('company_ids', 'in', [self.company_id]),
         ], limit=1)
+
+    def _get_or_create_tax_group(self):
+        group = self.env['account.tax.group'].search([
+            ('company_id', '=', self.company.id)
+        ], limit=1)
+        if not group:
+            group = self.env['account.tax.group'].create({
+                'name': 'IVA', 'country_id': self.country.id,
+            })
+        else:
+            if group.country_id and group.country_id.id != self.country.id:
+                group.write({'country_id': self.country.id})
+            if 'IVA' not in (group.name or '').upper():
+                group.write({'name': 'IVA'})
+        return group
 
     def test_wizard_create_purchase_invoice(self):
         """Crear factura de compra vía wizard y verificar asiento + vat.book.line."""
