@@ -164,6 +164,8 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 ### Trabajo Futuro
 - ⬜ Spec 11: Conciliación ISLR
+- ⬜ Fase H: E2E con Playwright (subida de Excel vía UI)
+- ⬜ Tests de integración con fixtures de cartelera y conciliación fiscal (ya en repo, sin tests)
 - ⬜ Fix 2 tests pre-existentes en test_vat_book_generate
 - ⬜ post_init_hook: hacerlo efectivo con schema change (nullable source)
 - ⬜ Migrar `_sql_constraints` a `models.Constraint`
