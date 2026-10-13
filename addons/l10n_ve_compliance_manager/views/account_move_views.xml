@@ -32,6 +32,15 @@
                         <field name="retention_amount" readonly="1"/>
                     </group>
                 </page>
+                <page string="Info Fiscal VE" name="info_fiscal_ve">
+                    <group string="Tipo de Emisión">
+                        <field name="emission_type"/>
+                        <field name="fiscal_machine_serial"
+                               invisible="emission_type != 'maquina_fiscal'"/>
+                        <field name="fiscal_machine_report_z"
+                               invisible="emission_type != 'maquina_fiscal'"/>
+                    </group>
+                </page>
             </xpath>
         </field>
     </record>

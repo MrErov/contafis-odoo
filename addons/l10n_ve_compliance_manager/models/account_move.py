@@ -5,6 +5,22 @@ from odoo.exceptions import UserError
 class AccountMove(models.Model):
     _inherit = 'account.move'
 
+    emission_type = fields.Selection([
+        ('talonario', 'Talonario'),
+        ('maquina_fiscal', 'Máquina Fiscal'),
+        ('digital', 'Digital'),
+    ], string='Tipo de Emisión')
+
+    fiscal_machine_serial = fields.Char(
+        string='Serial Máquina Fiscal',
+        copy=False,
+    )
+
+    fiscal_machine_report_z = fields.Char(
+        string='N° Reporte Z',
+        copy=False,
+    )
+
     l10n_ve_control_number = fields.Char(
         string='Número de Control SENIAT',
         readonly=True,

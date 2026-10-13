@@ -32,6 +32,16 @@ class PhysicalInvoiceWizard(models.TransientModel):
     invoice_date = fields.Date(string='Fecha de Emisión', required=True, default=fields.Date.today)
     invoice_date_due = fields.Date(string='Fecha de Vencimiento')
 
+    # Tipo de Emisión
+    emission_type = fields.Selection([
+        ('talonario', 'Talonario'),
+        ('maquina_fiscal', 'Máquina Fiscal'),
+        ('digital', 'Digital'),
+    ], string='Tipo de Emisión', default='talonario', required=True)
+
+    fiscal_machine_serial = fields.Char(string='Serial Máquina Fiscal')
+    fiscal_machine_report_z = fields.Char(string='N° Reporte Z')
+
     # Bases e IVA
     currency_id = fields.Many2one(
         'res.currency',
@@ -316,6 +326,9 @@ class PhysicalInvoiceWizard(models.TransientModel):
             'ref': self.control_number,
             'narration': self.concept,
             'line_ids': move_lines,
+            'emission_type': self.emission_type,
+            'fiscal_machine_serial': self.fiscal_machine_serial,
+            'fiscal_machine_report_z': self.fiscal_machine_report_z,
         })
 
         # Postear
