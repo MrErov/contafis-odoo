@@ -31,3 +31,55 @@ jobs:
 
       - name: Run pre-commit
         run: pre-commit run --all-files --show-diff-on-failure
+
+  backend-tests:
+    name: Backend tests (Odoo + PostgreSQL)
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare addons
+        run: |
+          mkdir -p /tmp/extra-addons
+          cp -r addons/l10n_ve_compliance_manager /tmp/extra-addons/
+
+      - name: Run Odoo tests
+        run: |
+          docker run --rm --network host \
+            -v /tmp/extra-addons:/mnt/extra-addons \
+            -e HOST=localhost \
+            -e USER=odoo \
+            -e PASSWORD=odoo \
+            odoo:19.0 \
+            odoo -d test_ci \
+              -i l10n_ve_compliance_manager \
+              --test-enable \
+              --stop-after-init \
+              --no-http \
+              --workers=0 \
+              --log-level=test 2>&1 | tee /tmp/odoo_test.log
+          grep "tests when" /tmp/odoo_test.log
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: odoo-test-log
+          path: /tmp/odoo_test.log
