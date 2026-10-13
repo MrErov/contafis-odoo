@@ -151,6 +151,27 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Ruff limpio en E/W/F/I/UP sobre todo el repo
 - ✅ 107 tests pasando
 
+### Fase H: E2E con Playwright (PARCIAL — 4/7 sub-fases)
+- ✅ Fase 0: Menú wizard + vista heredada
+- ✅ Fase 1: Setup Playwright (package.json, playwright.config.js)
+- ✅ Fase 2: Smoke test (login + navbar + console limpia) — 3 tests
+- ✅ Fase 3: Wizard factura física (abrir, validar RIF, submit) — 3 tests
+- ✅ Fase 4: Regenerar libro (botón + click sin error) — 1 test
+- ⬜ Fase 5: Planilla IVA + líneas del libro E2E
+- ⬜ Fase 6: Multi-company E2E
+- ⬜ Fase 7: CI integration (GitHub Actions)
+
+### Fixes descubiertos por E2E
+- Vista account.move: `invisible` con tupla → lista (commit 004afcd)
+- Faltaban 5 SENIAT VAT taxes (commit 781ee07)
+- Menú wizard factura física no existía (commit 718f0be)
+- Tests wizard: menús en español + waitForSelector navbar (commit e57748a)
+
+### Estado actual
+- 7/7 tests E2E pasando
+- 121/121 tests backend pasando
+- Total: 128 tests
+
 ### UX-1: Rediseño vistas vat.return (COMPLETADA)
 - ✅ List view: columnas ordenadas, badges, sumatorias, totales
 - ✅ Form view: grupos lógicos, readonly, readonly no editable
@@ -165,7 +186,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 ### Trabajo Futuro
 - ⬜ Spec 11: Conciliación ISLR
-- ⬜ Fase H: E2E con Playwright (subida de Excel vía UI)
+- ⬜ Fase H: E2E con Playwright — 5/7 sub-fases (Fases 5, 6, 7 pendientes)
 - ⬜ Tests de integración con fixtures de cartelera y conciliación fiscal (ya en repo, sin tests)
 - ⬜ post_init_hook: hacerlo efectivo con schema change (nullable source)
 - ⬜ Migrar `_sql_constraints` a `models.Constraint`
@@ -185,7 +206,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
-- ✅ 121 tests pasando
+- ✅ 121 tests backend + 7 tests E2E = 128 tests pasando
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`
