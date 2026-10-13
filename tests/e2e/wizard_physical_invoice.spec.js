@@ -9,11 +9,13 @@ test.describe('Wizard Factura Física', () => {
   test('se abre desde el menú', async ({ page }) => {
     // Navegar a la página principal
     await page.goto('/odoo/web', { waitUntil: 'domcontentloaded' });
+    // Esperar a que el navbar esté visible (Odoo 19 necesita tiempo para cargar)
+    await page.waitForSelector('.o_main_navbar, .o_user_menu, header', { timeout: 15000 });
 
     // Click en el botón Home Menu
-    await page.getByTitle('Home Menu').first().click();
+    await page.getByTitle('Menú de inicio').first().click();
     await page.getByRole('menuitem', { name: 'Cumplimiento VE' }).click();
-    await page.getByTitle('More Menu').first().click();
+    await page.getByTitle('Más').first().click();
     await page.getByRole('menuitem', { name: 'Factura Física Rápida' }).click();
 
     // Verificar que el wizard se abre (esperar título visible)
@@ -23,9 +25,10 @@ test.describe('Wizard Factura Física', () => {
   test('valida RIF inválido', async ({ page }) => {
     // Abrir wizard
     await page.goto('/odoo/web', { waitUntil: 'domcontentloaded' });
-    await page.getByTitle('Home Menu').first().click();
+    await page.waitForSelector('.o_main_navbar, .o_user_menu, header', { timeout: 15000 });
+    await page.getByTitle('Menú de inicio').first().click();
     await page.getByRole('menuitem', { name: 'Cumplimiento VE' }).click();
-    await page.getByTitle('More Menu').first().click();
+    await page.getByTitle('Más').first().click();
     await page.getByRole('menuitem', { name: 'Factura Física Rápida' }).click();
 
     // Esperar a que el título sea visible
@@ -46,9 +49,10 @@ test.describe('Wizard Factura Física', () => {
   test('crea factura de compra end-to-end', async ({ page }) => {
     // Abrir wizard
     await page.goto('/odoo/web', { waitUntil: 'domcontentloaded' });
-    await page.getByTitle('Home Menu').first().click();
+    await page.waitForSelector('.o_main_navbar, .o_user_menu, header', { timeout: 15000 });
+    await page.getByTitle('Menú de inicio').first().click();
     await page.getByRole('menuitem', { name: 'Cumplimiento VE' }).click();
-    await page.getByTitle('More Menu').first().click();
+    await page.getByTitle('Más').first().click();
     await page.getByRole('menuitem', { name: 'Factura Física Rápida' }).click();
 
     // Verificar que el wizard se abre
