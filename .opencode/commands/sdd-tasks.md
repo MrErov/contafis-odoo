@@ -3,7 +3,7 @@ description: SDD — Divide el plan en tareas pequeñas y verificables
 agent: plan
 ---
 
-IMPORTANTE: las rutas de specs son relativas a la RAÍZ del repo (donde está AGENTS.md). NO usar docs/specs/.
+IMPORTANTE: las rutas de specs son relativas a la RAÍZ del repo (donde está AGENTS.md). NO usar docs/capacidades/.
 
 A partir de `specs/$1/spec.md (relativo a la RAÍZ del repo, NO a docs/)` y `specs/$1/plan.md (relativo a la RAÍZ del repo, NO a docs/)`, genera
 `specs/$1/tasks.md (relativo a la RAÍZ del repo, NO a docs/)` con:

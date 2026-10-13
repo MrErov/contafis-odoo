@@ -11,7 +11,7 @@ Antes de escribir código, prepárame un plan con:
 1. **Cómo la vas a implementar**, respetando las reglas de `@AGENTS.md`.
 2. **Qué archivos vas a modificar** y qué cambia en cada uno.
 3. **Los casos límite** y las dudas que debo decidir yo antes de empezar.
-4. **Qué actualizarías en `docs/specs/` y `docs/memory.md`**.
+4. **Qué actualizarías en `docs/capacidades/` y `docs/memory.md`**.
 
 ## Contexto obligatorio a leer
 

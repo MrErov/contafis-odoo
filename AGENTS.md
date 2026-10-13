@@ -42,9 +42,27 @@ docker compose logs -f web
 - `inverse` en computed stored editables
 - No usar `attrs=` ni `states=` (deprecados en Odoo 17+)
 
+## Modos de trabajo
+
+### Modo SDD (tareas grandes)
+Cuándo: features nuevas, multi-día, requisitos ambiguos, >100 líneas.
+Cómo: /sdd-spec → /sdd-clarify → /sdd-plan → /sdd-tasks → /sdd-implement
+Artefactos: specs/NNN-nombre/{spec.md, plan.md, tasks.md}
+
+### Modo Lightweight (tareas chicas)
+Cuándo: bug fix con scope claro, refactor chico, agregar 1 campo, fix de test, update de string, cambio de selector.
+Cómo: explorar (solo lectura) → editar → test → commit.
+Artefactos: ningún .md nuevo. Solo código + test + commit message.
+
+### Cómo decidir
+- ¿Se describe en 1-3 oraciones? → Lightweight
+- ¿Hay que explicar comportamiento nuevo a un usuario? → SDD
+- ¿Hay decisiones con alternativas descartadas? → SDD
+- ¿Es arreglar algo que ya existe? → Lightweight
+
 ## Workflow Rules
 - Leer `docs/constitution.md` antes de tocar código.
-- Antes de tocar código, leer `docs/specs/[capacidad].md` correspondiente.
+- Antes de tocar código, leer `docs/capacidades/[capacidad].md` correspondiente.
 - Consultar `docs/memory.md` para decisiones ya tomadas. NO preguntar lo ya resuelto.
 - **Actualizar `docs/memory.md` con decisiones, aprendizajes y pendientes nuevos. NO commitear (es local, está en .gitignore).**
 - NO tocar archivos fuera de `addons/l10n_ve_compliance_manager/` sin autorización.
@@ -65,12 +83,16 @@ Consultar `docs/memory.md` para:
 
 ## Reference Files
 - `SPEC.md` → índice de capacidades
-- `docs/specs/01-calendario-seniat.md` → vencimientos
-- `docs/specs/02-gestion-alertas.md` → alertas
-- `docs/specs/03-cartelera-fiscal.md` → documentos
-- `docs/specs/04-retenciones.md` → retenciones
-- `docs/specs/05-dashboard-reportes.md` → dashboard y reportes
-- `docs/specs/06-importacion-excel.md` → importación desde Excel
+- `docs/capacidades/01-calendario-seniat.md` → vencimientos
+- `docs/capacidades/02-gestion-alertas.md` → alertas
+- `docs/capacidades/03-cartelera-fiscal.md` → documentos
+- `docs/capacidades/04-retenciones.md` → retenciones
+- `docs/capacidades/05-dashboard-reportes.md` → dashboard y reportes
+- `docs/capacidades/06-importacion-excel.md` → importación desde Excel
+- `docs/capacidades/07-cartelera-excel.md` → cartelera desde Excel
+- `docs/capacidades/08-evidencias.md` → evidencias fotográficas
+- `docs/capacidades/09-libro-compras-ventas.md` → libro compras/ventas
+- `docs/capacidades/10-importacion-libro-compras-ventas.md` → importación libro
 - `docs/memory.md` → decisiones y contexto
 
 ## Anti-patterns (PROHIBIDO)
@@ -287,3 +309,27 @@ working tree (ocurrió en esta sesión con C:UsershpDesktop...odoo.js).
 Reglas:
 - ❌ NO reformatear
 - ✅ Editar con edit
+
+## Anti-patterns aprendidos en Fase E2 (continuación)
+
+### 10. Loops de micro-edits
+
+Si llevás >2 ciclos de "editar archivo → correr test → editar archivo
+→ correr test" sobre el MISMO archivo, DETENTE y reportá.
+
+Señales de loop:
+- Mismo archivo editado 3+ veces seguidas
+- Cambios pequeños (+5/-5 líneas aprox)
+- El test sigue fallando con el mismo error
+
+Acción correcta:
+1. Ctrl+C (no dejar correr)
+2. Pegar el archivo actual + el error del test
+3. Esperar instrucciones
+
+### 11. Correr comandos en Windows
+
+NUNCA usar `cmd /c "cd C:\... && ..."`.
+SIEMPRE usar bash/WSL: `cd /mnt/c/Users/hp/Desktop/ContaFis && ...`
+
+Razón: los paths de Windows rompen node, npm y pre-commit.

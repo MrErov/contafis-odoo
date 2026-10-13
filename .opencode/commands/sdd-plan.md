@@ -3,7 +3,7 @@ description: SDD — Genera el plan técnico de una spec aprobada
 agent: plan
 ---
 
-IMPORTANTE: las rutas de specs son relativas a la RAÍZ del repo (donde está AGENTS.md). NO usar docs/specs/.
+IMPORTANTE: las rutas de specs son relativas a la RAÍZ del repo (donde está AGENTS.md). NO usar docs/capacidades/.
 
 Lee `docs/constitution.md`, `AGENTS.md` y `specs/$1/spec.md (relativo a la RAÍZ del repo, NO a docs/)`.
 NO escribas código.

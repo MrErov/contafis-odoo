@@ -3,7 +3,7 @@ description: SDD — Entrevista y genera spec (uso: /sdd-spec NNN-nombre idea)
 agent: plan
 ---
 
-IMPORTANTE: las rutas de specs son relativas a la RAÍZ del repo (donde está AGENTS.md). NO usar docs/specs/.
+IMPORTANTE: las rutas de specs son relativas a la RAÍZ del repo (donde está AGENTS.md). NO usar docs/capacidades/.
 
 NO escribas código en ningún momento. Lee `docs/constitution.md`,
 `AGENTS.md` y `docs/memory.md`.

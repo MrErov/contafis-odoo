@@ -28,7 +28,7 @@ Ejecuta y muéstrame la salida literal:
 Lee `@SPEC.md`. Verifica si necesita cambios según la fase cerrada:
 
 - ¿La fase está en el roadmap? Actualízala a ✅.
-- ¿Se añadió una spec nueva en `docs/specs/`? Agrégala al índice.
+- ¿Se añadió una spec nueva en `docs/capacidades/`? Agrégala al índice.
 - ¿Hay nuevos modelos? Añádelos a la lista.
 - ¿Cambió el estado del portafolio? Actualízalo.
 

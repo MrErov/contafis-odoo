@@ -15,24 +15,24 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - Seguir API Odoo 19 (no usar `attrs=`)
 
 ## Índice de Especificaciones por Capacidad (SDD)
-1. **[01-calendario-seniat.md](specs/01-calendario-seniat.md)** — Cálculo vencimientos SENIAT 2026 por dígito RIF + reglas genéricas
-2. **[02-gestion-alertas.md](specs/02-gestion-alertas.md)** — Motor de alertas multi-canal (email + wa.me) + cron diario
-3. **[03-cartelera-fiscal.md](specs/03-cartelera-fiscal.md)** — Documentos legales: vigencia, renovación, alertas expiración/faltantes
-4. **[04-retenciones.md](specs/04-retenciones.md)** — Retenciones IVA/ISLR/IGTF en facturas proveedor + extensión account.move
-5. **[05-dashboard-reportes.md](specs/05-dashboard-reportes.md)** — Dashboard contador (kanban semáforos, score, PDF)
-6. **[06-importacion-excel.md](specs/06-importacion-excel.md)** — Wizard de
+1. **[01-calendario-seniat.md](docs/capacidades/01-calendario-seniat.md)** — Cálculo vencimientos SENIAT 2026 por dígito RIF + reglas genéricas
+2. **[02-gestion-alertas.md](docs/capacidades/02-gestion-alertas.md)** — Motor de alertas multi-canal (email + wa.me) + cron diario
+3. **[03-cartelera-fiscal.md](docs/capacidades/03-cartelera-fiscal.md)** — Documentos legales: vigencia, renovación, alertas expiración/faltantes
+4. **[04-retenciones.md](docs/capacidades/04-retenciones.md)** — Retenciones IVA/ISLR/IGTF en facturas proveedor + extensión account.move
+5. **[05-dashboard-reportes.md](docs/capacidades/05-dashboard-reportes.md)** — Dashboard contador (kanban semáforos, score, PDF)
+6. **[06-importacion-excel.md](docs/capacidades/06-importacion-excel.md)** — Wizard de
    importación masiva desde Excel (obligaciones, documentos, clientes,
    retenciones) con validación en 3 niveles y upsert
-7. **[07-cartelera-excel.md](specs/07-cartelera-excel.md)** — Importación de la cartelera fiscal desde
-     Excel mensual (36 documentos, snapshot por cliente/mes)
-8. **[08-evidencias.md](specs/08-evidencias.md)** — Evidencia
+7. **[07-cartelera-excel.md](docs/capacidades/07-cartelera-excel.md)** — Importación de la cartelera fiscal desde
+   Excel mensual (36 documentos, snapshot por cliente/mes)
+8. **[08-evidencias.md](docs/capacidades/08-evidencias.md)** — Evidencia
    fotográfica de documentos de cartelera + transición
    automática de estado
-9. **[09-libro-compras-ventas.md](specs/09-libro-compras-ventas.md)**
-     — Libro de Compras/Ventas + Planilla IVA 99030
-10. **[10-importacion-libro-compras-ventas.md](specs/10-importacion-libro-compras-ventas.md)**
-     — Importación de Libro de Compras/Ventas desde Excel (canal
-     alterno al Odoo-first)
+9. **[09-libro-compras-ventas.md](docs/capacidades/09-libro-compras-ventas.md)**
+   — Libro de Compras/Ventas + Planilla IVA 99030
+10. **[10-importacion-libro-compras-ventas.md](docs/capacidades/10-importacion-libro-compras-ventas.md)**
+    — Importación de Libro de Compras/Ventas desde Excel (canal
+    alterno al Odoo-first)
 
 ## Modelos Principales (resumen)
 - `l10n.ve.compliance.client` — Cliente multi-empresa, score, status, alertas
@@ -184,7 +184,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 ## Estado del Portafolio
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
-- ✅ Metodología SDD (AGENTS.md, docs/specs/, opencode.json)
+- ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
 - ✅ 121 tests pasando
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff

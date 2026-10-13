@@ -62,8 +62,8 @@ iva_rate = service.get_rate('iva', company=move.company_id)
 ## Tests asociados
 - tests/test_obligation.py::test_generate_retention
 - tests/test_retention_service.py (nuevo)
-- Ver docs/specs/04-retenciones.md para criterios de aceptación
+- Ver docs/capacidades/04-retenciones.md para criterios de aceptación
 
 ## Referencias
 - Providencia SNAT/2025/000091 (calendario SENIAT)
-- docs/specs/04-retenciones.md
+- docs/capacidades/04-retenciones.md

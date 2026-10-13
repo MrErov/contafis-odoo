@@ -143,12 +143,17 @@ contafis-odoo-19.0v/
 │   └── skills/
 │       └── calcular-retencion-venezuela/
 ├── docs/
-│   └── specs/
+│   └── capacidades/
 │       ├── 01-calendario-seniat.md
 │       ├── 02-gestion-alertas.md
 │       ├── 03-cartelera-fiscal.md
 │       ├── 04-retenciones.md
-│       └── 05-dashboard-reportes.md
+│       ├── 05-dashboard-reportes.md
+│       ├── 06-importacion-excel.md
+│       ├── 07-cartelera-excel.md
+│       ├── 08-evidencias.md
+│       ├── 09-libro-compras-ventas.md
+│       └── 10-importacion-libro-compras-ventas.md
 └── addons/
     └── l10n_ve_compliance_manager/
         ├── __manifest__.py
@@ -169,7 +174,7 @@ Este proyecto aplica **SDD (Spec-Driven Development)** asistido por
 agentes IA:
 
 - `SPEC.md` → índice de capacidades.
-- `docs/specs/*.md` → una spec autocontenida por capacidad.
+- `docs/capacidades/*.md` → una spec autocontenida por capacidad.
 - `AGENTS.md` → manual de operaciones para el agente IA.
 - `opencode.json` → configuración del subagente `odoo19-dev`.
 - `.opencode/skills/` → skills reutilizables específicos del dominio.

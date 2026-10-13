@@ -30,7 +30,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ### Metodología
 
-- Spec-Driven Development (SDD) con `SPEC.md`, `AGENTS.md` y `docs/specs/`.
+- Spec-Driven Development (SDD) con `SPEC.md`, `AGENTS.md` y `docs/capacidades/`.
 - Subagente IA `odoo19-dev` configurado en `opencode.json`.
 - Skill propio `calcular-retencion-venezuela` para lógica de retenciones.
 
