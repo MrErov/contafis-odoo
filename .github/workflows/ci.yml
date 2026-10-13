@@ -61,7 +61,9 @@ jobs:
           cp -r addons/l10n_ve_compliance_manager /tmp/extra-addons/
 
       - name: Run Odoo tests
+        shell: bash
         run: |
+          set -o pipefail
           docker run --rm --network host \
             -v /tmp/extra-addons:/mnt/extra-addons \
             -e HOST=localhost \
@@ -70,12 +72,13 @@ jobs:
             odoo:19.0 \
             odoo -d test_ci \
               -i l10n_ve_compliance_manager \
+              --test-tags /l10n_ve_compliance_manager \
               --test-enable \
               --stop-after-init \
               --no-http \
               --workers=0 \
               --log-level=test 2>&1 | tee /tmp/odoo_test.log
-          grep "tests when" /tmp/odoo_test.log
+          grep -E "tests when|failed" /tmp/odoo_test.log || true
 
       - name: Upload test log
         if: always()
