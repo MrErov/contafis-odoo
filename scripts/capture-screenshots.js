@@ -161,8 +161,15 @@ const specs = [
   },
   {
     name: '03-01-client-form',
-    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_compliance_client/1',
-    waitFor: '.o_form_view',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_compliance_client',
+    waitFor: '.o_list_view, .o_kanban_view',
+    beforeCapture: async (page) => {
+      const newBtn = page.locator(
+        'button.o_list_button_add, button.o-kanban-button-new, .o_control_panel button:has-text("Nuevo")'
+      ).first();
+      await newBtn.click();
+      await page.waitForSelector('.o_form_view', { timeout: 15000 });
+    },
     annotations: [
       { selector: '.o_field_widget[name="name"]', label: '1' },
       { selector: '.o_field_widget[name="rif"]', label: '2' },
@@ -170,8 +177,8 @@ const specs = [
   },
   {
     name: '03-02-client-list',
-    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_compliance_client',
-    waitFor: '.o_list_view, .o_kanban_view',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_compliance_client?view_type=list',
+    waitFor: '.o_list_view',
     annotations: [],
   },
   {
