@@ -307,6 +307,31 @@ const specs = [
       { selector: '.o_list_button_add', label: '1' },
     ],
   },
+  {
+    name: '09-01-cartelera-status',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_cartelera_status?view_type=list',
+    waitFor: '.o_list_view',
+    annotations: [],
+  },
+  {
+    name: '09-02-documento-form',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_document',
+    waitFor: '.o_list_view, .o_kanban_view',
+    beforeCapture: async (page) => {
+      const newBtn = page.locator('.o_list_button_add, .o-kanban-button-new').first();
+      if (await newBtn.count() > 0) {
+        await newBtn.click();
+        await page.waitForSelector('.o_form_view', { timeout: 15000 });
+      }
+    },
+    annotations: [],
+  },
+  {
+    name: '09-03-evidencia-wizard',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_cartelera_evidence_wizard',
+    waitFor: '.o_dialog .modal-content, .o_dialog .modal-dialog',
+    annotations: [],
+  },
 
 ];
 
