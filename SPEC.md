@@ -151,15 +151,15 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Ruff limpio en E/W/F/I/UP sobre todo el repo
 - ✅ 107 tests pasando
 
-### Fase H: E2E con Playwright (PARCIAL — 4/7 sub-fases)
+### Fase H: E2E con Playwright (COMPLETADA — 5/7 sub-fases; 5-6 diferidos)
 - ✅ Fase 0: Menú wizard + vista heredada
 - ✅ Fase 1: Setup Playwright (package.json, playwright.config.js)
 - ✅ Fase 2: Smoke test (login + navbar + console limpia) — 3 tests
 - ✅ Fase 3: Wizard factura física (abrir, validar RIF, submit) — 3 tests
 - ✅ Fase 4: Regenerar libro (botón + click sin error) — 1 test
-- ⬜ Fase 5: Planilla IVA + líneas del libro E2E
-- ⬜ Fase 6: Multi-company E2E
-- ⬜ Fase 7: CI integration (GitHub Actions)
+- ⬜ Fase 5: Planilla IVA + líneas del libro E2E (futuro)
+- ⬜ Fase 6: Multi-company E2E (futuro)
+- ✅ Fase 7: CI integration (GitHub Actions) — job e2e-tests en .github/workflows/ci.yml
 
 ### Fixes descubiertos por E2E
 - Vista account.move: `invisible` con tupla → lista (commit 004afcd)
@@ -171,6 +171,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - 7/7 tests E2E pasando
 - 121/121 tests backend pasando
 - Total: 128 tests
+- CI: 3/3 jobs verdes (lint + backend-tests + e2e-tests)
 
 ### UX-1: Rediseño vistas vat.return (COMPLETADA)
 - ✅ List view: columnas ordenadas, badges, sumatorias, totales
@@ -186,7 +187,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 ### Trabajo Futuro
 - ⬜ Spec 11: Conciliación ISLR
-- ⬜ Fase H: E2E con Playwright — 5/7 sub-fases (Fases 5, 6, 7 pendientes)
+- ⬜ Fase H: E2E con Playwright — 5/7 sub-fases completadas (0-4 + 7 CI); Fases 5-6 diferidas
 - ⬜ Tests de integración con fixtures de cartelera y conciliación fiscal (ya en repo, sin tests)
 - ⬜ post_init_hook: hacerlo efectivo con schema change (nullable source)
 - ⬜ Migrar `_sql_constraints` a `models.Constraint`
@@ -197,7 +198,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ⬜ Integración MCP Odoo (mart337i/odoo-dev-mcp)
 - ⬜ Fix RIF None en export XLSX cuando company.vat está vacío
 - ⬜ DevOps.1b: ruff-format (opcional, reformatearía 30+ archivos)
-- ⬜ DevOps.2: GitHub Actions CI (lint + test jobs)
+- ⬜ DevOps.2: GitHub Actions CI (lint + test jobs) — **HECHO (B3-e2e-ci)**
 
 ### Deuda Técnica (nueva)
 - Helper `_get_or_create_tax_group()` duplicado en 4 test files (test_account_tax, test_export_regression, test_physical_invoice_wizard, test_vat_book_line_sync, test_vat_book_line_fields). Extraer a `tests/common.py` para evitar duplicación.
