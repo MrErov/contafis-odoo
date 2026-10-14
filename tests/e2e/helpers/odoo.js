@@ -51,7 +51,7 @@ async function getActionId(page, xmlid) {
 }
 
 async function createTestVendorBill(page, opts = {}) {
-  const rif = opts.rif || 'J-99999999-9';
+  const rif = opts.rif || 'J-77777777-7';
   const partnerName = opts.partnerName || 'Proveedor E2E Regenerate';
   const ref = opts.ref || `E2E-REGEN-${Date.now()}`;
   const amount = opts.amount || 100;
@@ -105,6 +105,36 @@ async function createTestVendorBill(page, opts = {}) {
   return moveId;
 }
 
+async function cleanupTestPartner(page, rif) {
+  const partners = await rpc(page, 'res.partner', 'search_read',
+    [[['vat', '=', rif]], ['id']],
+    { limit: 100 }
+  );
+  if (!partners.length) return;
+  const partnerIds = partners.map(p => p.id);
+
+  // 1. Reset posted moves to draft (unlink requires draft)
+  const postedMoves = await rpc(page, 'account.move', 'search_read',
+    [[['partner_id', 'in', partnerIds], ['state', '=', 'posted']], ['id']],
+    { limit: 500 }
+  );
+  if (postedMoves.length) {
+    await rpc(page, 'account.move', 'button_draft', [postedMoves.map(m => m.id)]);
+  }
+
+  // 2. Unlink all moves referencing the partner
+  const allMoves = await rpc(page, 'account.move', 'search_read',
+    [[['partner_id', 'in', partnerIds]], ['id']],
+    { limit: 500 }
+  );
+  if (allMoves.length) {
+    await rpc(page, 'account.move', 'unlink', [allMoves.map(m => m.id)]);
+  }
+
+  // 3. Unlink the partner
+  await rpc(page, 'res.partner', 'unlink', [partnerIds]);
+}
+
 module.exports = {
   login,
   logout,
@@ -112,4 +142,5 @@ module.exports = {
   rpc,
   getActionId,
   createTestVendorBill,
+  cleanupTestPartner,
 };
