@@ -86,3 +86,111 @@ jobs:
         with:
           name: odoo-test-log
           path: /tmp/odoo_test.log
+
+  e2e-tests:
+    name: E2E tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: backend-tests
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare addons
+        run: |
+          mkdir -p /tmp/extra-addons
+          cp -r addons/l10n_ve_compliance_manager /tmp/extra-addons/
+
+      - name: Start Odoo (daemon, HTTP enabled)
+        run: |
+          docker run -d --name odoo_e2e --network host \
+            -v /tmp/extra-addons:/mnt/extra-addons \
+            -e HOST=localhost \
+            -e USER=odoo \
+            -e PASSWORD=odoo \
+            odoo:19.0 \
+            odoo -d test_ci_e2e \
+              -i l10n_ve_compliance_manager \
+              --workers=0 \
+              --log-level=info
+
+      - name: Wait for Odoo HTTP and module install
+        run: |
+          for i in $(seq 1 40); do
+            if curl -sSf http://localhost:8069/web/login > /dev/null 2>&1 \
+               && docker logs odoo_e2e 2>&1 | grep -q "Modules loaded"; then
+              echo "Odoo ready after ${i} attempts"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Odoo did not become ready in 200s"
+          docker logs odoo_e2e || true
+          exit 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install npm deps
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        env:
+          ODOO_URL: http://localhost:8069
+        run: npx playwright test --reporter=list
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+      - name: Upload Playwright test-results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+
+      - name: Dump Odoo E2E log
+        if: always()
+        run: docker logs odoo_e2e > /tmp/odoo_e2e.log 2>&1 || true
+
+      - name: Upload Odoo E2E log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: odoo-e2e-log
+          path: /tmp/odoo_e2e.log
+          if-no-files-found: warn
+
+      - name: Stop Odoo
+        if: always()
+        run: docker stop odoo_e2e || true
