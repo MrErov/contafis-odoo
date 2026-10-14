@@ -18,4 +18,98 @@ async function logout(page) {
   await page.goto('/web/session/logout');
 }
 
-module.exports = { login, logout, ODOO_ADMIN };
+async function rpc(page, model, method, args, kwargs = {}) {
+  const response = await page.request.post('/web/dataset/call_kw', {
+    data: {
+      jsonrpc: '2.0',
+      method: 'call',
+      params: { model, method, args, kwargs },
+      id: Date.now(),
+    },
+  });
+  if (!response.ok()) {
+    throw new Error(`RPC HTTP ${response.status()}: ${await response.text()}`);
+  }
+  const json = await response.json();
+  if (json.error) {
+    const msg = json.error.data?.message || JSON.stringify(json.error);
+    throw new Error(`RPC ${model}.${method} error: ${msg}`);
+  }
+  return json.result;
+}
+
+async function getActionId(page, xmlid) {
+  const [module, name] = xmlid.split('.');
+  const records = await rpc(page, 'ir.model.data', 'search_read',
+    [[['module', '=', module], ['name', '=', name]], ['res_id']],
+    { limit: 1 }
+  );
+  if (!records.length) {
+    throw new Error(`XMLID ${xmlid} not found`);
+  }
+  return records[0].res_id;
+}
+
+async function createTestVendorBill(page, opts = {}) {
+  const rif = opts.rif || 'J-99999999-9';
+  const partnerName = opts.partnerName || 'Proveedor E2E Regenerate';
+  const ref = opts.ref || `E2E-REGEN-${Date.now()}`;
+  const amount = opts.amount || 100;
+
+  // 1. Find or create partner
+  const existing = await rpc(page, 'res.partner', 'search_read',
+    [[['vat', '=', rif]], ['id']],
+    { limit: 1 }
+  );
+  const partnerId = existing.length
+    ? existing[0].id
+    : await rpc(page, 'res.partner', 'create', [{
+        name: partnerName,
+        vat: rif,
+        supplier_rank: 1,
+      }]);
+
+  // 2. Find purchase journal
+  const journals = await rpc(page, 'account.journal', 'search_read',
+    [[['type', '=', 'purchase']], ['id']],
+    { limit: 1 }
+  );
+  if (!journals.length) throw new Error('No purchase journal found');
+
+  // 3. Find expense account
+  const accounts = await rpc(page, 'account.account', 'search_read',
+    [[['account_type', '=', 'expense']], ['id']],
+    { limit: 1 }
+  );
+  if (!accounts.length) throw new Error('No expense account found');
+
+  // 4. Create bill
+  const today = new Date().toISOString().slice(0, 10);
+  const moveId = await rpc(page, 'account.move', 'create', [{
+    move_type: 'in_invoice',
+    partner_id: partnerId,
+    journal_id: journals[0].id,
+    invoice_date: today,
+    ref: ref,
+    invoice_line_ids: [[0, 0, {
+      name: 'E2E regenerate test line',
+      quantity: 1,
+      price_unit: amount,
+      account_id: accounts[0].id,
+    }]],
+  }]);
+
+  // 5. Post it
+  await rpc(page, 'account.move', 'action_post', [[moveId]]);
+
+  return moveId;
+}
+
+module.exports = {
+  login,
+  logout,
+  ODOO_ADMIN,
+  rpc,
+  getActionId,
+  createTestVendorBill,
+};
