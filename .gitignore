@@ -50,3 +50,6 @@ node_modules/
 playwright-report/
 test-results/
 .playwright/
+
+# Skill Anthropic PDF - licencia propietaria, no distribuir
+.opencode/skills/pdf/
