@@ -187,6 +187,75 @@ const specs = [
     waitFor: '.o_kanban_view',
     annotations: [],
   },
+  {
+    name: '04-01-wizard-open',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_physical_invoice_wizard',
+    waitFor: '.o_dialog .modal-content, .o_dialog .modal-dialog',
+    annotations: [],
+  },
+  {
+    name: '04-02-operation-type',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_physical_invoice_wizard',
+    waitFor: '.o_dialog .modal-content, .o_dialog .modal-dialog',
+    annotations: [
+      { selector: '.o_field_widget[name="type"]', label: '1' },
+    ],
+  },
+  {
+    name: '04-03-rif-new-partner',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_physical_invoice_wizard',
+    waitFor: '.o_dialog .modal-content, .o_dialog .modal-dialog',
+    beforeCapture: async (page) => {
+      const rif = page.locator('input[name="partner_vat"], .o_field_widget[name="partner_vat"] input').first();
+      await rif.fill('J-99999999-9');
+      await page.keyboard.press('Tab');
+      await page.waitForTimeout(1500);
+    },
+    annotations: [],
+  },
+  {
+    name: '04-04-emission-type',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_physical_invoice_wizard',
+    waitFor: '.o_dialog .modal-content, .o_dialog .modal-dialog',
+    annotations: [
+      { selector: '.o_field_widget[name="emission_type"]', label: '1' },
+    ],
+  },
+  {
+    name: '04-05-machine-fields',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_physical_invoice_wizard',
+    waitFor: '.o_dialog .modal-content, .o_dialog .modal-dialog',
+    beforeCapture: async (page) => {
+      const widget = page.locator('.o_field_widget[name="emission_type"]').first();
+      const nativeSelect = widget.locator('select');
+      const hasNative = (await nativeSelect.count()) > 0;
+      if (hasNative) {
+        await nativeSelect.selectOption('maquina_fiscal');
+      } else {
+        await widget.locator('.o_input, button').first().click();
+        await page.waitForTimeout(400);
+        await page
+          .locator('.dropdown-menu .dropdown-item, .o-dropdown--menu .dropdown-item, li.dropdown-item')
+          .filter({ hasText: /máquina|maquina|Máquina|Maquina/ })
+          .first()
+          .click();
+      }
+      await page.waitForTimeout(1000);
+    },
+    annotations: [],
+  },
+  {
+    name: '04-06-bases-iva',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_physical_invoice_wizard',
+    waitFor: '.o_dialog .modal-content, .o_dialog .modal-dialog',
+    beforeCapture: async (page) => {
+      const base16 = page.locator('.o_field_widget[name="base_general"] input').first();
+      await base16.fill('1000');
+      await page.keyboard.press('Tab');
+      await page.waitForTimeout(800);
+    },
+    annotations: [],
+  },
 
 ];
 
