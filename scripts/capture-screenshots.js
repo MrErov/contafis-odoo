@@ -159,6 +159,27 @@ const specs = [
     waitFor: '.o_list_view, .o_form_view, .o_content',
     annotations: [],
   },
+  {
+    name: '03-01-client-form',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_compliance_client/1',
+    waitFor: '.o_form_view',
+    annotations: [
+      { selector: '.o_field_widget[name="name"]', label: '1' },
+      { selector: '.o_field_widget[name="rif"]', label: '2' },
+    ],
+  },
+  {
+    name: '03-02-client-list',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_compliance_client',
+    waitFor: '.o_list_view, .o_kanban_view',
+    annotations: [],
+  },
+  {
+    name: '03-03-client-kanban',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_compliance_client?view_type=kanban',
+    waitFor: '.o_kanban_view',
+    annotations: [],
+  },
 
 ];
 
