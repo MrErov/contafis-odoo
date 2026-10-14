@@ -72,13 +72,22 @@ El sistema genera snapshots mensuales automáticamente. Cada snapshot muestra:
 
 Filtros disponibles: por cliente, año, mes, tipo de documento y estado.
 
-## Marcar un documento como vigente
+## Catálogo de documentos
 
 Ruta: *Cumplimiento VE → Documentos*
 
-![Formulario de documento](./assets/screenshots/09-02-documento-form.png)
+![Catálogo de tipos de documento](./assets/screenshots/09-02-documento-form.png)
 
-Para marcar un documento como vigente, adjunte evidencia desde el snapshot correspondiente.
+Esta vista es el **catálogo maestro** de tipos de documento (los 36 del SENIAT, IVSS, INCES, etc.). Solo el administrador gestiona este catálogo; los contadores no necesitan modificarlo en el uso diario.
+
+Desde acá se configura:
+
+- Nombre y descripción del tipo
+- Institución emisora
+- Días de anticipación para la alerta
+- Si aplica a todos los clientes o solo a algunos
+
+Para marcar la cartelera de un cliente específico, ir a **Snapshots Cartelera** y adjuntar evidencia.
 
 ## Adjuntar evidencia
 
@@ -91,6 +100,8 @@ El wizard permite subir un archivo (PDF o imagen) como prueba de vigencia. El si
 - Valida el tamaño máximo (5 MB)
 - Comprime la imagen automáticamente a 1024x1024
 - Recalcula el estado del snapshot (si hay una evidencia aceptada, el estado pasa a Válido)
+
+> **Nota:** si un documento no tiene evidencia adjunta, su estado es *Faltante*. Una vez subida la evidencia y aprobada, pasa a *Válido*.
 
 ## Alertas de vencimiento
 

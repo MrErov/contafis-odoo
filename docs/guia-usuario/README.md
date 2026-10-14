@@ -21,6 +21,7 @@ clientes en Venezuela con Odoo 19 Community.
 ## Anexos
 
 - [Glosario](./anexo-glosario.md)
+- [Limitaciones conocidas](./anexo-limitaciones.md)
 
 ## Cómo regenerar la guía
 

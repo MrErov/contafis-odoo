@@ -332,6 +332,12 @@ const specs = [
     waitFor: '.o_dialog .modal-content, .o_dialog .modal-dialog',
     annotations: [],
   },
+  {
+    name: '10-01-alert-list',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_alert?view_type=list',
+    waitFor: '.o_list_view',
+    annotations: [],
+  },
 
 ];
 
