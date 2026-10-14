@@ -256,6 +256,69 @@ const specs = [
     },
     annotations: [],
   },
+  {
+    name: '05-01-book-generate',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_vat_book_generate',
+    waitFor: '.o_dialog .modal-content, .o_dialog .modal-dialog',
+    annotations: [],
+  },
+  {
+    name: '05-02-book-list',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_vat_book_line?view_type=list',
+    waitFor: '.o_list_view',
+    annotations: [],
+  },
+  {
+    name: '05-03-book-import',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_vat_book_line',
+    waitFor: '.o_list_view',
+    beforeCapture: async (page) => {
+      const importBtn = page.locator('button:has-text("Importar"), .o_control_panel button:has-text("Importar")').first();
+      if (await importBtn.count() > 0) {
+        await importBtn.click();
+        await page.waitForTimeout(1000);
+      }
+    },
+    annotations: [],
+  },
+  {
+    name: '05-04-book-export',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_vat_book_export_wizard',
+    waitFor: '.o_dialog .modal-content, .o_dialog .modal-dialog',
+    annotations: [],
+  },
+  {
+    name: '06-01-planilla-generate',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_vat_return',
+    waitFor: '.o_list_view, .o_kanban_view',
+    beforeCapture: async (page) => {
+      const newBtn = page.locator('button.o_list_button_add, button.o-kanban-button-new, .o_control_panel button:has-text("Nuevo")').first();
+      if (await newBtn.count() > 0) {
+        await newBtn.click();
+        await page.waitForSelector('.o_form_view', { timeout: 15000 });
+      }
+    },
+    annotations: [],
+  },
+  {
+    name: '06-02-planilla-form',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_vat_return?view_type=list',
+    waitFor: '.o_list_view',
+    annotations: [],
+  },
+  {
+    name: '06-03-planilla-export',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_vat_return?view_type=list',
+    waitFor: '.o_list_view',
+    beforeCapture: async (page) => {
+      const row = page.locator('.o_data_row').first();
+      if (await row.count() > 0) {
+        await row.click();
+        await page.waitForTimeout(800);
+      }
+    },
+    annotations: [],
+  },
 
 ];
 
