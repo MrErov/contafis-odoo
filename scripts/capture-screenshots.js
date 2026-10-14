@@ -270,15 +270,8 @@ const specs = [
   },
   {
     name: '05-03-book-import',
-    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_vat_book_line',
-    waitFor: '.o_list_view',
-    beforeCapture: async (page) => {
-      const importBtn = page.locator('button:has-text("Importar"), .o_control_panel button:has-text("Importar")').first();
-      if (await importBtn.count() > 0) {
-        await importBtn.click();
-        await page.waitForTimeout(1000);
-      }
-    },
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_import_wizard',
+    waitFor: '.o_dialog .modal-content, .o_dialog .modal-dialog',
     annotations: [],
   },
   {
@@ -309,15 +302,10 @@ const specs = [
   {
     name: '06-03-planilla-export',
     url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_vat_return?view_type=list',
-    waitFor: '.o_list_view',
-    beforeCapture: async (page) => {
-      const row = page.locator('.o_data_row').first();
-      if (await row.count() > 0) {
-        await row.click();
-        await page.waitForTimeout(800);
-      }
-    },
-    annotations: [],
+    waitFor: '.o_list_view, .o_control_panel',
+    annotations: [
+      { selector: '.o_list_button_add', label: '1' },
+    ],
   },
 
 ];

@@ -15,7 +15,7 @@ async function build() {
 
   let htmlContent = '';
   for (const file of mdFiles) {
-    const raw = fs.readFileSync(path.join(guideDir, file), 'utf-8');
+    const raw = fs.readFileSync(path.join(guideDir, file), 'utf-8').replace(/^\uFEFF/, '');
     htmlContent += md.render(raw);
     htmlContent += '\n<div class="page-break"></div>\n';
   }
