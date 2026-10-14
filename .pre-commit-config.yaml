@@ -10,6 +10,7 @@ repos:
       - id: check-yaml
       - id: check-xml
       - id: check-added-large-files
+        exclude: ^docs/guia-usuario/guia-usuario\.pdf$
         args: ["--maxkb=500"]
       - id: mixed-line-ending
         args: ["--fix=lf"]

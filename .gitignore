@@ -53,3 +53,6 @@ test-results/
 
 # Skill Anthropic PDF - licencia propietaria, no distribuir
 .opencode/skills/pdf/
+
+# Build temporal de la guía de usuario
+docs/guia-usuario/_build.html
