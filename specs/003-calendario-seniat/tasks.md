@@ -20,7 +20,7 @@ Comando oficial de tests (única fuente del conteo):
 - [x] **T4. Campos de configuración: `is_spe` y `applicable_type_ids` en cliente; `seniat_table_code`, `periodicity` quincenal y `alert_cc_client` en tipo; vistas y ayuda.** RF-5
       Hecho cuando: en UI un cliente se marca SPE y se le asignan tipos; un tipo IVA con quincenal + a1 guarda sin error; los 121 tests siguen en verde.
 
-- [ ] **T5. Cálculo de vencimientos: campo `quincena` (`monthly`/`q1`/`q2`), `_resolve_due_date_calendar`, regla no-SPE día 15, corrimiento `_shift_to_next_banking_day` y reimplementación de `'1-15'` vía tabla a.1.** RF-6, RF-7, RF-8, RF-9, RF-10, RF-11, RF-20
+- [x] **T5. Cálculo de vencimientos: campo `quincena` (`monthly`/`q1`/`q2`), `_resolve_due_date_calendar`, regla no-SPE día 15, corrimiento `_shift_to_next_banking_day` y reimplementación de `'1-15'` vía tabla a.1.** RF-6, RF-7, RF-8, RF-9, RF-10, RF-11, RF-20
       Hecho cuando: tests del cálculo pasan — SPE digit 0 `01/2026`: q1 2026-01-28, q2 corrida desde 2026-02-15 (domingo/feriado) a día hábil; no-SPE 2026-02-15 corrida; sin RIF → vacío; fecha manual no se corrige; `test_compute_due_date_seniat` sigue en verde.
 
 - [ ] **T6. Generación automática: `_cron_generate_obligations` (ventana mes actual + próximo), idempotencia, botón "Generar obligaciones" y alerta `calendar_missing`.** RF-4, RF-12, RF-13

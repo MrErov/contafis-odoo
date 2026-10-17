@@ -430,3 +430,161 @@ class TestSeniatConfigViews(TransactionCase):
             'l10n.ve.obligation.type',
             ['seniat_table_code'],
         )
+
+
+@tagged('post_install', '-at_install')
+class TestObligationDueDateCalculation(TransactionCase):
+    """T5: cálculo de vencimientos con calendario SENIAT, quincenas y corrimiento a día hábil."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.Obligation = cls.env['l10n.ve.obligation']
+        cls.ObligationType = cls.env['l10n.ve.obligation.type']
+        cls.partner = cls.env['res.partner'].create({'name': 'Partner T5'})
+
+    def _create_client(self, rif, is_spe=True):
+        return self.env['l10n.ve.compliance.client'].create({
+            'name': f'Cliente T5 {rif}',
+            'partner_id': self.partner.id,
+            'company_id': self.env.company.id,
+            'rif': rif,
+            'is_spe': is_spe,
+        })
+
+    def _create_type(self, **kwargs):
+        vals = {
+            'name': 'IVA Quincenal T5',
+            'periodicity': 'quincenal',
+            'seniat_table_code': 'a1',
+        }
+        vals.update(kwargs)
+        return self.ObligationType.create(vals)
+
+    def _create_obligation(self, client, obligation_type, period, quincena='monthly'):
+        return self.Obligation.create({
+            'name': f'OBL-T5-{period}-{quincena}',
+            'client_id': client.id,
+            'obligation_type_id': obligation_type.id,
+            'period': period,
+            'quincena': quincena,
+        })
+
+    def test_spe_q1_exact_calendar_days(self):
+        """RF-6/RF-10: SPE usa la tabla a.1 del mes del período (dígitos 0, 5 y 9)."""
+        obligation_type = self._create_type()
+        expected = {
+            'J-00000000-0': '2026-01-28',
+            'J-00000005-5': '2026-01-22',
+            'J-00000009-9': '2026-01-29',
+        }
+        for rif, due_date in expected.items():
+            obligation = self._create_obligation(
+                self._create_client(rif), obligation_type, '01/2026', 'q1',
+            )
+            self.assertEqual(
+                obligation.due_date,
+                fields.Date.to_date(due_date),
+                f'SPE {rif} q1 01/2026 debe vencer el {due_date}.',
+            )
+
+    def test_spe_q2_exact_calendar_days(self):
+        """RF-6/RF-11: q2 usa a.2 del mes, cae en el mes siguiente y se corre a día hábil."""
+        obligation_type = self._create_type()
+        expected = {
+            'J-00000000-0': '2026-02-18',
+            'J-00000005-5': '2026-02-05',
+            'J-00000009-9': '2026-02-18',
+        }
+        for rif, due_date in expected.items():
+            obligation = self._create_obligation(
+                self._create_client(rif), obligation_type, '01/2026', 'q2',
+            )
+            self.assertEqual(
+                obligation.due_date,
+                fields.Date.to_date(due_date),
+                f'SPE {rif} q2 01/2026 debe vencer el {due_date}.',
+            )
+
+    def test_spe_q2_crosses_year(self):
+        """RF-11: la segunda quincena de diciembre vence en enero del año siguiente."""
+        obligation = self._create_obligation(
+            self._create_client('J-00000000-0'), self._create_type(), '12/2026', 'q2',
+        )
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2027-01-04'))
+
+    def test_spe_q2_shifts_weekday_holiday_to_monday(self):
+        """RF-20: un vencimiento que cae en feriado entre semana se corre al lunes siguiente."""
+        obligation = self._create_obligation(
+            self._create_client('J-00000000-0'), self._create_type(), '04/2026', 'q2',
+        )
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-05-04'))
+
+    def test_no_spe_uses_day_15_of_next_month(self):
+        """RF-7: el cliente no-SPE vence el día 15 del mes siguiente al período."""
+        obligation_type = self._create_type(periodicity='monthly')
+        client = self._create_client('J-00000000-0', is_spe=False)
+        shifted = self._create_obligation(client, obligation_type, '01/2026')
+        self.assertEqual(shifted.due_date, fields.Date.to_date('2026-02-18'))
+        banking = self._create_obligation(client, obligation_type, '05/2026')
+        self.assertEqual(banking.due_date, fields.Date.to_date('2026-06-15'))
+
+    def test_spe_without_rif_has_no_due_date(self):
+        """RF-8: sin dígitos en el RIF no se calcula vencimiento por calendario."""
+        obligation = self._create_obligation(
+            self._create_client('J--'), self._create_type(), '01/2026', 'q1',
+        )
+        self.assertFalse(obligation.due_date)
+
+    def test_manual_due_date_is_not_shifted(self):
+        """RF-20: la fecha fijada manualmente por el contador no se corrige."""
+        obligation = self._create_obligation(
+            self._create_client('J-00000000-0'), self._create_type(), '01/2026', 'q1',
+        )
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-01-28'))
+        obligation.due_date = fields.Date.to_date('2026-02-15')
+        self.assertTrue(obligation.due_date_override)
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-02-15'))
+
+    def test_shift_to_monday_without_holidays(self):
+        """RF-19/RF-20: sin feriados cargados el corrimiento solo evita fines de semana."""
+        table = self.env['l10n.ve.seniat.calendar.table'].create({
+            'year': TEST_YEAR,
+            'code': 'a1',
+            'month_offset': '0',
+        })
+        self.env['l10n.ve.seniat.calendar'].create({
+            'table_id': table.id,
+            'month': 1,
+            'rif_digit': 0,
+            'day': 4,
+        })
+        obligation = self._create_obligation(
+            self._create_client('J-00000000-0'),
+            self._create_type(),
+            f'01/{TEST_YEAR}',
+            'q1',
+        )
+        self.assertEqual(obligation.due_date, fields.Date.to_date(f'{TEST_YEAR}-01-05'))
+
+    def test_is_banking_day_weekends_and_holidays(self):
+        """RF-19/RF-20: fines de semana y feriados cargados no son días hábiles."""
+        to_date = fields.Date.to_date
+        self.assertFalse(self.Obligation._is_banking_day(to_date('2026-01-03')))
+        self.assertFalse(self.Obligation._is_banking_day(to_date('2026-01-04')))
+        self.assertFalse(self.Obligation._is_banking_day(to_date('2026-01-01')))
+        self.assertFalse(self.Obligation._is_banking_day(to_date('2026-05-01')))
+        self.assertTrue(self.Obligation._is_banking_day(to_date('2026-01-28')))
+        self.assertTrue(self.Obligation._is_banking_day(to_date('2099-01-02')))
+
+    def test_shift_to_next_banking_day(self):
+        """RF-20: el corrimiento avanza hasta el siguiente día hábil bancario."""
+        to_date = fields.Date.to_date
+        self.assertEqual(
+            self.Obligation._shift_to_next_banking_day(to_date('2026-02-15')),
+            to_date('2026-02-18'),
+        )
+        self.assertEqual(
+            self.Obligation._shift_to_next_banking_day(to_date('2026-01-28')),
+            to_date('2026-01-28'),
+        )

@@ -1,6 +1,18 @@
+from calendar import monthrange
 from datetime import date, timedelta
 
 from odoo import api, fields, models
+
+
+def _add_months(year, month, n):
+    index = year * 12 + (month - 1) + n
+    return index // 12, index % 12 + 1
+
+
+def _quincena_table_code(periodicity, table_code, quincena):
+    if periodicity == 'quincenal' and quincena in ('q1', 'q2'):
+        return 'a1' if quincena == 'q1' else 'a2'
+    return table_code
 
 
 class VeObligation(models.Model):
@@ -34,6 +46,11 @@ class VeObligation(models.Model):
     client_id = fields.Many2one('l10n.ve.compliance.client', string='Cliente')
     obligation_type_id = fields.Many2one('l10n.ve.obligation.type', string='Tipo de obligación')
     period = fields.Char(string='Período')
+    quincena = fields.Selection([
+        ('monthly', 'Mensual'),
+        ('q1', '1ra quincena (01–15)'),
+        ('q2', '2da quincena (16–fin)'),
+    ], string='Quincena', default='monthly')
     due_date_override = fields.Boolean(string='Vencimiento manual')
     due_date = fields.Date(
         string='Fecha de vencimiento',
@@ -78,10 +95,14 @@ class VeObligation(models.Model):
     @api.depends(
         'due_date_override',
         'period',
+        'quincena',
+        'client_id.rif',
         'client_id.rif_last_digit',
+        'client_id.is_spe',
         'obligation_type_id.due_day_rule',
         'obligation_type_id.due_day_value',
         'obligation_type_id.periodicity',
+        'obligation_type_id.seniat_table_code',
     )
     def _compute_due_date(self):
         today = fields.Date.today()
@@ -121,20 +142,21 @@ class VeObligation(models.Model):
         return month, year
 
     def _resolve_due_date(self, month, year, today):
+        table_code = self.obligation_type_id.seniat_table_code
+        if table_code and table_code != 'none':
+            if self.client_id.is_spe:
+                return self._resolve_due_date_calendar(month, year)
+            return self._resolve_day_15(month, year)
         rule = self.obligation_type_id.due_day_rule
         target_month, target_year = self._get_target_month(month, year)
         if rule == 'dia_fijo':
             day = self.obligation_type_id.due_day_value or 1
             return date(target_year, target_month, min(day, 28))
         if rule == '1-15':
-            if year != 2026:
+            day = self._get_calendar_day(year, 'a1', month, self.client_id.rif_last_digit)
+            if not day:
                 return False
-            day = self.SENIAT_2026_CALENDAR.get(month, {}).get(
-                self.client_id.rif_last_digit
-            )
-            if day:
-                return date(year, month, day)
-            return False
+            return self._shift_to_next_banking_day(date(year, month, day))
         if rule == 'primeros_5_dias_habiles':
             return self._get_nth_business_day(target_year, target_month, 5)
         if rule == 'ultimo_digito_rif':
@@ -142,6 +164,55 @@ class VeObligation(models.Model):
             day = 10 if digit == 0 else digit
             return date(target_year, target_month, day) if day else False
         return False
+
+    def _resolve_due_date_calendar(self, month, year):
+        self.ensure_one()
+        if not any(character.isdigit() for character in (self.client_id.rif or '')):
+            return False
+        code = _quincena_table_code(
+            self.obligation_type_id.periodicity,
+            self.obligation_type_id.seniat_table_code,
+            self.quincena,
+        )
+        day = self._get_calendar_day(year, code, month, self.client_id.rif_last_digit)
+        if not day:
+            return False
+        offset = self._get_calendar_month_offset(year, code)
+        target_year, target_month = _add_months(year, month, offset)
+        if day > monthrange(target_year, target_month)[1]:
+            return False
+        return self._shift_to_next_banking_day(date(target_year, target_month, day))
+
+    def _resolve_day_15(self, month, year):
+        target_month, target_year = self._get_target_month(month, year)
+        return self._shift_to_next_banking_day(date(target_year, target_month, 15))
+
+    def _get_calendar_day(self, year, code, month, rif_digit):
+        line = self.env['l10n.ve.seniat.calendar'].search([
+            ('year', '=', year),
+            ('table_id.code', '=', code),
+            ('month', '=', month),
+            ('rif_digit', '=', rif_digit),
+        ], limit=1)
+        return line.day if line else False
+
+    def _get_calendar_month_offset(self, year, code):
+        table = self.env['l10n.ve.seniat.calendar.table'].search([
+            ('year', '=', year),
+            ('code', '=', code),
+        ], limit=1)
+        return int(table.month_offset) if table else 0
+
+    def _is_banking_day(self, day):
+        if day.weekday() >= 5:
+            return False
+        holiday = self.env['l10n.ve.bank.holiday'].search([('date', '=', day)], limit=1)
+        return not holiday
+
+    def _shift_to_next_banking_day(self, day):
+        while not self._is_banking_day(day):
+            day += timedelta(days=1)
+        return day
 
     def _get_nth_business_day(self, year, month, n):
         current = date(year, month, 1)
