@@ -2,7 +2,11 @@
 
 ## Estado de esta funcionalidad
 
-> **Funcionalidad en roadmap.** El módulo **todavía no incluye** un modelo de calendario SENIAT con cálculo automático de vencimientos por RIF. Esta sección describe el diseño planeado y la referencia normativa. Se completará cuando la funcionalidad esté implementada.
+<div class="warning">
+
+El módulo **todavía no incluye** un modelo de calendario SENIAT con cálculo automático de vencimientos por RIF. Esta sección describe el diseño planeado y la referencia normativa. Se completará cuando la funcionalidad esté implementada.
+
+</div>
 
 ## ¿Qué es el calendario SENIAT?
 

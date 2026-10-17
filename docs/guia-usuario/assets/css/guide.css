@@ -94,6 +94,7 @@ li { margin-bottom: 0.3em; }
 .expected,
 .warning,
 .tip,
+.note,
 .troubleshoot {
   margin: 1.4em 0;
   padding: 0.9em 1.2em 1em 1.2em;
@@ -109,18 +110,21 @@ li { margin-bottom: 0.3em; }
 .expected > :first-child,
 .warning > :first-child,
 .tip > :first-child,
+.note > :first-child,
 .troubleshoot > :first-child { margin-top: 0; }
 
 .step > :last-child,
 .expected > :last-child,
 .warning > :last-child,
 .tip > :last-child,
+.note > :last-child,
 .troubleshoot > :last-child { margin-bottom: 0; }
 
 .step::before,
 .expected::before,
 .warning::before,
 .tip::before,
+.note::before,
 .troubleshoot::before {
   display: inline-block;
   margin: 0 0 0.7em 0;
@@ -147,5 +151,59 @@ li { margin-bottom: 0.3em; }
 .tip { background: #eef7f4; border-color: #a9d8c9; }
 .tip::before { content: "Consejo"; background: #2f8f72; }
 
+.note { background: #eef1f6; border-color: #c3ccda; }
+.note::before { content: "Nota"; background: #55617a; }
+
 .troubleshoot { background: #fbeceb; border-color: #eeb4ae; }
 .troubleshoot::before { content: "Solución de problemas"; background: #c0392b; }
+
+/* Portada */
+.cover {
+  text-align: center;
+  padding-top: 5.5cm;
+  page-break-after: always;
+  break-after: page;
+}
+
+.cover-title {
+  font-size: 2.6em;
+  font-weight: 700;
+  color: #7c4a2d;
+  border: none;
+  margin: 0;
+  padding: 0;
+  page-break-before: avoid;
+}
+
+.cover-sub {
+  font-size: 1.15em;
+  color: #a05a3a;
+  margin-top: 0.6em;
+}
+
+.cover-meta {
+  margin-top: 3em;
+  color: #666;
+  font-size: 0.95em;
+  line-height: 1.9;
+}
+
+/* Índice */
+.toc {
+  page-break-after: always;
+  break-after: page;
+}
+
+.toc-title {
+  font-size: 1.6em;
+  color: #7c4a2d;
+  border-bottom: 2px solid #7c4a2d;
+  padding-bottom: 0.2em;
+  margin: 0 0 0.7em 0;
+}
+
+.toc-list { list-style: none; padding-left: 0; margin: 0; }
+.toc-list > li { font-weight: 600; margin-bottom: 0.3em; }
+.toc-list > li > ul { list-style: none; padding-left: 1.1em; margin: 0.2em 0 0.6em; }
+.toc-list > li > ul > li { font-weight: 400; font-size: 0.94em; margin-bottom: 0.15em; }
+.toc-list a { color: #2d2d2d; text-decoration: none; }

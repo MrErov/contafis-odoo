@@ -46,7 +46,11 @@ Ruta: *Cumplimiento VE → Importar → Libro desde Excel*
 
 Seleccione el archivo Excel con el formato esperado. El sistema valida las columnas y muestra errores antes de importar.
 
-> **Advertencia:** El archivo debe tener el formato de columnas exacto que espera el sistema. Descargue la plantilla de ejemplo antes de importar.
+<div class="warning">
+
+El archivo debe tener el formato de columnas exacto que espera el sistema. Descargue la plantilla de ejemplo antes de importar.
+
+</div>
 
 ## Exportar el libro
 

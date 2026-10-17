@@ -29,7 +29,11 @@ Muestra el estado de los 36 documentos legales del cliente en el mes seleccionad
 
 ## Respaldos de la base de datos
 
-> **Importante:** el módulo NO hace respaldos automáticos de la base de datos. El respaldo debe hacerse a nivel de PostgreSQL (por ejemplo `pg_dump`) o mediante el módulo de respaldos de Odoo. Ver [Limitaciones conocidas](./anexo-limitaciones.md).
+<div class="warning">
+
+El módulo **NO** hace respaldos automáticos de la base de datos. El respaldo debe hacerse a nivel de PostgreSQL (por ejemplo `pg_dump`) o mediante el módulo de respaldos de Odoo. Ver [Limitaciones conocidas](./anexo-limitaciones.md).
+
+</div>
 
 ## Respaldos de documentos adjuntos
 

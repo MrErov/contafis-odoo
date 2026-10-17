@@ -11,9 +11,11 @@ Antes de iniciar sesión, tenga a mano la siguiente información:
 - Dirección fiscal completa
 - Alícuota de IVA que aplica (16% general, 8% reducida, o ambas)
 
-> **Nota:** Si es una instalación nueva, los datos vienen configurados
-> por defecto. Si es una instalación existente, el administrador del
-> sistema debe proveer estas credenciales antes de continuar.
+<div class="note">
+
+Si es una instalación nueva, los datos vienen configurados por defecto. Si es una instalación existente, el administrador del sistema debe proveer estas credenciales antes de continuar.
+
+</div>
 
 ## 1. Iniciar sesión
 
@@ -30,8 +32,11 @@ En una instalación nueva, las credenciales por defecto son:
 La primera vez que inicie sesión, el sistema le pedirá cambiar la
 contraseña. Este paso es obligatorio por seguridad.
 
-> Si olvidó su contraseña, contacte al administrador del sistema.
-> No es posible recuperarla desde la interfaz de Odoo.
+<div class="note">
+
+Si olvidó su contraseña, contacte al administrador del sistema. No es posible recuperarla desde la interfaz de Odoo.
+
+</div>
 
 ## 2. Configurar la empresa
 
@@ -47,9 +52,11 @@ Seleccione la compañía principal y complete los siguientes campos:
 - **País:** verifique que esté seleccionado **Venezuela**
 - **Moneda:** verifique que esté seleccionada **VES** (Bolívar)
 
-> **Advertencia:** El RIF debe ser válido según el algoritmo de
-> módulo 11. Odoo lo valida al guardar. Si aparece el mensaje
-> "RIF inválido", revise el último dígito del documento.
+<div class="warning">
+
+El RIF debe ser válido según el algoritmo de módulo 11. Odoo lo valida al guardar. Si aparece el mensaje "RIF inválido", revise el último dígito del documento.
+
+</div>
 
 ## 3. Configurar el usuario del contador
 
@@ -98,8 +105,11 @@ Complete los datos del servidor SMTP de su proveedor de correo:
 Haga clic en [Probar conexión] para verificar que la configuración
 sea correcta.
 
-> Este paso es requisito para recibir las alertas por correo
-> electrónico de la sección 10.
+<div class="note">
+
+Este paso es requisito para recibir las alertas por correo electrónico de la sección 10.
+
+</div>
 
 <!-- VERIFICAR: ruta real en Odoo 19 para configuración SMTP -->
 

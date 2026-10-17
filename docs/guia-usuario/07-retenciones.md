@@ -4,7 +4,11 @@
 
 En Venezuela, el comprador retiene un porcentaje del IVA o ISLR al proveedor y lo entera al SENIAT. El proveedor recibe un comprobante de retención.
 
-> **Nota de alcance:** el módulo actual implementa un registro básico de retenciones (nombre, contacto, monto, factura, estado). El cálculo automático de IVA (75%/100%), ISLR e IGTF está en el roadmap.
+<div class="note">
+
+El módulo actual implementa un registro básico de retenciones (nombre, contacto, monto, factura, estado). El cálculo automático de IVA (75%/100%), ISLR e IGTF está en el roadmap.
+
+</div>
 
 ## Registrar una retención
 

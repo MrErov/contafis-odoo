@@ -101,7 +101,11 @@ El wizard permite subir un archivo (PDF o imagen) como prueba de vigencia. El si
 - Comprime la imagen automáticamente a 1024x1024
 - Recalcula el estado del snapshot (si hay una evidencia aceptada, el estado pasa a Válido)
 
-> **Nota:** si un documento no tiene evidencia adjunta, su estado es *Faltante*. Una vez subida la evidencia y aprobada, pasa a *Válido*.
+<div class="note">
+
+Si un documento no tiene evidencia adjunta, su estado es *Faltante*. Una vez subida la evidencia y aprobada, pasa a *Válido*.
+
+</div>
 
 ## Alertas de vencimiento
 

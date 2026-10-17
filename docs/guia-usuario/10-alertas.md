@@ -14,7 +14,11 @@ Se envían automáticamente usando templates de Odoo. Requisito: SMTP configurad
 
 El módulo genera enlaces `wa.me` con mensaje pre-armado. El contador hace clic y se abre WhatsApp Web/Desktop con el mensaje listo.
 
-> **Nota:** WhatsApp no tiene API oficial gratuita. El módulo usa el esquema `wa.me` que requiere acción manual del usuario.
+<div class="note">
+
+WhatsApp no tiene API oficial gratuita. El módulo usa el esquema `wa.me` que requiere acción manual del usuario.
+
+</div>
 
 ## Ver alertas pendientes
 
