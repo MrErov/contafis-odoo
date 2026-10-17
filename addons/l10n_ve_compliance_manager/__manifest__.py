@@ -40,6 +40,7 @@ Incluye:
         'views/alert_views.xml',
         'views/compliance_client_views.xml',
         'views/obligation_views.xml',
+        'views/seniat_calendar_views.xml',
         'views/account_move_views.xml',
         'views/physical_invoice_wizard_views.xml',
         'views/menu.xml',

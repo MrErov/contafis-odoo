@@ -11,7 +11,7 @@ Comando oficial de tests (única fuente del conteo):
 - [x] **T1. Modelos `l10n.ve.seniat.calendar.table` + `l10n.ve.seniat.calendar`: campos, constraints (`models.Constraint`), ACL, `__init__` y manifest.** RF-1
       Hecho cuando: `-u l10n_ve_compliance_manager` termina sin error; en shell inline se crea una tabla+línea y el constraint rechaza duplicados (year, code) y (table, month, digit); los 121 tests actuales siguen en verde.
 
-- [ ] **T2. Precarga calendario 2026 (a.1 y a.2) en `data/seniat_calendar_2026.xml` con `noupdate="1"` + vistas y menú "Calendario SENIAT".** RF-1, RF-2, RF-3
+- [x] **T2. Precarga calendario 2026 (a.1 y a.2) en `data/seniat_calendar_2026.xml` con `noupdate="1"` + vistas y menú "Calendario SENIAT".** RF-1, RF-2, RF-3
       Hecho cuando: shell inline reporta 120 líneas a.1 + 120 a.2 para 2026 (spot: digit 0 enero a.1=28 / a.2=15); editar un `day` en la UI y correr `-u` no pisa el cambio.
 
 - [ ] **T3. Modelo `l10n.ve.bank.holiday` + precarga 2026 (fuente oficial verificada) + vistas y menú "Feriados bancarios".** RF-19

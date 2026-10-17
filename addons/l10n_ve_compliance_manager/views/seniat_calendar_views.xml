@@ -1,0 +1,71 @@
+<odoo>
+    <record id="view_l10n_ve_seniat_calendar_table_list" model="ir.ui.view">
+        <field name="name">l10n.ve.seniat.calendar.table.list</field>
+        <field name="model">l10n.ve.seniat.calendar.table</field>
+        <field name="arch" type="xml">
+            <list string="Calendario SENIAT">
+                <field name="name"/>
+                <field name="year"/>
+                <field name="code"/>
+                <field name="month_offset"/>
+                <field name="description"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_l10n_ve_seniat_calendar_table_form" model="ir.ui.view">
+        <field name="name">l10n.ve.seniat.calendar.table.form</field>
+        <field name="model">l10n.ve.seniat.calendar.table</field>
+        <field name="arch" type="xml">
+            <form string="Tabla del Calendario SENIAT">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Tabla del calendario"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="year"/>
+                            <field name="code"/>
+                            <field name="month_offset"/>
+                        </group>
+                        <group>
+                            <field name="description" placeholder="Descripción o fuente oficial"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Días de vencimiento" name="lines">
+                            <field name="line_ids">
+                                <list editable="bottom">
+                                    <field name="month"/>
+                                    <field name="rif_digit"/>
+                                    <field name="day"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_l10n_ve_seniat_calendar_table_search" model="ir.ui.view">
+        <field name="name">l10n.ve.seniat.calendar.table.search</field>
+        <field name="model">l10n.ve.seniat.calendar.table</field>
+        <field name="arch" type="xml">
+            <search string="Calendario SENIAT">
+                <field name="year"/>
+                <field name="code"/>
+                <group>
+                    <filter name="group_year" string="Año" context="{'group_by': 'year'}"/>
+                    <filter name="group_code" string="Código" context="{'group_by': 'code'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_l10n_ve_seniat_calendar" model="ir.actions.act_window">
+        <field name="name">Calendario SENIAT</field>
+        <field name="res_model">l10n.ve.seniat.calendar.table</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

@@ -49,4 +49,10 @@
               parent="menu_l10n_ve_compliance_config"
               action="action_l10n_ve_obligation_type"
               sequence="20"/>
+
+    <menuitem id="menu_l10n_ve_seniat_calendar"
+              name="Calendario SENIAT"
+              parent="menu_l10n_ve_compliance_config"
+              action="action_l10n_ve_seniat_calendar"
+              sequence="30"/>
 </odoo>
