@@ -91,6 +91,21 @@
                                 </list>
                             </field>
                         </page>
+                        <page string="Configuración Fiscal" name="fiscal_config">
+                            <group>
+                                <group>
+                                    <field name="is_spe"/>
+                                </group>
+                            </group>
+                            <field name="applicable_type_ids">
+                                <list string="Obligaciones Aplicables">
+                                    <field name="name"/>
+                                    <field name="category"/>
+                                    <field name="periodicity"/>
+                                    <field name="seniat_table_code"/>
+                                </list>
+                            </field>
+                        </page>
                     </notebook>
                 </sheet>
             </form>
@@ -108,6 +123,7 @@
                 <field name="accountant_id"/>
                 <field name="activity_type"/>
                 <field name="municipality"/>
+                <filter name="filter_is_spe" string="SPE" domain="[('is_spe', '=', True)]"/>
             </search>
         </field>
     </record>

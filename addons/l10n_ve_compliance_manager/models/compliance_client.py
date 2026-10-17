@@ -14,6 +14,18 @@ class ComplianceClient(models.Model):
     accountant_id = fields.Many2one('res.users', string='Contador')
     rif = fields.Char(string='RIF')
     rif_last_digit = fields.Integer(string='Último dígito RIF', compute='_compute_rif_last_digit')
+    is_spe = fields.Boolean(
+        string='Sujeto Pasivo Especial',
+        default=False,
+        help='Si está activo, los vencimientos SENIAT se calculan con el '
+             'calendario oficial según el último dígito del RIF.',
+    )
+    applicable_type_ids = fields.Many2many(
+        'l10n.ve.obligation.type',
+        string='Obligaciones Aplicables',
+        help='Tipos de obligación que la generación automática crea para este '
+             'cliente.',
+    )
     activity_type = fields.Selection([
         ('comercio', 'Comercio'),
         ('servicios', 'Servicios'),

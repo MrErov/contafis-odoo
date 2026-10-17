@@ -10,11 +10,13 @@
                 <field name="tax_type"/>
                 <field name="periodicity"/>
                 <field name="due_day_rule"/>
+                <field name="seniat_table_code" optional="hide"/>
                 <field name="due_day_value" optional="hide"/>
                 <field name="base_calculation" optional="hide"/>
                 <field name="rate" optional="show"/>
                 <field name="currency_id" optional="hide"/>
                 <field name="alert_enabled" optional="hide"/>
+                <field name="alert_cc_client" optional="hide"/>
             </list>
         </field>
     </record>
@@ -38,6 +40,7 @@
                         <group>
                             <field name="due_day_rule"/>
                             <field name="due_day_value"/>
+                            <field name="seniat_table_code"/>
                             <field name="base_calculation"/>
                             <field name="rate"/>
                             <field name="currency_id"/>
@@ -50,6 +53,7 @@
                         </group>
                         <group>
                             <field name="alert_enabled"/>
+                            <field name="alert_cc_client"/>
                             <field name="alert_on_overdue"/>
                             <field name="alert_on_missing_payment"/>
                         </group>

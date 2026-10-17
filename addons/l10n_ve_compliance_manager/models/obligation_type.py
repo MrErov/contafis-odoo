@@ -25,6 +25,7 @@ class VeObligationType(models.Model):
     ], string='Tipo de impuesto')
     periodicity = fields.Selection([
         ('monthly', 'Mensual'),
+        ('quincenal', 'Quincenal'),
         ('bimonthly', 'Bimestral'),
         ('trimestral', 'Trimestral'),
         ('anual', 'Anual'),
@@ -37,6 +38,17 @@ class VeObligationType(models.Model):
         ('dia_fijo', 'Día fijo'),
     ], string='Regla de vencimiento')
     due_day_value = fields.Integer(string='Valor de día de vencimiento')
+    seniat_table_code = fields.Selection([
+        ('none', 'No usa calendario'),
+        ('a1', 'Literal a — tabla a.1 (vence 16–fin del mes)'),
+        ('a2', 'Literal a — tabla a.2 (vence 01–15 del mes siguiente)'),
+        ('est_islr', 'Estimadas de ISLR'),
+        ('ret_islr', 'Retenciones de ISLR'),
+    ], string='Tabla SENIAT', default='none',
+        help='Calendario oficial SENIAT que aplica a este tipo cuando el cliente '
+             'es Sujeto Pasivo Especial: el vencimiento se calcula según el '
+             'último dígito del RIF. "No usa calendario" conserva la regla '
+             'general del tipo.')
     base_calculation = fields.Selection([
         ('invoice', 'Sobre facturación'),
         ('payroll', 'Sobre nómina'),
@@ -53,5 +65,11 @@ class VeObligationType(models.Model):
         ('both', 'Ambos'),
     ], string='Canal de alerta')
     alert_enabled = fields.Boolean(string='Alertas activadas')
+    alert_cc_client = fields.Boolean(
+        string='Copiar alertas al cliente',
+        default=False,
+        help='Enviar copia de las alertas al contacto del cliente, además del '
+             'contador asignado.',
+    )
     alert_on_overdue = fields.Boolean(string='Alertar al vencer')
     alert_on_missing_payment = fields.Boolean(string='Alertar por falta de pago')

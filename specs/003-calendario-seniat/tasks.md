@@ -17,7 +17,7 @@ Comando oficial de tests (única fuente del conteo):
 - [x] **T3. Modelo `l10n.ve.bank.holiday` + precarga 2026 (fuente oficial verificada) + vistas y menú "Feriados bancarios".** RF-19
       Hecho cuando: los feriados 2026 cargan sin duplicados (constraint `UNIQUE(date)`), el menú aparece en Configuración y un año futuro se puede cargar/editar desde la UI.
 
-- [ ] **T4. Campos de configuración: `is_spe` y `applicable_type_ids` en cliente; `seniat_table_code`, `periodicity` quincenal y `alert_cc_client` en tipo; vistas y ayuda.** RF-5
+- [x] **T4. Campos de configuración: `is_spe` y `applicable_type_ids` en cliente; `seniat_table_code`, `periodicity` quincenal y `alert_cc_client` en tipo; vistas y ayuda.** RF-5
       Hecho cuando: en UI un cliente se marca SPE y se le asignan tipos; un tipo IVA con quincenal + a1 guarda sin error; los 121 tests siguen en verde.
 
 - [ ] **T5. Cálculo de vencimientos: campo `quincena` (`monthly`/`q1`/`q2`), `_resolve_due_date_calendar`, regla no-SPE día 15, corrimiento `_shift_to_next_banking_day` y reimplementación de `'1-15'` vía tabla a.1.** RF-6, RF-7, RF-8, RF-9, RF-10, RF-11, RF-20

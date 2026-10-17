@@ -290,3 +290,143 @@ class TestBankHoliday2026Data(TransactionCase):
             self.env.ref('l10n_ve_compliance_manager.menu_l10n_ve_compliance_config'),
         )
         self.assertEqual(menu.action, action)
+
+
+@tagged('post_install', '-at_install')
+class TestObligationTypeSeniatConfig(TransactionCase):
+    """T4: campos de configuración SENIAT en l10n.ve.obligation.type (RF-5)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.ObligationType = cls.env['l10n.ve.obligation.type']
+
+    def test_seniat_defaults(self):
+        """RF-5: por defecto el tipo no usa calendario ni copia al cliente."""
+        otype = self.ObligationType.create({'name': 'Tipo base T4'})
+        self.assertEqual(otype.seniat_table_code, 'none')
+        self.assertFalse(otype.alert_cc_client)
+
+    def test_quincenal_with_seniat_table_saves(self):
+        """RF-5: un IVA quincenal con tabla a.1 guarda sin error (criterio T4)."""
+        otype = self.ObligationType.create({
+            'name': 'IVA Quincenal T4',
+            'tax_type': 'iva',
+            'periodicity': 'quincenal',
+            'seniat_table_code': 'a1',
+        })
+        self.assertEqual(otype.periodicity, 'quincenal')
+        self.assertEqual(otype.seniat_table_code, 'a1')
+
+    def test_seniat_table_code_matches_calendar_codes(self):
+        """RF-5: los códigos de tabla del tipo coinciden con los del calendario."""
+        selection = dict(self.ObligationType._fields['seniat_table_code'].selection)
+        self.assertEqual(set(selection), {'none', 'a1', 'a2', 'est_islr', 'ret_islr'})
+        calendar_selection = dict(
+            self.env['l10n.ve.seniat.calendar.table']._fields['code'].selection
+        )
+        for code in ('a1', 'a2', 'est_islr', 'ret_islr'):
+            self.assertIn(code, calendar_selection)
+
+    def test_alert_cc_client_toggle(self):
+        """RF-15: la copia al cliente se activa por tipo de obligación."""
+        otype = self.ObligationType.create({
+            'name': 'Tipo CC T4',
+            'alert_cc_client': True,
+        })
+        self.assertTrue(otype.alert_cc_client)
+
+
+@tagged('post_install', '-at_install')
+class TestComplianceClientSeniatConfig(TransactionCase):
+    """T4: campos de configuración SENIAT en l10n.ve.compliance.client (RF-5)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.Client = cls.env['l10n.ve.compliance.client']
+        cls.ObligationType = cls.env['l10n.ve.obligation.type']
+        cls.partner = cls.env['res.partner'].create({'name': 'Partner T4'})
+
+    def _create_client(self, **kwargs):
+        vals = {
+            'name': 'Cliente T4',
+            'partner_id': self.partner.id,
+            'company_id': self.env.company.id,
+        }
+        vals.update(kwargs)
+        return self.Client.create(vals)
+
+    def test_seniat_defaults(self):
+        """RF-5: por defecto el cliente no es SPE y no tiene tipos asignados."""
+        client = self._create_client()
+        self.assertFalse(client.is_spe)
+        self.assertFalse(client.applicable_type_ids)
+
+    def test_spe_toggle(self):
+        """RF-5: el cliente se puede marcar como Sujeto Pasivo Especial."""
+        self.assertTrue(self._create_client(is_spe=True).is_spe)
+
+    def test_assign_applicable_types(self):
+        """RF-12: el cliente recibe los tipos que la generación usaría."""
+        client = self._create_client()
+        otype_iva = self.ObligationType.create({
+            'name': 'IVA Quincenal cliente T4',
+            'periodicity': 'quincenal',
+            'seniat_table_code': 'a1',
+        })
+        otype_islr = self.ObligationType.create({
+            'name': 'ISLR cliente T4',
+            'periodicity': 'monthly',
+        })
+        client.applicable_type_ids = [(6, 0, [otype_iva.id, otype_islr.id])]
+        self.assertEqual(client.applicable_type_ids, otype_iva | otype_islr)
+
+    def test_applicable_types_are_per_client(self):
+        """RF-12: los tipos aplicables son independientes entre clientes."""
+        client_a = self._create_client()
+        client_b = self._create_client()
+        otype = self.ObligationType.create({'name': 'Tipo compartido T4'})
+        client_a.applicable_type_ids = [(6, 0, otype.ids)]
+        self.assertEqual(client_a.applicable_type_ids, otype)
+        self.assertFalse(client_b.applicable_type_ids)
+
+
+@tagged('post_install', '-at_install')
+class TestSeniatConfigViews(TransactionCase):
+    """T4: las vistas exponen los campos de configuración SENIAT (RF-5)."""
+
+    def _assert_fields_in_view(self, xmlid, model, field_names):
+        view = self.env.ref(f'l10n_ve_compliance_manager.{xmlid}')
+        self.assertEqual(view.model, model)
+        for field_name in field_names:
+            self.assertIn(f'name="{field_name}"', view.arch)
+
+    def test_client_form_shows_fiscal_config(self):
+        """La pestaña de configuración fiscal muestra SPE y tipos aplicables."""
+        self._assert_fields_in_view(
+            'view_l10n_ve_compliance_client_form',
+            'l10n.ve.compliance.client',
+            ['is_spe', 'applicable_type_ids'],
+        )
+
+    def test_client_search_has_spe_filter(self):
+        """Existe el filtro SPE en la búsqueda de clientes."""
+        view = self.env.ref('l10n_ve_compliance_manager.view_l10n_ve_compliance_client_search')
+        self.assertIn("('is_spe', '=', True)", view.arch)
+
+    def test_obligation_type_form_shows_seniat_config(self):
+        """El formulario del tipo muestra tabla SENIAT y copia al cliente."""
+        self._assert_fields_in_view(
+            'view_l10n_ve_obligation_type_form',
+            'l10n.ve.obligation.type',
+            ['seniat_table_code', 'alert_cc_client'],
+        )
+
+    def test_obligation_type_list_shows_seniat_table_code(self):
+        """La lista de tipos expone la tabla SENIAT."""
+        self._assert_fields_in_view(
+            'view_l10n_ve_obligation_type_list',
+            'l10n.ve.obligation.type',
+            ['seniat_table_code'],
+        )
