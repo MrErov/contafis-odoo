@@ -54,3 +54,9 @@ access_l10n_ve_regenerate_confirm_wizard_user,l10n.ve.regenerate.confirm.wizard.
 access_l10n_ve_regenerate_confirm_wizard_manager,l10n.ve.regenerate.confirm.wizard.manager,model_l10n_ve_regenerate_confirm_wizard,account.group_account_manager,1,1,1,1
 access_l10n_ve_vat_book_export_wizard_user,l10n.ve.vat.book.export.wizard.user,model_l10n_ve_vat_book_export_wizard,base.group_user,1,1,1,1
 access_l10n_ve_vat_book_export_wizard_manager,l10n.ve.vat.book.export.wizard.manager,model_l10n_ve_vat_book_export_wizard,account.group_account_manager,1,1,1,1
+access_l10n_ve_seniat_calendar_table_user,l10n.ve.seniat.calendar.table.user,model_l10n_ve_seniat_calendar_table,account.group_account_user,1,0,0,0
+access_l10n_ve_seniat_calendar_table_manager,l10n.ve.seniat.calendar.table.manager,model_l10n_ve_seniat_calendar_table,account.group_account_manager,1,1,1,1
+access_l10n_ve_seniat_calendar_table_accountant,l10n.ve.seniat.calendar.table.accountant,model_l10n_ve_seniat_calendar_table,l10n_ve_compliance_accountant,1,1,1,1
+access_l10n_ve_seniat_calendar_user,l10n.ve.seniat.calendar.user,model_l10n_ve_seniat_calendar,account.group_account_user,1,0,0,0
+access_l10n_ve_seniat_calendar_manager,l10n.ve.seniat.calendar.manager,model_l10n_ve_seniat_calendar,account.group_account_manager,1,1,1,1
+access_l10n_ve_seniat_calendar_accountant,l10n.ve.seniat.calendar.accountant,model_l10n_ve_seniat_calendar,l10n_ve_compliance_accountant,1,1,1,1

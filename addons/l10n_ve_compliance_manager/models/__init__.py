@@ -20,6 +20,7 @@ from . import (
     res_partner,
     retention,
     retention_service,
+    seniat_calendar,
     vat_book_export_wizard,
     vat_book_generate,
     vat_book_headers,
