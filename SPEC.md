@@ -200,6 +200,21 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
   `res.partner.mobile` (removido en Odoo 19)
 - ✅ 121 tests pasando
 
+### MCP Odoo (integración OpenCode Desktop) — COMPLETADA
+- ✅ Server MCP `FGRibreau/mcp-odoo` v0.2.1 (binario Rust, stdio) — spec 002
+- ✅ API key JSON/2 (Bearer) generada en odoo shell y persistida en env var
+  de usuario (nunca en el repo)
+- ✅ Config global en `~/.config/opencode/opencode.jsonc`: `ODOO_URL=127.0.0.1:8090`,
+  `ODOO_DB=contea`, `ODOO_PROTOCOL=json2`, `MODEL_INCLUDE=l10n.ve.*,account.*,res.*,product.*,uom.uom`
+- ✅ 8 tools: `list_models`, `describe_model`, `search`, `read`, `create`, `write`,
+  `delete`, `call_method`
+- ✅ Smoke test E2E: crear partner → factura compra (línea + IVA 16%) → post →
+  línea del libro 6→7 → rename → borrador → libro 7→6 → delete (verificado con psql)
+- ✅ Anomalía de concurrencia documentada (paralelismo `tokio::join!` + relay
+  Docker Desktop) con workaround vía `call_method` secuencial
+- ✅ Artefactos: `specs/002-mcp-odoo/{spec,plan,tasks}.md` + sección "MCP Odoo" en `AGENTS.md`
+- ✅ 121 tests pasando
+
 ### Trabajo Futuro
 - ⬜ Spec 11: Conciliación ISLR
 - ⬜ Fase H: E2E con Playwright — 5/7 sub-fases completadas (0-4 + 7 CI); Fases 5-6 diferidas
@@ -210,7 +225,6 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ⬜ country_id guard en _post() para multi-país
 - ⬜ Menú directo para vat.book.line list
 - ⬜ Importación de asientos contables (account.move)
-- ⬜ Integración MCP Odoo (mart337i/odoo-dev-mcp)
 - ⬜ Fix RIF None en export XLSX cuando company.vat está vacío
 - ⬜ DevOps.1b: ruff-format (opcional, reformatearía 30+ archivos)
 - ⬜ DevOps.2: GitHub Actions CI (lint + test jobs) — **HECHO (B3-e2e-ci)**
@@ -226,5 +240,6 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`
+- ✅ Integración MCP Odoo (FGRibreau/mcp-odoo v0.2.1) para operar `contea` desde OpenCode Desktop
 - ✅ Guía de usuario en `docs/guia-usuario/`: portada, TOC, capturas reales y PDF (50 páginas)
 - ⬜ Topics GitHub

@@ -333,3 +333,37 @@ NUNCA usar `cmd /c "cd C:\... && ..."`.
 SIEMPRE usar bash/WSL: `cd /mnt/c/Users/hp/Desktop/ContaFis && ...`
 
 Razón: los paths de Windows rompen node, npm y pre-commit.
+
+## MCP Odoo (integración activa)
+
+El agente IA opera Odoo 19 (DB `contea`) vía MCP `FGRibreau/mcp-odoo` v0.2.1
+(binario Rust, stdio) hablando la API JSON/2. Spec: `specs/002-mcp-odoo/`.
+
+### Setup (fuera del repo)
+
+- Binario: `C:\Users\hp\AppData\Local\mcp-server-odoo\mcp-server-odoo.exe`
+  (SHA256 `C89E17B9FD445542374023512E793A36FE28AB46820357093E0C5FA4F0A33EC5`).
+- Config: `C:\Users\hp\.config\opencode\opencode.jsonc` → bloque
+  `mcp.servers.odoo` (global del usuario, NO en `opencode.json` del repo).
+- Env: `ODOO_URL=http://127.0.0.1:8090`, `ODOO_DB=contea`,
+  `ODOO_PROTOCOL=json2`, `MODEL_INCLUDE=l10n.ve.*,account.*,res.*,product.*,uom.uom`,
+  `PAGE_SIZE=50`.
+- Tras editar la config global: reiniciar OpenCode Desktop para recargar las
+  tools `odoo_*`.
+
+### Reglas de uso
+
+1. **NO exponer API keys**: la key vive en la config global del usuario y en
+   la env var `ODOO_API_KEY` (`setx`). NUNCA commitearla, ni pegarla en docs,
+   ni mostrarla completa en logs.
+2. **Anomalía de concurrencia**: el binario dispara `search_read` +
+   `search_count` en paralelo (`tokio::join!`). A través del relay de puertos
+   de Docker Desktop la conexión puede corromperse de forma intermitente
+   (errores `unhashable type: 'dict'` en search o `Invalid field 'Count'` en
+   create). **Workaround**: reintentar una vez; si persiste, usar
+   `call_method` con `search_read`/`search_count` secuenciales.
+3. **Herramientas disponibles**: `list_models`, `describe_model`, `search`,
+   `read`, `create`, `write`, `delete`, `call_method` (8 tools).
+4. El MCP es complementario a Playwright E2E y odoo shell; no los sustituye
+   ni reemplaza la regla de "no archivos temporales" (usar harness inline
+   si se automatiza un smoke test).
