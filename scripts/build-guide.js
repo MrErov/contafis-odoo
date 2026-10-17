@@ -4,6 +4,57 @@ const MarkdownIt = require('markdown-it');
 const mdAnchor = require('markdown-it-anchor');
 const { chromium } = require('@playwright/test');
 
+const CALLOUT_OPEN = /^<div class="(step|expected|warning|tip|troubleshoot)">\s*$/;
+
+// markdown-it, incluso con html:true, corta los bloques HTML en la primera
+// línea en blanco y no procesa el markdown interior. Esta regla consume el
+// <div class="..."> ... </div> completo, emite el div de apertura/cierre y
+// tokeniza el contenido interior como markdown normal, de modo que listas,
+// negritas e imágenes funcionen dentro de las cajas paso/advertencia/consejo.
+function stepDivPlugin(md) {
+  function stepDiv(state, startLine, endLine, silent) {
+    const pos = state.bMarks[startLine] + state.tShift[startLine];
+    const max = state.eMarks[startLine];
+    const line = state.src.slice(pos, max).trim();
+    const match = line.match(CALLOUT_OPEN);
+    if (!match) return false;
+    if (silent) return true;
+
+    const className = match[1];
+    let nextLine = startLine + 1;
+    let closed = false;
+    while (nextLine < endLine) {
+      const lPos = state.bMarks[nextLine] + state.tShift[nextLine];
+      const lMax = state.eMarks[nextLine];
+      const lText = state.src.slice(lPos, lMax);
+      if (lText.trim() === '</div>') {
+        closed = true;
+        nextLine++;
+        break;
+      }
+      nextLine++;
+    }
+    if (!closed) return false;
+
+    const open = state.push('html_block', '', 0);
+    open.content = `<div class="${className}">\n`;
+    open.block = true;
+
+    state.md.block.tokenize(state, startLine + 1, nextLine - 1);
+
+    const close = state.push('html_block', '', 0);
+    close.content = '</div>\n';
+    close.block = true;
+
+    state.line = nextLine;
+    return true;
+  }
+
+  md.block.ruler.before('fence', 'step_div', stepDiv, {
+    alt: ['paragraph', 'reference', 'blockquote', 'list'],
+  });
+}
+
 async function build() {
   const guideDir = path.join(__dirname, '..', 'docs', 'guia-usuario');
   const mdFiles = fs.readdirSync(guideDir)
@@ -12,6 +63,7 @@ async function build() {
 
   const md = new MarkdownIt({ html: true, linkify: true });
   md.use(mdAnchor);
+  md.use(stepDivPlugin);
 
   let htmlContent = '';
   for (const file of mdFiles) {
@@ -56,4 +108,8 @@ ${htmlContent}
   console.log('✓ PDF generado: docs/guia-usuario/guia-usuario.pdf');
 }
 
-build().catch(err => { console.error(err); process.exit(1); });
+if (require.main === module) {
+  build().catch(err => { console.error(err); process.exit(1); });
+}
+
+module.exports = { stepDivPlugin };

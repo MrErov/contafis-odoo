@@ -88,3 +88,65 @@ a { color: #7c4a2d; text-decoration: none; }
 
 ul, ol { padding-left: 1.5em; }
 li { margin-bottom: 0.3em; }
+
+/* Cajas de tutorial: paso, resultado esperado, advertencia, consejo, solución */
+.step,
+.expected,
+.warning,
+.tip,
+.troubleshoot {
+  position: relative;
+  margin: 1.6em 0;
+  padding: 1.7em 1.2em 1em 1.2em;
+  border: 1px solid;
+  border-radius: 6px;
+  page-break-inside: avoid;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.step > :first-child,
+.expected > :first-child,
+.warning > :first-child,
+.tip > :first-child,
+.troubleshoot > :first-child { margin-top: 0; }
+
+.step > :last-child,
+.expected > :last-child,
+.warning > :last-child,
+.tip > :last-child,
+.troubleshoot > :last-child { margin-bottom: 0; }
+
+.step::before,
+.expected::before,
+.warning::before,
+.tip::before,
+.troubleshoot::before {
+  position: absolute;
+  top: -0.8em;
+  left: 0.9em;
+  padding: 0.15em 0.75em;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  border-radius: 999px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.step { background: #eef4fb; border-color: #b9d2ec; }
+.step::before { content: "Paso"; background: #3b6ea5; }
+
+.expected { background: #eef8f0; border-color: #b7ddc1; }
+.expected::before { content: "Resultado esperado"; background: #3f8f57; }
+
+.warning { background: #fdf4e6; border-color: #f0d29a; }
+.warning::before { content: "Advertencia"; background: #d9822b; }
+
+.tip { background: #eef7f4; border-color: #a9d8c9; }
+.tip::before { content: "Consejo"; background: #2f8f72; }
+
+.troubleshoot { background: #fbeceb; border-color: #eeb4ae; }
+.troubleshoot::before { content: "Solución de problemas"; background: #c0392b; }

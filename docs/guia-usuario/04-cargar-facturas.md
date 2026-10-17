@@ -14,7 +14,11 @@ Facturas pre-impresas. Datos mínimos: número de factura, número de control y 
 
 Requiere serial de máquina y número de reporte Z.
 
-> **Advertencia:** Los 3 datos (serial + reporte Z + número de factura) son obligatorios para SENIAT.
+<div class="warning">
+
+Los 3 datos (serial + reporte Z + número de factura) son **obligatorios** para SENIAT.
+
+</div>
 
 ### Digital
 
@@ -30,12 +34,18 @@ Se abre un modal con el formulario completo.
 
 ## Completar el formulario
 
+<div class="step">
+
 ### 1. Seleccionar tipo (Compra o Venta)
 
 ![Selector de tipo de operación](./assets/screenshots/04-02-operation-type.png)
 
 - **Compra:** factura de proveedor (in_invoice)
 - **Venta:** factura a cliente (out_invoice)
+
+</div>
+
+<div class="step">
 
 ### 2. RIF del proveedor o cliente
 
@@ -48,11 +58,19 @@ Ingrese el RIF con formato J-XXXXXXXX-X. El sistema valida el dígito de control
 
 Complete los datos del nuevo partner: razón social, tipo (Empresa o Persona), dirección, email y teléfono.
 
+</div>
+
+<div class="step">
+
 ### 3. Tipo de emisión
 
 ![Selector de tipo de emisión con las 3 opciones](./assets/screenshots/04-04-emission-type.png)
 
 Seleccione **Talonario**, **Máquina Fiscal** o **Digital**.
+
+</div>
+
+<div class="step">
 
 ### 4. Datos de la factura
 
@@ -62,6 +80,10 @@ Seleccione **Talonario**, **Máquina Fiscal** o **Digital**.
 - **Fecha de Vencimiento:** opcional
 - **Moneda:** por defecto VES
 
+</div>
+
+<div class="step">
+
 ### 5. Campos según emisión
 
 Si selecciona **Máquina Fiscal**, aparecen dos campos adicionales:
@@ -70,6 +92,10 @@ Si selecciona **Máquina Fiscal**, aparecen dos campos adicionales:
 
 - **Serial Máquina Fiscal**
 - **N° Reporte Z**
+
+</div>
+
+<div class="step">
 
 ### 6. Bases e IVA
 
@@ -86,6 +112,10 @@ Ingrese los montos según la alícuota que aplique:
 
 El **Total Calculado** se actualiza automáticamente.
 
+</div>
+
+<div class="step">
+
 ### 7. Retención (solo compras)
 
 Si el tipo es **Compra**, aparece la sección de retención:
@@ -94,9 +124,13 @@ Si el tipo es **Compra**, aparece la sección de retención:
 - **IVA Retenido**
 - **Dirección Retención:** Retenido por comprador, Retenido a vendedor o Retenido a terceros
 
+</div>
+
 ## Guardar la factura
 
-Al hacer clic en [Crear y Postear]:
+Al hacer clic en [Crear y Postear] el sistema realiza todo el trabajo por usted:
+
+<div class="expected">
 
 1. Se crea un `account.move` (in_invoice o out_invoice)
 2. Se postea automáticamente
@@ -104,7 +138,11 @@ Al hacer clic en [Crear y Postear]:
 4. Se actualiza el total para la Planilla 99030
 5. Se abre la factura creada
 
+</div>
+
 ## Casos especiales
+
+<div class="troubleshoot">
 
 ### Factura sin RIF del proveedor
 
@@ -114,12 +152,18 @@ Si el proveedor no tiene RIF válido, no es posible cargar la factura. Solicite 
 
 Si cargó una factura con datos incorrectos, abra la factura creada, revierta el asiento (botón [Revertir]) y vuelva a cargar los datos correctos.
 
+</div>
+
 ## Consejos prácticos
+
+<div class="tip">
 
 - Cargue las facturas a medida que llegan, no acumule para fin de mes
 - Verifique el libro de Compras/Ventas semanalmente
 - Guarde los archivos físicos o digitales como respaldo
 - Revise que el número de control coincida con el documento original
+
+</div>
 
 ## Siguiente paso
 
