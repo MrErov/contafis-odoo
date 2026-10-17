@@ -44,6 +44,154 @@ async function login(page) {
   await page.waitForSelector('.o_main_navbar, .o_user_menu, header', { timeout: 30000 });
 }
 
+// Siembra data demo reproducible (idempotente) para que los screenshots de
+// listas/formularios no salgan vacA-os. No borra nada: busca por nombre y
+// crea solo lo que falta. Desactivar con SKIP_SEED=1.
+async function seedDemoData(page) {
+  const result = await page.evaluate(async () => {
+    const env = window.odoo.__WOWL_DEBUG__.root.env;
+    const orm = env.services.orm;
+    const call = (model, method, args = [], kwargs = {}) => orm.call(model, method, args, kwargs);
+    const stats = { partners: 0, clients: 0, documents: 0, statuses: 0, returns: 0, alerts: 0 };
+
+    let companyId = env.services.company && env.services.company.currentCompany
+      ? env.services.company.currentCompany.id
+      : null;
+    if (!companyId) {
+      const comps = await orm.search('res.company', [], { limit: 1 });
+      companyId = comps[0];
+    }
+
+    const seedPartner = async (name, rif, phone) => {
+      const found = await orm.search('res.partner', [['name', '=', name]], { limit: 1 });
+      if (found.length) return found[0];
+      stats.partners += 1;
+      return call('res.partner', 'create', [{
+        name,
+        is_company: true,
+        company_type: 'company',
+        vat: rif,
+        phone,
+      }]);
+    };
+
+    const seedClient = async (name, rif, activity, municipality) => {
+      const found = await orm.search('l10n.ve.compliance.client', [['name', '=', name]], { limit: 1 });
+      if (found.length) return found[0];
+      const partnerId = await seedPartner(name, rif, '+58 414-0000000');
+      stats.clients += 1;
+      return call('l10n.ve.compliance.client', 'create', [{
+        name,
+        partner_id: partnerId,
+        company_id: companyId,
+        rif,
+        activity_type: activity,
+        municipality,
+      }]);
+    };
+
+    const clientA = await seedClient('Distribuidora El Sol, C.A.', 'J-40123456-7', 'comercio', 'Libertador');
+    const clientB = await seedClient('Servicios Andinos, S.A.', 'J-40987654-3', 'servicios', 'Baruta');
+    const clientC = await seedClient('Inversiones Maracaibo, C.A.', 'J-31555666-9', 'mixto', 'Maracaibo');
+
+    const docTypes = await orm.search(
+      'l10n.ve.document.type',
+      [['required_for', '=', 'company']],
+      { limit: 6, order: 'code' },
+    );
+
+    const seedDocument = async (clientId, docTypeId, number, issueDate, expiryDate, state) => {
+      const found = await orm.search('l10n.ve.document', [
+        ['client_id', '=', clientId],
+        ['document_type_id', '=', docTypeId],
+        ['number', '=', number],
+      ], { limit: 1 });
+      if (found.length) return;
+      stats.documents += 1;
+      await call('l10n.ve.document', 'create', [{
+        client_id: clientId,
+        document_type_id: docTypeId,
+        number,
+        issue_date: issueDate,
+        expiry_date: expiryDate,
+        state,
+      }]);
+    };
+
+    if (docTypes.length) {
+      await seedDocument(clientA, docTypes[0], 'DOC-A-001', '2026-01-15', '2026-12-31', 'valid');
+      await seedDocument(clientA, docTypes[1] || docTypes[0], 'DOC-A-002', '2026-02-01', '2026-11-30', 'valid');
+      await seedDocument(clientA, docTypes[2] || docTypes[0], 'DOC-A-003', '2025-03-01', '2025-12-31', 'expired');
+      await seedDocument(clientB, docTypes[0], 'DOC-B-001', '2026-03-10', '2026-12-15', 'valid');
+    }
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1);
+
+    const seedSnapshot = async (clientId) => {
+      const found = await orm.search('l10n.ve.cartelera.status', [
+        ['client_id', '=', clientId],
+        ['year', '=', year],
+        ['month', '=', month],
+      ], { limit: 1 });
+      if (found.length) return;
+      const created = await call('l10n.ve.cartelera.status', 'generate_snapshot', [clientId, year, month]);
+      stats.statuses += Array.isArray(created) ? created.length : 1;
+    };
+    await seedSnapshot(clientA);
+    await seedSnapshot(clientB);
+    await seedSnapshot(clientC);
+
+    const seedReturn = async (periodMonth, vals) => {
+      const found = await orm.search('l10n.ve.vat.return', [
+        ['period_month', '=', periodMonth],
+        ['company_id', '=', companyId],
+      ], { limit: 1 });
+      let id;
+      if (found.length) {
+        id = found[0];
+        await call('l10n.ve.vat.return', 'write', [[id], vals]);
+      } else {
+        stats.returns += 1;
+        id = await call('l10n.ve.vat.return', 'create', [{ period_month: periodMonth, company_id: companyId, ...vals }]);
+      }
+      await call('l10n.ve.vat.return', 'action_calculate', [[id]]);
+    };
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prev2 = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    await seedReturn(fmt(prev), { item_42: 15000.0, item_43: 2400.0, item_33: 9000.0, item_34: 1440.0 });
+    await seedReturn(fmt(prev2), { item_42: 8000.0, item_43: 1280.0, item_33: 14000.0, item_34: 2240.0 });
+
+    const seedAlert = async (clientId, alertType, state) => {
+      const name = `Alerta demo ${alertType} ${clientId}`;
+      const found = await orm.search('l10n.ve.alert', [['name', '=', name]], { limit: 1 });
+      if (found.length) return;
+      stats.alerts += 1;
+      await call('l10n.ve.alert', 'create', [{
+        name,
+        client_id: clientId,
+        alert_type: alertType,
+        state,
+        channel: 'email',
+        date: new Date().toISOString().slice(0, 19).replace('T', ' '),
+      }]);
+    };
+    await seedAlert(clientA, 'overdue', 'pending');
+    await seedAlert(clientA, 'due_soon', 'pending');
+    await seedAlert(clientB, 'document_expiring', 'sent');
+    await seedAlert(clientC, 'missing_payment', 'done');
+
+    return stats;
+  });
+  console.log(
+    `\u2713 seed demo: ${result.partners} partners, ${result.clients} clients, `
+    + `${result.documents} docs, ${result.statuses} snapshots, `
+    + `${result.returns} planillas, ${result.alerts} alertas`,
+  );
+}
+
 async function injectAnnotations(page, annotations) {
   await page.evaluate((anns) => {
     const old = document.getElementById('__guide_overlay__');
@@ -398,6 +546,9 @@ const specs = [
   try {
     await login(page);
     console.log('✓ login OK');
+    if (!process.env.SKIP_SEED) {
+      await seedDemoData(page);
+    }
     for (const spec of specs) {
       try {
         await capture(page, spec);
