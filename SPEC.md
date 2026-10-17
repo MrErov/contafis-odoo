@@ -185,6 +185,21 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Search view: campos + 4 filtros (Compras, Ventas, Con Retención, Con Importación) + 4 group by
 - ✅ Commit: 729f0f4
 
+### Fase I: Guía de usuario (COMPLETADA)
+- ✅ Portada + TOC navegable (anclas de h1/h2) generados en `scripts/build-guide.js`
+- ✅ CSS de callouts unificados (`.step/.expected/.warning/.tip/.note/.troubleshoot`) en `guide.css`
+- ✅ Capturas reales vía `scripts/capture-screenshots.js` (wizards abiertos client-side
+  sobre la app Cumplimiento VE, no sobre la app por defecto)
+- ✅ `seedDemoData()` idempotente: 3 clientes, documentos, 108 snapshots de
+  cartelera, 2 planillas, 4 alertas (desactivable con `SKIP_SEED=1`)
+- ✅ PDF final `docs/guia-usuario/guia-usuario.pdf` (50 páginas, ~3 MB)
+- ✅ Fix bug de producción: `mail.template` mezclaba sintaxis QWeb e
+  inline_template y rompía `-u` al existir ≥1 alerta (Odoo 19 valida los
+  templates renderizándolos contra el primer registro del modelo)
+- ✅ Fix bug de producción: `l10n.ve.alert.get_wa_url()` usaba
+  `res.partner.mobile` (removido en Odoo 19)
+- ✅ 121 tests pasando
+
 ### Trabajo Futuro
 - ⬜ Spec 11: Conciliación ISLR
 - ⬜ Fase H: E2E con Playwright — 5/7 sub-fases completadas (0-4 + 7 CI); Fases 5-6 diferidas
@@ -211,5 +226,5 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`
-- ⬜ Capturas de pantalla en docs/screenshots/
+- ✅ Guía de usuario en `docs/guia-usuario/`: portada, TOC, capturas reales y PDF (50 páginas)
 - ⬜ Topics GitHub

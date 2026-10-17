@@ -58,7 +58,7 @@ class VeAlert(models.Model):
     def get_wa_url(self, partner):
         self.ensure_one()
         partner = self.env['res.partner'].browse(partner)
-        phone = ''.join(re.findall(r'\d+', partner.phone or partner.mobile or ''))
+        phone = ''.join(re.findall(r'\d+', partner.phone or ''))
         if not phone:
             return False
         return f'https://wa.me/{phone}?text={quote(self._get_wa_text())}'

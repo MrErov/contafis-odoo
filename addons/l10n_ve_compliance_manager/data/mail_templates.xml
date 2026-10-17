@@ -3,7 +3,7 @@
         <record id="email_template_l10n_ve_alert" model="mail.template">
             <field name="name">Cumplimiento VE: Alerta de cumplimiento</field>
             <field name="model_id" ref="model_l10n_ve_alert"/>
-            <field name="partner_to">${','.join(str(partner.id) for partner in object.recipient_ids)}</field>
+            <field name="partner_to">{{ ','.join(map(str, object.recipient_ids.ids)) }}</field>
             <field name="subject">[Cumplimiento VE] {{ object.client_id.name or '' }} - {{ object.alert_type or '' }}</field>
             <field name="body_html" type="html">
                 <div style="font-family: Arial, sans-serif; font-size: 13px;">
@@ -12,51 +12,51 @@
                     <table style="border-collapse: collapse;" border="0" cellpadding="5">
                         <tr>
                             <td><b>Cliente:</b></td>
-                            <td>{{ object.client_id.name }}</td>
+                            <td><t t-out="object.client_id.name"/></td>
                         </tr>
                         <tr>
                             <td><b>RIF:</b></td>
-                            <td>{{ object.client_id.rif }}</td>
+                            <td><t t-out="object.client_id.rif"/></td>
                         </tr>
                         <tr>
                             <td><b>Tipo de alerta:</b></td>
-                            <td>{{ object.alert_type }}</td>
+                            <td><t t-out="object.alert_type"/></td>
                         </tr>
-                        {% if object.obligation_id %}
-                        <tr>
-                            <td><b>Obligación:</b></td>
-                            <td>{{ object.obligation_id.name }} (Período: {{ object.obligation_id.period }})</td>
-                        </tr>
-                        <tr>
-                            <td><b>Vencimiento:</b></td>
-                            <td>{{ object.obligation_id.due_date }}</td>
-                        </tr>
-                        <tr>
-                            <td><b>Monto:</b></td>
-                            <td>{{ object.obligation_id.amount }} {{ object.obligation_id.currency_id.name }}</td>
-                        </tr>
-                        {% endif %}
-                        {% if object.document_id %}
-                        <tr>
-                            <td><b>Documento:</b></td>
-                            <td>{{ object.document_id.number }} ({{ object.document_id.document_type_id.name }})</td>
-                        </tr>
-                        <tr>
-                            <td><b>Vence:</b></td>
-                            <td>{{ object.document_id.expiry_date }}</td>
-                        </tr>
-                        {% endif %}
+                        <t t-if="object.obligation_id">
+                            <tr>
+                                <td><b>Obligación:</b></td>
+                                <td><t t-out="object.obligation_id.name"/> (Período: <t t-out="object.obligation_id.period"/>)</td>
+                            </tr>
+                            <tr>
+                                <td><b>Vencimiento:</b></td>
+                                <td><t t-out="object.obligation_id.due_date"/></td>
+                            </tr>
+                            <tr>
+                                <td><b>Monto:</b></td>
+                                <td><t t-out="object.obligation_id.amount"/> <t t-out="object.obligation_id.currency_id.name"/></td>
+                            </tr>
+                        </t>
+                        <t t-if="object.document_id">
+                            <tr>
+                                <td><b>Documento:</b></td>
+                                <td><t t-out="object.document_id.number"/> (<t t-out="object.document_id.document_type_id.name"/>)</td>
+                            </tr>
+                            <tr>
+                                <td><b>Vence:</b></td>
+                                <td><t t-out="object.document_id.expiry_date"/></td>
+                            </tr>
+                        </t>
                     </table>
                     <p><b>Mensaje:</b></p>
-                    <p>{{ object.message }}</p>
-                    {% for partner in object.recipient_ids %}
-                    <p>
-                        <a t-att-href="object.get_wa_url(partner.id)"
-                           style="background-color: #25D366; color: #ffffff; padding: 8px 16px; border-radius: 4px; text-decoration: none;">
-                            Enviar por WhatsApp a {{ partner.name }}
-                        </a>
-                    </p>
-                    {% endfor %}
+                    <p style="white-space: pre-line;"><t t-out="object.message"/></p>
+                    <t t-foreach="object.recipient_ids" t-as="partner">
+                        <p>
+                            <a t-att-href="object.get_wa_url(partner.id)"
+                               style="background-color: #25D366; color: #ffffff; padding: 8px 16px; border-radius: 4px; text-decoration: none;">
+                                Enviar por WhatsApp a <t t-out="partner.name"/>
+                            </a>
+                        </p>
+                    </t>
                     <p>Atentamente,<br/>Sistema de Cumplimiento VE.</p>
                 </div>
             </field>
