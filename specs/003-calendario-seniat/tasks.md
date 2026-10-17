@@ -14,7 +14,7 @@ Comando oficial de tests (única fuente del conteo):
 - [x] **T2. Precarga calendario 2026 (a.1 y a.2) en `data/seniat_calendar_2026.xml` con `noupdate="1"` + vistas y menú "Calendario SENIAT".** RF-1, RF-2, RF-3
       Hecho cuando: shell inline reporta 120 líneas a.1 + 120 a.2 para 2026 (spot: digit 0 enero a.1=28 / a.2=15); editar un `day` en la UI y correr `-u` no pisa el cambio.
 
-- [ ] **T3. Modelo `l10n.ve.bank.holiday` + precarga 2026 (fuente oficial verificada) + vistas y menú "Feriados bancarios".** RF-19
+- [x] **T3. Modelo `l10n.ve.bank.holiday` + precarga 2026 (fuente oficial verificada) + vistas y menú "Feriados bancarios".** RF-19
       Hecho cuando: los feriados 2026 cargan sin duplicados (constraint `UNIQUE(date)`), el menú aparece en Configuración y un año futuro se puede cargar/editar desde la UI.
 
 - [ ] **T4. Campos de configuración: `is_spe` y `applicable_type_ids` en cliente; `seniat_table_code`, `periodicity` quincenal y `alert_cc_client` en tipo; vistas y ayuda.** RF-5

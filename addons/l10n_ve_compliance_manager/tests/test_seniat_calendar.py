@@ -1,3 +1,4 @@
+from odoo import fields
 from odoo.tests import TransactionCase, tagged
 from odoo.tools import convert
 from psycopg2 import IntegrityError
@@ -186,6 +187,104 @@ class TestSeniatCalendar2026Data(TransactionCase):
         self.assertEqual(action.view_mode, 'list,form')
         menu = self.env.ref('l10n_ve_compliance_manager.menu_l10n_ve_seniat_calendar')
         self.assertEqual(menu.name, 'Calendario SENIAT')
+        self.assertEqual(
+            menu.parent_id,
+            self.env.ref('l10n_ve_compliance_manager.menu_l10n_ve_compliance_config'),
+        )
+        self.assertEqual(menu.action, action)
+
+
+@tagged('post_install', '-at_install')
+class TestBankHolidayModel(TransactionCase):
+    """T3: modelo de feriados bancarios (fecha única + año computado)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.BankHoliday = cls.env['l10n.ve.bank.holiday']
+
+    def test_create_holiday_computes_year(self):
+        """RF-19: al crear un feriado el año se computa desde la fecha y es buscable."""
+        holiday = self.BankHoliday.create({
+            'name': 'Día de prueba',
+            'date': fields.Date.to_date(f'{TEST_YEAR}-03-15'),
+        })
+        self.assertEqual(holiday.year, TEST_YEAR)
+        found = self.BankHoliday.search([
+            ('year', '=', TEST_YEAR),
+            ('date', '=', fields.Date.to_date(f'{TEST_YEAR}-03-15')),
+        ])
+        self.assertIn(holiday, found)
+
+    def test_unique_date(self):
+        """RF-19: no se permite repetir la fecha de un feriado (UNIQUE(date))."""
+        self.BankHoliday.create({
+            'name': 'Feriado uno',
+            'date': fields.Date.to_date(f'{TEST_YEAR}-04-01'),
+        })
+        with self.assertRaises(IntegrityError):
+            self.BankHoliday.create({
+                'name': 'Feriado dos',
+                'date': fields.Date.to_date(f'{TEST_YEAR}-04-01'),
+            })
+
+    def test_future_year_holiday_creatable(self):
+        """RF-19: se puede cargar un feriado de un año futuro desde la interfaz."""
+        holiday = self.BankHoliday.create({
+            'name': 'Feriado futuro',
+            'date': fields.Date.to_date(f'{TEST_YEAR + 1}-05-01'),
+        })
+        self.assertEqual(holiday.year, TEST_YEAR + 1)
+
+
+@tagged('post_install', '-at_install')
+class TestBankHoliday2026Data(TransactionCase):
+    """T3: precarga de feriados bancarios 2026, vistas y menú."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.BankHoliday = cls.env['l10n.ve.bank.holiday']
+
+    def test_bank_holidays_2026_loaded(self):
+        """RF-19: precarga 2026 completa, sin duplicados y con año computado."""
+        holidays = self.BankHoliday.search([('year', '=', 2026)])
+        self.assertEqual(len(holidays), 13)
+        dates = holidays.mapped('date')
+        self.assertEqual(len(dates), len(set(dates)), 'No debe haber fechas duplicadas.')
+        expected = {
+            'bank_holiday_2026_01_01': ('Año Nuevo', '2026-01-01'),
+            'bank_holiday_2026_02_16': ('Lunes de Carnaval', '2026-02-16'),
+            'bank_holiday_2026_04_03': ('Viernes Santo', '2026-04-03'),
+            'bank_holiday_2026_12_25': ('Navidad', '2026-12-25'),
+        }
+        for xmlid, (name, date_str) in expected.items():
+            holiday = self.env.ref(f'l10n_ve_compliance_manager.{xmlid}')
+            self.assertEqual(holiday.name, name)
+            self.assertEqual(holiday.date, fields.Date.to_date(date_str))
+            self.assertEqual(holiday.year, 2026)
+
+    def test_bank_holiday_views_exist(self):
+        """Existen las vistas list/form/search de feriados bancarios."""
+        views = {
+            'view_l10n_ve_bank_holiday_list': ('list', ['name', 'date', 'year']),
+            'view_l10n_ve_bank_holiday_form': ('form', ['name', 'date', 'year']),
+            'view_l10n_ve_bank_holiday_search': ('search', ['name', 'date', 'year']),
+        }
+        for xmlid, (view_type, field_names) in views.items():
+            view = self.env.ref(f'l10n_ve_compliance_manager.{xmlid}')
+            self.assertEqual(view.type, view_type)
+            self.assertEqual(view.model, 'l10n.ve.bank.holiday')
+            for field_name in field_names:
+                self.assertIn(f'name="{field_name}"', view.arch)
+
+    def test_bank_holiday_action_and_menu(self):
+        """Existe la acción y el menú "Feriados bancarios" bajo Configuración."""
+        action = self.env.ref('l10n_ve_compliance_manager.action_l10n_ve_bank_holiday')
+        self.assertEqual(action.res_model, 'l10n.ve.bank.holiday')
+        self.assertEqual(action.view_mode, 'list,form')
+        menu = self.env.ref('l10n_ve_compliance_manager.menu_l10n_ve_bank_holidays')
+        self.assertEqual(menu.name, 'Feriados bancarios')
         self.assertEqual(
             menu.parent_id,
             self.env.ref('l10n_ve_compliance_manager.menu_l10n_ve_compliance_config'),

@@ -2,6 +2,7 @@ from . import (
     account_move,
     account_tax,
     alert,
+    bank_holiday,
     cartelera_evidence,
     cartelera_evidence_wizard,
     cartelera_status,

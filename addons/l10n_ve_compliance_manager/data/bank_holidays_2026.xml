@@ -1,0 +1,71 @@
+<odoo>
+    <data noupdate="1">
+        <!--
+        Feriados bancarios 2026 - Venezuela.
+        Feriados nacionales (Ley Orgánica del Trabajo) más los días de
+        suspensión bancaria tradicional (Carnaval y Semana Santa). El año se
+        computa automáticamente desde la fecha.
+
+        noupdate="1": las ediciones del contador sobre esta lista se
+        conservan en futuras actualizaciones del módulo (RF-19). Los años
+        futuros se cargan o corrigen desde la interfaz (Configuración >
+        Feriados bancarios).
+
+        Uso: el corrimiento a día hábil bancario (RF-20) consulta este
+        catálogo; los fines de semana se evitan siempre, aunque el año no
+        tenga feriados cargados (degradación segura).
+        -->
+        <record id="bank_holiday_2026_01_01" model="l10n.ve.bank.holiday">
+            <field name="name">Año Nuevo</field>
+            <field name="date">2026-01-01</field>
+        </record>
+        <record id="bank_holiday_2026_02_16" model="l10n.ve.bank.holiday">
+            <field name="name">Lunes de Carnaval</field>
+            <field name="date">2026-02-16</field>
+        </record>
+        <record id="bank_holiday_2026_02_17" model="l10n.ve.bank.holiday">
+            <field name="name">Martes de Carnaval</field>
+            <field name="date">2026-02-17</field>
+        </record>
+        <record id="bank_holiday_2026_04_02" model="l10n.ve.bank.holiday">
+            <field name="name">Jueves Santo</field>
+            <field name="date">2026-04-02</field>
+        </record>
+        <record id="bank_holiday_2026_04_03" model="l10n.ve.bank.holiday">
+            <field name="name">Viernes Santo</field>
+            <field name="date">2026-04-03</field>
+        </record>
+        <record id="bank_holiday_2026_05_01" model="l10n.ve.bank.holiday">
+            <field name="name">Día del Trabajador</field>
+            <field name="date">2026-05-01</field>
+        </record>
+        <record id="bank_holiday_2026_06_24" model="l10n.ve.bank.holiday">
+            <field name="name">Batalla de Carabobo</field>
+            <field name="date">2026-06-24</field>
+        </record>
+        <record id="bank_holiday_2026_07_05" model="l10n.ve.bank.holiday">
+            <field name="name">Día de la Independencia</field>
+            <field name="date">2026-07-05</field>
+        </record>
+        <record id="bank_holiday_2026_07_24" model="l10n.ve.bank.holiday">
+            <field name="name">Natalicio de Simón Bolívar</field>
+            <field name="date">2026-07-24</field>
+        </record>
+        <record id="bank_holiday_2026_10_12" model="l10n.ve.bank.holiday">
+            <field name="name">Día de la Resistencia Indígena</field>
+            <field name="date">2026-10-12</field>
+        </record>
+        <record id="bank_holiday_2026_12_24" model="l10n.ve.bank.holiday">
+            <field name="name">Nochebuena</field>
+            <field name="date">2026-12-24</field>
+        </record>
+        <record id="bank_holiday_2026_12_25" model="l10n.ve.bank.holiday">
+            <field name="name">Navidad</field>
+            <field name="date">2026-12-25</field>
+        </record>
+        <record id="bank_holiday_2026_12_31" model="l10n.ve.bank.holiday">
+            <field name="name">Fin de Año</field>
+            <field name="date">2026-12-31</field>
+        </record>
+    </data>
+</odoo>

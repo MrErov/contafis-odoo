@@ -55,4 +55,10 @@
               parent="menu_l10n_ve_compliance_config"
               action="action_l10n_ve_seniat_calendar"
               sequence="30"/>
+
+    <menuitem id="menu_l10n_ve_bank_holidays"
+              name="Feriados bancarios"
+              parent="menu_l10n_ve_compliance_config"
+              action="action_l10n_ve_bank_holiday"
+              sequence="35"/>
 </odoo>

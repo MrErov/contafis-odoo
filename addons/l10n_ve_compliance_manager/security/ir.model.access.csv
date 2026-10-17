@@ -60,3 +60,6 @@ access_l10n_ve_seniat_calendar_table_accountant,l10n.ve.seniat.calendar.table.ac
 access_l10n_ve_seniat_calendar_user,l10n.ve.seniat.calendar.user,model_l10n_ve_seniat_calendar,account.group_account_user,1,0,0,0
 access_l10n_ve_seniat_calendar_manager,l10n.ve.seniat.calendar.manager,model_l10n_ve_seniat_calendar,account.group_account_manager,1,1,1,1
 access_l10n_ve_seniat_calendar_accountant,l10n.ve.seniat.calendar.accountant,model_l10n_ve_seniat_calendar,l10n_ve_compliance_accountant,1,1,1,1
+access_l10n_ve_bank_holiday_user,l10n.ve.bank.holiday.user,model_l10n_ve_bank_holiday,account.group_account_user,1,0,0,0
+access_l10n_ve_bank_holiday_manager,l10n.ve.bank.holiday.manager,model_l10n_ve_bank_holiday,account.group_account_manager,1,1,1,1
+access_l10n_ve_bank_holiday_accountant,l10n.ve.bank.holiday.accountant,model_l10n_ve_bank_holiday,l10n_ve_compliance_accountant,1,1,1,1
