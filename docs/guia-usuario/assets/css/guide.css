@@ -32,6 +32,11 @@ h3 {
   color: #a05a3a;
 }
 
+h1, h2, h3 {
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
 code, pre {
   font-family: Consolas, Menlo, Monaco, "Courier New", monospace;
   background: #f5f0eb;
