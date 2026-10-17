@@ -19,5 +19,15 @@
             <field name="interval_type">months</field>
             <field name="active">True</field>
         </record>
+
+        <record id="cron_l10n_ve_generate_obligations" model="ir.cron">
+            <field name="name">Cumplimiento VE: Generar obligaciones de vencimiento</field>
+            <field name="model_id" ref="model_l10n_ve_obligation"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_generate_obligations()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">months</field>
+            <field name="active">True</field>
+        </record>
     </data>
 </odoo>

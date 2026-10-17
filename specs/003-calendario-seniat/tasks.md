@@ -23,7 +23,7 @@ Comando oficial de tests (única fuente del conteo):
 - [x] **T5. Cálculo de vencimientos: campo `quincena` (`monthly`/`q1`/`q2`), `_resolve_due_date_calendar`, regla no-SPE día 15, corrimiento `_shift_to_next_banking_day` y reimplementación de `'1-15'` vía tabla a.1.** RF-6, RF-7, RF-8, RF-9, RF-10, RF-11, RF-20
       Hecho cuando: tests del cálculo pasan — SPE digit 0 `01/2026`: q1 2026-01-28, q2 corrida desde 2026-02-15 (domingo/feriado) a día hábil; no-SPE 2026-02-15 corrida; sin RIF → vacío; fecha manual no se corrige; `test_compute_due_date_seniat` sigue en verde.
 
-- [ ] **T6. Generación automática: `_cron_generate_obligations` (ventana mes actual + próximo), idempotencia, botón "Generar obligaciones" y alerta `calendar_missing`.** RF-4, RF-12, RF-13
+- [x] **T6. Generación automática: `_cron_generate_obligations` (ventana mes actual + próximo), idempotencia, botón "Generar obligaciones" y alerta `calendar_missing`.** RF-4, RF-12, RF-13
       Hecho cuando: un cliente SPE genera 2 quincenas + resto de tipos; correr el cron 2 veces no duplica; año 2027 sin calendario no crea obligaciones y registra una sola alerta `calendar_missing`.
 
 - [ ] **T7. Alertas al contador: destinatario `accountant_id`, CC opcional del cliente, email real con la plantilla existente + link wa.me.** RF-14, RF-15, RF-16

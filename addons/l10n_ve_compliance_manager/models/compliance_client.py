@@ -156,6 +156,19 @@ class ComplianceClient(models.Model):
             'context': {'default_client_id': self.id},
         }
 
+    def action_generate_obligations(self):
+        """Generar las obligaciones del mes actual y el siguiente (RF-12)."""
+        self.ensure_one()
+        created = self.env['l10n.ve.obligation']._generate_window_for_client(self)
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': f'Se generaron {created} obligaciones para {self.name}.',
+            },
+        }
+
     @api.depends('cartelera_status_current_ids.state', 'cartelera_status_current_ids.document_type_id')
     def _compute_cartelera_html(self):
         """Genera HTML de mini-cartelera agrupado por institución con badges de estado."""

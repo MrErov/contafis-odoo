@@ -15,6 +15,16 @@ def _quincena_table_code(periodicity, table_code, quincena):
     return table_code
 
 
+def _last_period_month(periodicity, month):
+    if periodicity == 'trimestral':
+        return month % 3 == 0
+    if periodicity == 'anual':
+        return month == 12
+    if periodicity == 'bimonthly':
+        return month % 2 == 0
+    return True
+
+
 class VeObligation(models.Model):
     _name = 'l10n.ve.obligation'
     _description = 'Obligación'
@@ -25,6 +35,7 @@ class VeObligation(models.Model):
         'missing_payment': 'Falta de pago',
         'document_expiring': 'Documento por vencer',
         'document_missing': 'Documento faltante',
+        'calendar_missing': 'Calendario faltante',
     }
 
     SENIAT_2026_CALENDAR = {
@@ -296,3 +307,102 @@ class VeObligation(models.Model):
                 'state': 'sent',
                 'sent_date': fields.Datetime.now(),
             })
+
+    def _cron_generate_obligations(self):
+        """Generar las obligaciones del mes actual y el siguiente para todos los clientes."""
+        clients = self.env['l10n.ve.compliance.client'].search([])
+        for client in clients:
+            self._generate_window_for_client(client)
+
+    def _generate_window_for_client(self, client):
+        today = fields.Date.today()
+        months = [
+            (today.year, today.month),
+            _add_months(today.year, today.month, 1),
+        ]
+        created = 0
+        for year, month in months:
+            created += self._generate_for_client(client, year, month)
+        return created
+
+    def _generate_for_client(self, client, year, month):
+        """Generar las obligaciones de un cliente para un período (RF-12)."""
+        period = f'{month:02d}/{year}'
+        created = 0
+        for obligation_type in client.applicable_type_ids:
+            periodicity = obligation_type.periodicity
+            if periodicity == 'quincenal':
+                if not client.is_spe:
+                    continue
+                for quincena in ('q1', 'q2'):
+                    created += self._create_obligation_if_missing(
+                        client, obligation_type, period, quincena, year
+                    )
+            elif periodicity == 'event':
+                continue
+            elif _last_period_month(periodicity, month):
+                created += self._create_obligation_if_missing(
+                    client, obligation_type, period, 'monthly', year
+                )
+        return created
+
+    def _create_obligation_if_missing(self, client, obligation_type, period, quincena, year):
+        existing = self.search([
+            ('client_id', '=', client.id),
+            ('obligation_type_id', '=', obligation_type.id),
+            ('period', '=', period),
+            ('quincena', '=', quincena),
+        ], limit=1)
+        if existing:
+            return 0
+        if not self._is_calendar_available(client, obligation_type, year, quincena):
+            self._create_missing_calendar_alert(client, year)
+            return 0
+        self.create({
+            'name': self._generate_obligation_name(obligation_type, period, quincena),
+            'client_id': client.id,
+            'obligation_type_id': obligation_type.id,
+            'period': period,
+            'quincena': quincena,
+        })
+        return 1
+
+    def _generate_obligation_name(self, obligation_type, period, quincena):
+        suffixes = {'q1': ' (1ra quincena)', 'q2': ' (2da quincena)'}
+        return f'{obligation_type.name} {period}{suffixes.get(quincena, "")}'
+
+    def _is_calendar_available(self, client, obligation_type, year, quincena):
+        table_code = obligation_type.seniat_table_code
+        if not client.is_spe or not table_code or table_code == 'none':
+            return True
+        code = _quincena_table_code(obligation_type.periodicity, table_code, quincena)
+        table = self.env['l10n.ve.seniat.calendar.table'].search([
+            ('year', '=', year),
+            ('code', '=', code),
+        ], limit=1)
+        return bool(table)
+
+    def _create_missing_calendar_alert(self, client, year):
+        alert_obj = self.env['l10n.ve.alert']
+        alert_name = f'{client.name} — Calendario SENIAT {year} faltante'
+        existing = alert_obj.search([
+            ('client_id', '=', client.id),
+            ('alert_type', '=', 'calendar_missing'),
+            ('name', '=', alert_name),
+            ('state', 'in', ('pending', 'sent')),
+        ], limit=1)
+        if existing:
+            return existing
+        return alert_obj.create({
+            'name': alert_name,
+            'client_id': client.id,
+            'alert_type': 'calendar_missing',
+            'date': fields.Datetime.now(),
+            'channel': 'email',
+            'recipient_ids': [(6, 0, client.accountant_id.partner_id.ids)],
+            'message': (
+                f'El calendario SENIAT del año {year} no está cargado: no se '
+                f'generaron las obligaciones que dependen de él. Cargue el '
+                f'calendario para continuar con {client.name}.'
+            ),
+        })

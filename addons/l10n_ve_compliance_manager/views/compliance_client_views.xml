@@ -34,6 +34,10 @@
                             string="Ver Brechas Cartelera"
                             icon="fa-exclamation-triangle"
                             class="btn-secondary"/>
+                    <button name="action_generate_obligations" type="object"
+                            string="Generar obligaciones"
+                            icon="fa-calendar-plus-o"
+                            class="btn-secondary"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -62,6 +66,7 @@
                                     <field name="name"/>
                                     <field name="obligation_type_id"/>
                                     <field name="period"/>
+                                    <field name="quincena"/>
                                     <field name="due_date"/>
                                     <field name="amount" optional="show"/>
                                     <field name="currency_id" optional="hide"/>

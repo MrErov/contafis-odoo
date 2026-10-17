@@ -588,3 +588,185 @@ class TestObligationDueDateCalculation(TransactionCase):
             self.Obligation._shift_to_next_banking_day(to_date('2026-01-28')),
             to_date('2026-01-28'),
         )
+
+
+@tagged('post_install', '-at_install')
+class TestObligationGeneration(TransactionCase):
+    """T6: generación automática, idempotencia y alerta de calendario faltante."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.Obligation = cls.env['l10n.ve.obligation']
+        cls.ObligationType = cls.env['l10n.ve.obligation.type']
+        cls.Client = cls.env['l10n.ve.compliance.client']
+        cls.Alert = cls.env['l10n.ve.alert']
+        cls.partner = cls.env['res.partner'].create({'name': 'Partner T6'})
+        cls.accountant = cls.env['res.users'].create({
+            'name': 'Contador T6',
+            'login': 'contador_t6',
+            'email': 'contador.t6@example.com',
+        })
+
+    def _create_client(self, rif='J-00000000-0', is_spe=True, **kwargs):
+        vals = {
+            'name': f'Cliente T6 {rif}',
+            'partner_id': self.partner.id,
+            'company_id': self.env.company.id,
+            'rif': rif,
+            'is_spe': is_spe,
+        }
+        vals.update(kwargs)
+        return self.Client.create(vals)
+
+    def _create_type(self, **kwargs):
+        vals = {
+            'name': 'IVA Quincenal T6',
+            'periodicity': 'quincenal',
+            'seniat_table_code': 'a1',
+        }
+        vals.update(kwargs)
+        return self.ObligationType.create(vals)
+
+    def _search_obligations(self, client, obligation_type, period=None, quincena=None):
+        domain = [
+            ('client_id', '=', client.id),
+            ('obligation_type_id', '=', obligation_type.id),
+        ]
+        if period:
+            domain.append(('period', '=', period))
+        if quincena:
+            domain.append(('quincena', '=', quincena))
+        return self.Obligation.search(domain)
+
+    def _current_window_periods(self):
+        today = fields.Date.today()
+        next_month = today.month % 12 + 1
+        next_year = today.year + (today.month == 12)
+        return [
+            f'{today.month:02d}/{today.year}',
+            f'{next_month:02d}/{next_year}',
+        ]
+
+    def _calendar_missing_alerts(self, client):
+        return self.Alert.search([
+            ('client_id', '=', client.id),
+            ('alert_type', '=', 'calendar_missing'),
+        ])
+
+    def test_cron_generates_quincenas_and_rest_of_types(self):
+        """RF-12: un cliente SPE genera 2 quincenas por mes y el resto de sus tipos."""
+        quincenal = self._create_type()
+        mensual = self._create_type(
+            name='ISLR Mensual T6',
+            periodicity='monthly',
+            seniat_table_code='none',
+            due_day_rule='dia_fijo',
+            due_day_value=15,
+        )
+        client = self._create_client(
+            applicable_type_ids=[(6, 0, (quincenal + mensual).ids)],
+        )
+        self.Obligation._cron_generate_obligations()
+        for period in self._current_window_periods():
+            q1 = self._search_obligations(client, quincenal, period, 'q1')
+            q2 = self._search_obligations(client, quincenal, period, 'q2')
+            self.assertEqual(len(q1), 1)
+            self.assertEqual(len(q2), 1)
+            monthly = self._search_obligations(client, mensual, period, 'monthly')
+            self.assertEqual(len(monthly), 1)
+            self.assertTrue(monthly.due_date)
+        self.assertTrue(
+            all(self._search_obligations(client, quincenal).mapped('due_date')),
+            'Las quincenas del calendario 2026 deben tener vencimiento calculado.',
+        )
+        self.assertFalse(self._calendar_missing_alerts(client))
+
+    def test_cron_non_spe_generates_monthly_day_15(self):
+        """RF-7/RF-12: el cliente no-SPE genera la obligación mensual y no quincenas."""
+        quincenal = self._create_type()
+        mensual = self._create_type(
+            name='IVA Mensual no-SPE T6',
+            periodicity='monthly',
+            seniat_table_code='a1',
+        )
+        client = self._create_client(
+            is_spe=False,
+            applicable_type_ids=[(6, 0, (quincenal + mensual).ids)],
+        )
+        self.Obligation._cron_generate_obligations()
+        for period in self._current_window_periods():
+            monthly = self._search_obligations(client, mensual, period, 'monthly')
+            self.assertEqual(len(monthly), 1)
+            self.assertTrue(monthly.due_date)
+            self.assertFalse(self._search_obligations(client, quincenal, period, 'q1'))
+            self.assertFalse(self._search_obligations(client, quincenal, period, 'q2'))
+
+    def test_cron_is_idempotent(self):
+        """RF-13: correr la generación dos veces no duplica obligaciones."""
+        quincenal = self._create_type()
+        client = self._create_client(applicable_type_ids=quincenal.ids)
+        self.Obligation._cron_generate_obligations()
+        self.Obligation._cron_generate_obligations()
+        for period in self._current_window_periods():
+            for quincena in ('q1', 'q2'):
+                self.assertEqual(
+                    len(self._search_obligations(client, quincenal, period, quincena)),
+                    1,
+                    f'{period} {quincena} debe existir exactamente una vez.',
+                )
+        self.assertEqual(len(self._search_obligations(client, quincenal)), 4)
+
+    def test_generate_for_missing_calendar_year_alerts_once(self):
+        """RF-4: sin calendario cargado no se generan obligaciones y se alerta al contador una vez."""
+        quincenal = self._create_type()
+        client = self._create_client(
+            accountant_id=self.accountant.id,
+            applicable_type_ids=quincenal.ids,
+        )
+        for month in (1, 2):
+            self.Obligation._generate_for_client(client, TEST_YEAR, month)
+        self.assertFalse(self.Obligation.search([
+            ('client_id', '=', client.id),
+            ('period', 'ilike', f'/{TEST_YEAR}'),
+        ]))
+        alerts = self._calendar_missing_alerts(client)
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts.state, 'pending')
+        self.assertIn(str(TEST_YEAR), alerts.name)
+        self.assertEqual(alerts.recipient_ids, self.accountant.partner_id)
+        for month in (1, 2):
+            self.Obligation._generate_for_client(client, TEST_YEAR, month)
+        self.assertEqual(len(self._calendar_missing_alerts(client)), 1)
+
+    def test_action_generate_obligations_button(self):
+        """RF-12: el botón manual genera el mes actual y el próximo para su cliente."""
+        quincenal = self._create_type()
+        client = self._create_client(applicable_type_ids=quincenal.ids)
+        other_client = self._create_client(
+            rif='J-00000001-1',
+            applicable_type_ids=quincenal.ids,
+        )
+        client.action_generate_obligations()
+        self.assertEqual(len(self._search_obligations(client, quincenal)), 4)
+        self.assertFalse(self._search_obligations(other_client, quincenal))
+        view = self.env.ref('l10n_ve_compliance_manager.view_l10n_ve_compliance_client_form')
+        self.assertIn('action_generate_obligations', view.arch)
+
+    def test_cron_record_registered(self):
+        """El cron queda registrado y llama a la generación automática."""
+        cron = self.env.ref(
+            'l10n_ve_compliance_manager.cron_l10n_ve_generate_obligations'
+        )
+        self.assertTrue(cron.active)
+        self.assertEqual(cron.model_id.model, 'l10n.ve.obligation')
+        self.assertIn('_cron_generate_obligations', cron.code)
+
+    def test_alert_type_calendar_missing_available(self):
+        """RF-4: el tipo de alerta 'calendar_missing' existe en el modelo de alertas."""
+        selection = dict(self.Alert._fields['alert_type'].selection)
+        self.assertIn('calendar_missing', selection)
+        self.assertEqual(
+            self.Obligation.ALERT_TYPE_LABELS['calendar_missing'],
+            'Calendario faltante',
+        )
