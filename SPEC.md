@@ -229,9 +229,17 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Demo data SPE/no-SPE + test de integración end-to-end (`TestCalendarIntegration`)
 - ✅ 193 tests pasando; tareas T1–T10 `[x]` en `specs/003-calendario-seniat/tasks.md`
 
+### Fase 004: Tablas de ISLR — Estimadas y Retenciones (spec 004) — COMPLETADA
+- ✅ Precarga 2026 `est_islr` (30 líneas: jun/sep/dic × 10 dígitos, sin corrimiento) y `ret_islr` (120 líneas: 12 meses × 10 dígitos, vence el mes siguiente), `noupdate="1"` y marcadas como referencia sujeta a verificación con la Gaceta
+- ✅ Tipos "Estimadas de ISLR" (`generation_months="6,9,12"`) y "Retenciones de ISLR" (`tax_type=islr`), editables y asignables por cliente
+- ✅ Vencimiento por último dígito del RIF sin gate `is_spe` (día = dígito + 10) con corrimiento a día hábil; alerta `calendar_missing` si el año no tiene tabla
+- ✅ Generación automática: estimadas jun/sep/dic, retenciones mensuales; idempotente; reutiliza el flujo de alertas existente
+- ✅ Wizard "Copiar a otro año" incluye est_islr/ret_islr (RF-14); demo + verificación visual (T6)
+- ✅ 217 tests pasando; tareas T1–T7 `[x]` en `specs/004-tablas-islr/tasks.md`
+
 ### Trabajo Futuro
 - ⬜ Spec 11: Conciliación ISLR
-- ⬜ Precargar tablas ISLR (est_islr/ret_islr) del calendario SENIAT 2026 (el modelo `code` + `month_offset` ya las soporta)
+- ✅ Precargar tablas ISLR (est_islr/ret_islr) del calendario SENIAT 2026 — HECHO (spec 004)
 - ⬜ Fase H: E2E con Playwright — 5/7 sub-fases completadas (0-4 + 7 CI); Fases 5-6 diferidas
 - ⬜ Tests de integración con fixtures de cartelera y conciliación fiscal (ya en repo, sin tests)
 - ⬜ post_init_hook: hacerlo efectivo con schema change (nullable source)
@@ -251,7 +259,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
-- ✅ 193 tests backend + 7 tests E2E = 200 tests pasando
+- ✅ 217 tests backend + 7 tests E2E = 224 tests pasando
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`

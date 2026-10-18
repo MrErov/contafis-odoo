@@ -10,12 +10,12 @@ Esta sección lista las funcionalidades que el módulo **todavía no implementa*
 - Cálculo del vencimiento por último dígito del RIF con las tablas oficiales 2026 (quincenas SPE y mensual no-SPE)
 - Corrimiento automático a día hábil (fines de semana y feriados bancarios 2026)
 - Generación automática mensual por cliente + botón manual "Generar obligaciones"
+- Estimadas de ISLR (jun/sep/dic) y Retenciones de ISLR mensuales con vencimiento por último dígito del RIF (tablas de referencia editables)
 - Bandeja "Próximos vencimientos" (30 días), alertas al contador y visibilidad por contador
 
 **Limitaciones actuales:**
 - Solo viene precargado el calendario 2026. Para años siguientes usar "Copiar a otro año" y revisar los días según la providencia vigente
 - Los feriados bancarios 2026 vienen precargados; los de años futuros se cargan/editan a mano
-- No incluye tablas de retenciones ISLR (est/ret); solo IVA (a.1/a.2)
 
 **Alternativa manual:** el contador puede editar la fecha en Obligaciones por cliente (queda marcada como override y no se corrige sola).
 
