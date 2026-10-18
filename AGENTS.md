@@ -367,3 +367,11 @@ El agente IA opera Odoo 19 (DB `contea`) vía MCP `FGRibreau/mcp-odoo` v0.2.1
 4. El MCP es complementario a Playwright E2E y odoo shell; no los sustituye
    ni reemplaza la regla de "no archivos temporales" (usar harness inline
    si se automatiza un smoke test).
+
+## Operaciones destructivas de git (PROHIBIDO sin confirmación)
+
+- **NUNCA** ejecutar `git restore`, `git checkout --`, `git reset --hard` ni
+  `git stash drop` sin antes mostrar el `git diff` del archivo y pedir
+  confirmación explícita al usuario.
+- Si el working tree tiene cambios no commiteados, tratarlos como trabajo del
+  usuario hasta demostrar lo contrario.
