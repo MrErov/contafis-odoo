@@ -11,18 +11,18 @@ class PhysicalInvoiceWizard(models.TransientModel):
     type = fields.Selection([
         ('purchase', 'Compra'),
         ('sale', 'Venta'),
-    ], string='Tipo', required=True, default='purchase')
+    ], string='Tipo de Operación', required=True, default='purchase')
 
     partner_vat = fields.Char(string='RIF', required=True)
     partner_id = fields.Many2one('res.partner', string='Proveedor/Cliente', readonly=True)
     partner_name = fields.Char(related='partner_id.name', string='Razón Social', readonly=True)
 
     # Nuevo partner (se muestra si no existe)
-    new_partner_name = fields.Char(string='Razón Social')
+    new_partner_name = fields.Char(string='Razón Social (nuevo)')
     new_partner_type = fields.Selection([
         ('company', 'Empresa'),
         ('person', 'Persona'),
-    ], string='Tipo', default='company')
+    ], string='Tipo de Proveedor/Cliente', default='company')
     new_partner_street = fields.Char(string='Dirección')
     new_partner_email = fields.Char(string='Email')
     new_partner_phone = fields.Char(string='Teléfono')

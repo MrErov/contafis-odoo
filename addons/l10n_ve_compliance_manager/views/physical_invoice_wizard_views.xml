@@ -36,6 +36,20 @@
                         </group>
                     </group>
 
+                    <group string="Nuevo Proveedor/Cliente" col="4" invisible="partner_id">
+                        <group>
+                            <field name="new_partner_name" required="1"/>
+                            <field name="new_partner_type" required="1"/>
+                        </group>
+                        <group>
+                            <field name="new_partner_street"/>
+                            <field name="new_partner_email"/>
+                        </group>
+                        <group>
+                            <field name="new_partner_phone"/>
+                        </group>
+                    </group>
+
                     <group string="Bases e IVA" col="4">
                         <group>
                             <field name="base_general" widget="monetary"
@@ -77,20 +91,6 @@
                             <field name="retention_vat" widget="monetary"
                                    options="{'currency_field': 'currency_id'}"/>
                             <field name="retention_direction"/>
-                        </group>
-                    </group>
-
-                    <group string="Nuevo Partner" col="4" invisible="partner_id">
-                        <group>
-                            <field name="new_partner_name" required="1"/>
-                            <field name="new_partner_type" required="1"/>
-                        </group>
-                        <group>
-                            <field name="new_partner_street"/>
-                            <field name="new_partner_email"/>
-                        </group>
-                        <group>
-                            <field name="new_partner_phone"/>
                         </group>
                     </group>
                 </sheet>
