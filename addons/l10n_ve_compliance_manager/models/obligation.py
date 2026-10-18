@@ -2,6 +2,7 @@ from calendar import monthrange
 from datetime import date, timedelta
 
 from odoo import _, api, fields, models
+from odoo.exceptions import UserError
 
 
 def _add_months(year, month, n):
@@ -50,6 +51,7 @@ class VeObligation(models.Model):
         'document_expiring': 'Documento por vencer',
         'document_missing': 'Documento faltante',
         'calendar_missing': 'Calendario faltante',
+        'manual': 'Manual',
     }
 
     SENIAT_2026_CALENDAR = {
@@ -143,6 +145,57 @@ class VeObligation(models.Model):
                 values['payment_date'] = today
             obligation.write(values)
         return True
+
+    def action_create_manual_alert(self):
+        """Crea y envía una alerta a demanda para la obligación (RF-4, RF-5, RF-6).
+
+        Reutiliza el flujo del tipo de obligación: destinatario contador
+        asignado, canal configurado y copia al cliente si aplica. Aplica la
+        deduplicación por canal de `_create_alert` (estados pendiente o
+        enviada); si todo estaba duplicado, no crea nada y lo avisa. El
+        origen queda registrado con `alert_type = 'manual'`.
+        """
+        self.ensure_one()
+        client = self.client_id
+        if not client:
+            raise UserError(_('La obligación no tiene cliente asignado.'))
+        obligation_type = self.obligation_type_id
+        channel = obligation_type.alert_channel if obligation_type else 'email'
+        alert_obj = self.env['l10n.ve.alert']
+        domain = [('obligation_id', '=', self.id), ('alert_type', '=', 'manual')]
+        before_ids = alert_obj.search(domain).ids
+        self._create_alert(client, self, 'manual', channel, fields.Datetime.now())
+        created = alert_obj.search(domain + [('id', 'not in', before_ids)])
+        if not created:
+            return self._manual_alert_notification(
+                'warning',
+                _('Ya existe una alerta manual vigente para esta obligación; no se duplicó.'),
+            )
+        if all(alert.state == 'sent' for alert in created):
+            return self._manual_alert_notification(
+                'success', _('Alerta manual creada y enviada.'),
+            )
+        return self._manual_alert_notification(
+            'success',
+            _('Alerta manual creada; quedó pendiente (sin destinatario con email).'),
+        )
+
+    def action_create_manual_alert_and_refresh(self):
+        """Como `action_create_manual_alert` y recarga el formulario abierto."""
+        result = self.action_create_manual_alert()
+        result['params']['next'] = {'type': 'ir.actions.client', 'tag': 'soft_reload'}
+        return result
+
+    def _manual_alert_notification(self, notification_type, message):
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': notification_type,
+                'message': message,
+                'sticky': False,
+            },
+        }
 
     def action_open_payment_wizard(self):
         """Abre el wizard para registrar el pago de la obligación."""

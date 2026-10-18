@@ -10,6 +10,7 @@ from . import (
     test_import_wizard,
     test_obligation,
     test_obligation_actions,
+    test_obligation_manual_alert,
     test_obligation_payment_wizard,
     test_physical_invoice_wizard,
     test_retention_service,

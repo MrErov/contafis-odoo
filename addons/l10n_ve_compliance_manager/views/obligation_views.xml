@@ -27,6 +27,7 @@
                 <header>
                     <button name="action_open_payment_wizard" type="object" string="Registrar pago" class="oe_highlight" invisible="state not in ('pending', 'overdue')"/>
                     <button name="action_reopen" type="object" string="Reabrir" invisible="state != 'paid'"/>
+                    <button name="action_create_manual_alert_and_refresh" type="object" string="Crear alerta" invisible="state in ('paid', 'cancelled')"/>
                     <field name="state" widget="statusbar" statusbar_visible="pending,paid,overdue,cancelled"/>
                 </header>
                 <sheet>
@@ -179,6 +180,7 @@
                 <field name="due_date"/>
                 <field name="state"/>
                 <button name="action_open_payment_wizard" type="object" string="Registrar pago" icon="fa-check-circle" invisible="state not in ('pending', 'overdue')"/>
+                <button name="action_create_manual_alert" type="object" string="Crear alerta" icon="fa-bell" invisible="state not in ('pending', 'overdue')"/>
             </list>
         </field>
     </record>

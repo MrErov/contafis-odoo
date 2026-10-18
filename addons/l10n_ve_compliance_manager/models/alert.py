@@ -19,6 +19,7 @@ class VeAlert(models.Model):
         ('document_expiring', 'Documento por vencer'),
         ('document_missing', 'Documento faltante'),
         ('calendar_missing', 'Calendario faltante'),
+        ('manual', 'Manual (a demanda)'),
     ], string='Tipo de alerta')
     date = fields.Datetime(string='Fecha')
     state = fields.Selection([
