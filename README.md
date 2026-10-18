@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="addons/l10n_ve_compliance_manager/static/description/icon.png" width="140" alt="Cumplimiento Fiscal VE"/>
+</p>
+
 # l10n_ve_compliance_manager
 
 ![Odoo](https://img.shields.io/badge/Odoo-19.0-875A7B?logo=odoo&logoColor=white)
@@ -10,6 +14,8 @@
 Módulo **Odoo 19.0** para la gestión integral del cumplimiento fiscal,
 parafiscal y documental de empresas y negocios en **Venezuela**, diseñado
 para contadores y firmas contables que gestionan múltiples clientes.
+
+![Vista kanban de clientes con semáforo de cumplimiento](docs/guia-usuario/assets/screenshots/03-03-client-kanban.png)
 
 ---
 
@@ -65,6 +71,22 @@ El módulo centraliza el seguimiento de:
   (lectura), `account.group_account_manager` (CRUD), grupo propio
   `l10n_ve_compliance_accountant` y record rules que aíslan los datos
   de cada cliente según `accountant_id`.
+
+---
+
+## 📸 Capturas
+
+| Próximos vencimientos (30 días) | Libro de compras y ventas |
+|---|---|
+| ![Próximos vencimientos](docs/guia-usuario/assets/screenshots/08-05-proximos-vencimientos.png) | ![Libro de compras y ventas](docs/guia-usuario/assets/screenshots/05-02-book-list.png) |
+
+| Planilla de IVA (Forma 99030) | Cartelera fiscal documental |
+|---|---|
+| ![Planilla IVA](docs/guia-usuario/assets/screenshots/06-02-planilla-form.png) | ![Cartelera fiscal](docs/guia-usuario/assets/screenshots/09-01-cartelera-status.png) |
+
+| Calendario SENIAT 2026 | Alertas de cumplimiento |
+|---|---|
+| ![Calendario SENIAT](docs/guia-usuario/assets/screenshots/08-01-calendario-tablas.png) | ![Alertas](docs/guia-usuario/assets/screenshots/10-01-alert-list.png) |
 
 ---
 
