@@ -19,7 +19,7 @@ test.describe('Wizard Factura Física', () => {
     await page.getByRole('menuitem', { name: 'Factura Física Rápida' }).click();
 
     // Verificar que el wizard se abre (esperar título visible)
-    await expect(page.getByText('Factura Física Rápida')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.o_dialog .modal-title', { hasText: 'Factura Física Rápida' })).toBeVisible({ timeout: 15000 });
   });
 
   test('valida RIF inválido', async ({ page }) => {
@@ -32,7 +32,7 @@ test.describe('Wizard Factura Física', () => {
     await page.getByRole('menuitem', { name: 'Factura Física Rápida' }).click();
 
     // Esperar a que el título sea visible
-    await expect(page.getByText('Factura Física Rápida')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.o_dialog .modal-title', { hasText: 'Factura Física Rápida' })).toBeVisible({ timeout: 15000 });
 
     // Esperar a que el campo RIF esté visible y llenarlo
     const rifField = page.getByLabel('RIF?');
@@ -56,7 +56,7 @@ test.describe('Wizard Factura Física', () => {
     await page.getByRole('menuitem', { name: 'Factura Física Rápida' }).click();
 
     // Verificar que el wizard se abre
-    await expect(page.getByText('Factura Física Rápida')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.o_dialog .modal-title', { hasText: 'Factura Física Rápida' })).toBeVisible({ timeout: 15000 });
 
     // Llenar RIF válido (NO existe en DB → crea partner nuevo)
     const rifField = page.getByLabel('RIF?');
