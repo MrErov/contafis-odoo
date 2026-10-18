@@ -1,6 +1,6 @@
 {
     'name': 'L10n VE Compliance Manager',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'author': 'Eurick Ospino',
     'website': 'https://github.com/MrErov/contafis-odoo-19.0v',
     'category': 'Accounting/Localizations',
@@ -29,6 +29,7 @@ Incluye:
         'data/cron.xml',
         'data/ir_sequence.xml',
         'data/seniat_calendar_2026.xml',
+        'data/islr_calendar_2026.xml',
         'data/bank_holidays_2026.xml',
         'data/institution_data.xml',
         'data/account_tax_data.xml',

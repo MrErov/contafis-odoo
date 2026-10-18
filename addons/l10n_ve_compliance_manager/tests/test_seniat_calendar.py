@@ -201,6 +201,78 @@ class TestSeniatCalendar2026Data(TransactionCase):
 
 
 @tagged('post_install', '-at_install')
+class TestIslrCalendar2026Data(TransactionCase):
+    """T1 spec 004: precarga de referencia de las tablas de ISLR 2026."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.est_islr = cls.env.ref('l10n_ve_compliance_manager.seniat_calendar_2026_est_islr')
+        cls.ret_islr = cls.env.ref('l10n_ve_compliance_manager.seniat_calendar_2026_ret_islr')
+
+    def _line(self, table, month, digit):
+        line = table.line_ids.filtered(
+            lambda record: record.month == month and record.rif_digit == digit
+        )
+        self.assertEqual(
+            len(line), 1,
+            f'Debe existir una única línea en {table.code}: mes {month}, dígito {digit}.',
+        )
+        return line
+
+    def test_islr_calendar_2026_tables_loaded(self):
+        """RF-1/RF-2: tablas est_islr y ret_islr 2026 con su corrimiento de mes."""
+        self.assertEqual(self.est_islr.year, 2026)
+        self.assertEqual(self.est_islr.code, 'est_islr')
+        self.assertEqual(self.est_islr.month_offset, '0')
+        self.assertEqual(self.ret_islr.year, 2026)
+        self.assertEqual(self.ret_islr.code, 'ret_islr')
+        self.assertEqual(self.ret_islr.month_offset, '1')
+
+    def test_islr_calendar_2026_line_counts(self):
+        """RF-2: est_islr 30 líneas (jun, sep, dic) y ret_islr 120 (12 meses)."""
+        self.assertEqual(len(self.est_islr.line_ids), 30)
+        self.assertEqual(len(self.ret_islr.line_ids), 120)
+        self.assertEqual(set(self.est_islr.line_ids.mapped('month')), {6, 9, 12})
+        self.assertEqual(set(self.ret_islr.line_ids.mapped('month')), set(range(1, 13)))
+
+    def test_islr_calendar_reference_day_pattern(self):
+        """RF-2/RF-3: patrón de referencia día = último dígito del RIF + 10."""
+        for table in (self.est_islr, self.ret_islr):
+            for line in table.line_ids:
+                self.assertEqual(
+                    line.day, line.rif_digit + 10,
+                    f'{table.code}: mes {line.month}, dígito {line.rif_digit} '
+                    f'debe usar el día de referencia {line.rif_digit + 10}.',
+                )
+        self.assertEqual(self._line(self.est_islr, 6, 0).day, 10)
+        self.assertEqual(self._line(self.est_islr, 12, 9).day, 19)
+        self.assertEqual(self._line(self.ret_islr, 1, 4).day, 14)
+
+    def test_islr_calendar_marked_as_reference(self):
+        """RF-3: las tablas quedan marcadas como referencia sujeta a verificación."""
+        for table in (self.est_islr, self.ret_islr):
+            description = (table.description or '').lower()
+            self.assertIn('referencia', description)
+            self.assertIn('verificación', description)
+
+    def test_islr_calendar_edit_persists_across_upgrade(self):
+        """RF-3: la corrección del contador sobrevive a una actualización del módulo."""
+        line = self._line(self.ret_islr, 1, 0)
+        self.assertEqual(line.day, 10)
+        line.day = 3
+        convert.convert_file(
+            self.env,
+            'l10n_ve_compliance_manager',
+            'data/islr_calendar_2026.xml',
+            None,
+            mode='update',
+        )
+        line.invalidate_recordset()
+        self.assertEqual(line.day, 3, 'noupdate="1": la actualización no debe pisar la edición.')
+
+
+@tagged('post_install', '-at_install')
 class TestBankHolidayModel(TransactionCase):
     """T3: modelo de feriados bancarios (fecha única + año computado)."""
 
@@ -1221,7 +1293,7 @@ class TestCopyCalendarWizard(TransactionCase):
         return self.CalendarTable.search([('year', '=', 2026), ('code', '=', code)])
 
     def test_copy_2026_to_2027_duplicates_tables_and_lines(self):
-        """RF-3: copiar 2026 a 2027 duplica a.1 y a.2 con sus 120 líneas cada una."""
+        """RF-3/RF-14: copiar 2026 a 2027 duplica todas las tablas del año con sus líneas."""
         wizard = self.Wizard.create({'source_year': 2026, 'target_year': 2027})
         action = wizard.action_copy()
         self.assertEqual(action['type'], 'ir.actions.act_window')
@@ -1229,11 +1301,15 @@ class TestCopyCalendarWizard(TransactionCase):
         self.assertEqual(action['domain'], [('year', '=', 2027)])
 
         copied = self.CalendarTable.search([('year', '=', 2027)])
-        self.assertEqual(set(copied.mapped('code')), {'a1', 'a2'})
-        for code in ('a1', 'a2'):
+        self.assertEqual(
+            set(copied.mapped('code')),
+            {'a1', 'a2', 'est_islr', 'ret_islr'},
+        )
+        expected_lines = {'a1': 120, 'a2': 120, 'est_islr': 30, 'ret_islr': 120}
+        for code, line_count in expected_lines.items():
             new_table = copied.filtered(lambda table: table.code == code)
             source = self._source_table(code)
-            self.assertEqual(len(new_table.line_ids), 120)
+            self.assertEqual(len(new_table.line_ids), line_count)
             self.assertEqual(new_table.month_offset, source.month_offset)
             self.assertEqual(
                 {(line.month, line.rif_digit): line.day for line in new_table.line_ids},
@@ -1251,6 +1327,10 @@ class TestCopyCalendarWizard(TransactionCase):
         self.assertEqual(spot.day, 28)
         a2_copied = copied.filtered(lambda table: table.code == 'a2')
         self.assertEqual(a2_copied.month_offset, '1')
+        est_copied = copied.filtered(lambda table: table.code == 'est_islr')
+        self.assertEqual(est_copied.month_offset, '0')
+        ret_copied = copied.filtered(lambda table: table.code == 'ret_islr')
+        self.assertEqual(ret_copied.month_offset, '1')
 
     def test_copy_rejects_existing_target_year(self):
         """RF-3: si el año destino ya tiene tablas el wizard lanza UserError."""
