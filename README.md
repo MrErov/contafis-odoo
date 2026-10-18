@@ -125,8 +125,8 @@ Alternativamente, si usas una instalación local de Odoo, copia la carpeta
 
 ## 🧪 Tests
 
-**217 pruebas backend** (`TransactionCase`) + **7 pruebas E2E** (Playwright)
-= **224 pruebas** pasando sobre Odoo 19.0 + PostgreSQL vía Docker.
+**222 pruebas backend** (`TransactionCase`) + **7 pruebas E2E** (Playwright)
+= **229 pruebas** pasando sobre Odoo 19.0 + PostgreSQL vía Docker.
 
 Cobertura backend:
 
