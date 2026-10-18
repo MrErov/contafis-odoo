@@ -32,7 +32,7 @@ Comando oficial de tests (única fuente del conteo):
 - [x] **T8. Seguridad por contador (`security/ir_rule.xml`) + bandeja "Próximos vencimientos" (acción + filtro 30 días).** RF-17, RF-18
       Hecho cuando: `with_user(contador_b)` no ve clientes/obligaciones de `contador_a`; cliente sin `accountant_id` invisible para contadores y visible para admin; el menú abre la bandeja con el filtro de 30 días por defecto.
 
-- [ ] **T9. Wizard "Copiar tabla a otro año" (transient + vista dialog).** RF-3 (HU-4)
+- [x] **T9. Wizard "Copiar tabla a otro año" (transient + vista dialog).** RF-3 (HU-4)
       Hecho cuando: copiar a.1 de 2026 a 2027 duplica 120 líneas; intentar copiar sobre un (year, code) existente muestra error de usuario.
 
 - [ ] **T10. Suite de integración en `tests/test_seniat_calendar.py`, demo data y cierre de documentación.** RF-1 – RF-20 (suite completa)

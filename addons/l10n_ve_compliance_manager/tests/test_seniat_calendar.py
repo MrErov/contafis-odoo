@@ -3,6 +3,7 @@ from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from lxml import etree
 from odoo import fields
+from odoo.exceptions import UserError
 from odoo.tests import TransactionCase, tagged
 from odoo.tools import convert
 from odoo.tools.safe_eval import safe_eval
@@ -1204,3 +1205,90 @@ class TestDueSoonTray(TransactionCase):
         found = self.Obligation.search(domain + [('id', 'in', (inside + outside).ids)])
         self.assertIn(inside, found)
         self.assertNotIn(outside, found)
+
+
+@tagged('post_install', '-at_install')
+class TestCopyCalendarWizard(TransactionCase):
+    """T9: wizard "Copiar tabla a otro año" (RF-3, HU-4)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.Wizard = cls.env['l10n.ve.copy.calendar.wizard']
+        cls.CalendarTable = cls.env['l10n.ve.seniat.calendar.table']
+
+    def _source_table(self, code):
+        return self.CalendarTable.search([('year', '=', 2026), ('code', '=', code)])
+
+    def test_copy_2026_to_2027_duplicates_tables_and_lines(self):
+        """RF-3: copiar 2026 a 2027 duplica a.1 y a.2 con sus 120 líneas cada una."""
+        wizard = self.Wizard.create({'source_year': 2026, 'target_year': 2027})
+        action = wizard.action_copy()
+        self.assertEqual(action['type'], 'ir.actions.act_window')
+        self.assertEqual(action['res_model'], 'l10n.ve.seniat.calendar.table')
+        self.assertEqual(action['domain'], [('year', '=', 2027)])
+
+        copied = self.CalendarTable.search([('year', '=', 2027)])
+        self.assertEqual(set(copied.mapped('code')), {'a1', 'a2'})
+        for code in ('a1', 'a2'):
+            new_table = copied.filtered(lambda table: table.code == code)
+            source = self._source_table(code)
+            self.assertEqual(len(new_table.line_ids), 120)
+            self.assertEqual(new_table.month_offset, source.month_offset)
+            self.assertEqual(
+                {(line.month, line.rif_digit): line.day for line in new_table.line_ids},
+                {(line.month, line.rif_digit): line.day for line in source.line_ids},
+                f'Las líneas de {code} 2027 deben replicar mes/dígito/día de 2026.',
+            )
+            self.assertTrue(
+                all(line.year == 2027 for line in new_table.line_ids),
+                f'Las líneas de {code} 2027 deben apuntar al año destino.',
+            )
+        a1_copied = copied.filtered(lambda table: table.code == 'a1')
+        spot = a1_copied.line_ids.filtered(
+            lambda line: line.month == 1 and line.rif_digit == 0
+        )
+        self.assertEqual(spot.day, 28)
+        a2_copied = copied.filtered(lambda table: table.code == 'a2')
+        self.assertEqual(a2_copied.month_offset, '1')
+
+    def test_copy_rejects_existing_target_year(self):
+        """RF-3: si el año destino ya tiene tablas el wizard lanza UserError."""
+        self.CalendarTable.create({'year': 2027, 'code': 'a1'})
+        wizard = self.Wizard.create({'source_year': 2026, 'target_year': 2027})
+        with self.assertRaises(UserError):
+            wizard.action_copy()
+        self.assertEqual(len(self.CalendarTable.search([('year', '=', 2027)])), 1)
+
+    def test_copy_rejects_missing_source_year(self):
+        """Sin tablas en el año origen el wizard informa con UserError."""
+        wizard = self.Wizard.create({
+            'source_year': TEST_YEAR,
+            'target_year': TEST_YEAR + 1,
+        })
+        with self.assertRaises(UserError):
+            wizard.action_copy()
+
+    def test_copy_wizard_view_and_action(self):
+        """El wizard tiene vista form con los dos años y acción en diálogo."""
+        view = self.env.ref(
+            'l10n_ve_compliance_manager.view_l10n_ve_copy_calendar_wizard_form'
+        )
+        self.assertEqual(view.type, 'form')
+        self.assertEqual(view.model, 'l10n.ve.copy.calendar.wizard')
+        for field_name in ('source_year', 'target_year'):
+            self.assertIn(f'name="{field_name}"', view.arch)
+        action = self.env.ref(
+            'l10n_ve_compliance_manager.action_l10n_ve_copy_calendar_wizard'
+        )
+        self.assertEqual(action.res_model, 'l10n.ve.copy.calendar.wizard')
+        self.assertEqual(action.view_mode, 'form')
+        self.assertEqual(action.target, 'new')
+
+    def test_copy_button_in_calendar_list_view(self):
+        """La lista del calendario ofrece el botón "Copiar a otro año" siempre visible."""
+        view = self.env.ref(
+            'l10n_ve_compliance_manager.view_l10n_ve_seniat_calendar_table_list'
+        )
+        self.assertIn('Copiar a otro año', view.arch)
+        self.assertIn('display="always"', view.arch)

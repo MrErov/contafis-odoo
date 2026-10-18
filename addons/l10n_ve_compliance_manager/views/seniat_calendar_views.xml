@@ -4,6 +4,10 @@
         <field name="model">l10n.ve.seniat.calendar.table</field>
         <field name="arch" type="xml">
             <list string="Calendario SENIAT">
+                <header>
+                    <button name="%(action_l10n_ve_copy_calendar_wizard)d" type="action"
+                            string="Copiar a otro año" display="always"/>
+                </header>
                 <field name="name"/>
                 <field name="year"/>
                 <field name="code"/>

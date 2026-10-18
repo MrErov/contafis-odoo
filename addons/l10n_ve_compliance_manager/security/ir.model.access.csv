@@ -63,3 +63,6 @@ access_l10n_ve_seniat_calendar_accountant,l10n.ve.seniat.calendar.accountant,mod
 access_l10n_ve_bank_holiday_user,l10n.ve.bank.holiday.user,model_l10n_ve_bank_holiday,account.group_account_user,1,0,0,0
 access_l10n_ve_bank_holiday_manager,l10n.ve.bank.holiday.manager,model_l10n_ve_bank_holiday,account.group_account_manager,1,1,1,1
 access_l10n_ve_bank_holiday_accountant,l10n.ve.bank.holiday.accountant,model_l10n_ve_bank_holiday,l10n_ve_compliance_accountant,1,1,1,1
+access_l10n_ve_copy_calendar_wizard_user,l10n.ve.copy.calendar.wizard.user,model_l10n_ve_copy_calendar_wizard,base.group_user,1,1,1,1
+access_l10n_ve_copy_calendar_wizard_manager,l10n.ve.copy.calendar.wizard.manager,model_l10n_ve_copy_calendar_wizard,account.group_account_manager,1,1,1,1
+access_l10n_ve_copy_calendar_wizard_accountant,l10n.ve.copy.calendar.wizard.accountant,model_l10n_ve_copy_calendar_wizard,l10n_ve_compliance_accountant,1,1,1,1
