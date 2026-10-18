@@ -31,6 +31,12 @@ class VeObligationType(models.Model):
         ('anual', 'Anual'),
         ('event', 'Evento'),
     ], string='Periodicidad')
+    generation_months = fields.Char(
+        string='Meses de generación',
+        help='Meses del año (1-12) separados por coma en que se generan las '
+             'obligaciones de este tipo (por ejemplo, 6,9,12). Vacío: se usa '
+             'la periodicidad.',
+    )
     due_day_rule = fields.Selection([
         ('1-15', 'Días 01-15'),
         ('primeros_5_dias_habiles', 'Primeros 5 días hábiles'),

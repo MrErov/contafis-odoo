@@ -273,6 +273,140 @@ class TestIslrCalendar2026Data(TransactionCase):
 
 
 @tagged('post_install', '-at_install')
+class TestIslrObligationTypes(TransactionCase):
+    """T2 spec 004: tipos de obligación de ISLR precargados y campo generation_months (RF-4, RF-7)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.ObligationType = cls.env['l10n.ve.obligation.type']
+        cls.estimadas = cls.env.ref(
+            'l10n_ve_compliance_manager.obligation_type_islr_estimadas'
+        )
+        cls.retenciones = cls.env.ref(
+            'l10n_ve_compliance_manager.obligation_type_islr_retenciones'
+        )
+
+    def test_islr_obligation_types_seeded(self):
+        """RF-4: ambos tipos existen con impuesto ISLR, categoría y tabla SENIAT."""
+        self.assertEqual(self.estimadas.tax_type, 'islr')
+        self.assertEqual(self.estimadas.category, 'fiscal_nacional')
+        self.assertEqual(self.estimadas.periodicity, 'monthly')
+        self.assertEqual(self.estimadas.seniat_table_code, 'est_islr')
+        self.assertEqual(self.estimadas.generation_months, '6,9,12')
+        self.assertEqual(self.retenciones.tax_type, 'islr')
+        self.assertEqual(self.retenciones.category, 'fiscal_nacional')
+        self.assertEqual(self.retenciones.periodicity, 'monthly')
+        self.assertEqual(self.retenciones.seniat_table_code, 'ret_islr')
+        self.assertFalse(self.retenciones.generation_months)
+        self.assertFalse(self.estimadas.alert_enabled)
+        self.assertFalse(self.retenciones.alert_enabled)
+
+    def test_islr_obligation_types_assignable_to_client(self):
+        """RF-4: los tipos precargados se asignan a un cliente vía applicable_type_ids."""
+        partner = self.env['res.partner'].create({'name': 'Partner tipos ISLR T2'})
+        client = self.env['l10n.ve.compliance.client'].create({
+            'name': 'Cliente tipos ISLR T2',
+            'partner_id': partner.id,
+            'company_id': self.env.company.id,
+            'rif': 'J-00000000-0',
+        })
+        client.applicable_type_ids = [(6, 0, (self.estimadas + self.retenciones).ids)]
+        self.assertEqual(client.applicable_type_ids, self.estimadas | self.retenciones)
+
+    def test_generation_months_field_editable(self):
+        """RF-4/RF-7: el contador edita los meses y un upgrade no pisa el cambio."""
+        self.estimadas.generation_months = '1,2,3'
+        convert.convert_file(
+            self.env,
+            'l10n_ve_compliance_manager',
+            'data/islr_obligation_types.xml',
+            None,
+            mode='update',
+        )
+        self.estimadas.invalidate_recordset()
+        self.assertEqual(
+            self.estimadas.generation_months, '1,2,3',
+            'noupdate="1": la actualización no debe pisar la edición del contador.',
+        )
+
+
+@tagged('post_install', '-at_install')
+class TestIslrObligationGeneration(TransactionCase):
+    """T2 spec 004: generación con generation_months y retenciones mensuales (RF-5, RF-6, RF-7)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.Obligation = cls.env['l10n.ve.obligation']
+        cls.ObligationType = cls.env['l10n.ve.obligation.type']
+        cls.estimadas = cls.env.ref(
+            'l10n_ve_compliance_manager.obligation_type_islr_estimadas'
+        )
+        cls.retenciones = cls.env.ref(
+            'l10n_ve_compliance_manager.obligation_type_islr_retenciones'
+        )
+        cls.partner = cls.env['res.partner'].create({'name': 'Partner generación ISLR T2'})
+
+    def _create_client(self, **kwargs):
+        vals = {
+            'name': 'Cliente generación ISLR T2',
+            'partner_id': self.partner.id,
+            'company_id': self.env.company.id,
+            'rif': 'J-00000000-0',
+            'is_spe': False,
+        }
+        vals.update(kwargs)
+        return self.env['l10n.ve.compliance.client'].create(vals)
+
+    def _obligations(self, client, obligation_type, period=None):
+        domain = [
+            ('client_id', '=', client.id),
+            ('obligation_type_id', '=', obligation_type.id),
+        ]
+        if period:
+            domain.append(('period', '=', period))
+        return self.Obligation.search(domain)
+
+    def test_generate_estimadas_only_configured_months(self):
+        """RF-5/RF-7: con generation_months='6,9,12' solo esos meses generan."""
+        client = self._create_client(applicable_type_ids=self.estimadas.ids)
+        for month in (4, 5, 7, 8):
+            self.assertEqual(
+                self.Obligation._generate_for_client(client, 2026, month), 0,
+                f'Estimadas no debe generarse en el mes {month}.',
+            )
+            self.assertFalse(self._obligations(client, self.estimadas, f'{month:02d}/2026'))
+        for month in (6, 9, 12):
+            self.assertEqual(self.Obligation._generate_for_client(client, 2026, month), 1)
+            obligations = self._obligations(client, self.estimadas, f'{month:02d}/2026')
+            self.assertEqual(len(obligations), 1)
+            self.assertEqual(obligations.quincena, 'monthly')
+        self.assertEqual(self.Obligation._generate_for_client(client, 2026, 6), 0)
+        self.assertEqual(len(self._obligations(client, self.estimadas)), 3)
+
+    def test_generate_retenciones_monthly(self):
+        """RF-6: sin generation_months, la periodicidad mensual genera cada mes."""
+        client = self._create_client(applicable_type_ids=self.retenciones.ids)
+        for month in (5, 6):
+            self.assertEqual(self.Obligation._generate_for_client(client, 2026, month), 1)
+        self.assertEqual(len(self._obligations(client, self.retenciones)), 2)
+        self.assertTrue(self._obligations(client, self.retenciones, '05/2026'))
+        self.assertTrue(self._obligations(client, self.retenciones, '06/2026'))
+
+    def test_generation_months_invalid_falls_back_to_periodicity(self):
+        """RF-7: un valor inválido equivale a vacío: se usa la periodicidad."""
+        otype = self.ObligationType.create({
+            'name': 'Retenciones ISLR valor inválido T2',
+            'tax_type': 'islr',
+            'periodicity': 'monthly',
+            'generation_months': 'abc',
+        })
+        client = self._create_client(applicable_type_ids=otype.ids)
+        self.assertEqual(self.Obligation._generate_for_client(client, 2026, 5), 1)
+
+
+@tagged('post_install', '-at_install')
 class TestBankHolidayModel(TransactionCase):
     """T3: modelo de feriados bancarios (fecha única + año computado)."""
 
@@ -507,6 +641,14 @@ class TestSeniatConfigViews(TransactionCase):
             'view_l10n_ve_obligation_type_list',
             'l10n.ve.obligation.type',
             ['seniat_table_code'],
+        )
+
+    def test_obligation_type_form_shows_generation_months(self):
+        """RF-7: el campo de meses de generación es editable en la vista del tipo."""
+        self._assert_fields_in_view(
+            'view_l10n_ve_obligation_type_form',
+            'l10n.ve.obligation.type',
+            ['generation_months'],
         )
 
 

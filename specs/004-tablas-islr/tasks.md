@@ -10,8 +10,9 @@ Comando oficial de tests (única fuente del conteo):
 - [x] **T1. Precarga de datos de referencia est_islr/ret_islr 2026 (`data/islr_calendar_2026.xml`, `noupdate="1"` + comentario "sujetas a verificación con la Gaceta Oficial") + manifest + tests de precarga.** RF-1, RF-2, RF-3
       Hecho cuando: est_islr tiene 30 líneas (jun, sep, dic × 10 dígitos, offset 0) y ret_islr 120 (12 meses × 10 dígitos, offset 1); día = dígito del RIF + 10 en todas; editar un día y recargar el XML no pisa el cambio; suite ≥193 sin regresiones.
 
-- [ ] **T2. Tipos de obligación "Estimadas de ISLR" y "Retenciones de ISLR" (`data/islr_obligation_types.xml`, `noupdate="1"`) + campo `generation_months` en el tipo + vista.** RF-4, RF-7
+- [x] **T2. Tipos de obligación "Estimadas de ISLR" y "Retenciones de ISLR" (`data/islr_obligation_types.xml`, `noupdate="1"`) + campo `generation_months` en el tipo + vista.** RF-4, RF-7
       Hecho cuando: ambos tipos existen con `tax_type='islr'` y su `seniat_table_code`; "Estimadas" trae `generation_months="6,9,12"`; los tipos son asignables a un cliente vía `applicable_type_ids`; el campo es editable en la vista del tipo.
+      Nota (2026-10-18): el prompt de la tarea pedía además `_generate_for_client` respetando `generation_months` (helper `_parse_generation_months`) y sus tests de mayo/junio y retenciones mensuales; se implementaron aquí. El resto de T3 (ciclo anual de ventana e idempotencia del cron) queda pendiente.
 
 - [ ] **T3. Generación de Estimadas: helper `_parse_generation_months` + `_generate_for_client` respeta `generation_months` (jun, sep, dic) + tests de cron e idempotencia.** RF-5, RF-7
       Hecho cuando: un cliente (no-SPE) con el tipo de Estimadas genera exactamente 3 obligaciones en un ciclo anual de ventana (meses 6, 9 y 12) y 0 en el resto; re-ejecutar no duplica.

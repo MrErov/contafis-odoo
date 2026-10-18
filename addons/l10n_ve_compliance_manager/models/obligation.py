@@ -25,6 +25,18 @@ def _last_period_month(periodicity, month):
     return True
 
 
+def _parse_generation_months(value):
+    """Parse '6,9,12' into (6, 9, 12); empty or invalid values return None."""
+    if not value:
+        return None
+    months = tuple(sorted({
+        int(token.strip())
+        for token in value.split(',')
+        if token.strip().isdigit() and 1 <= int(token.strip()) <= 12
+    }))
+    return months or None
+
+
 class VeObligation(models.Model):
     _name = 'l10n.ve.obligation'
     _description = 'Obligación'
@@ -339,10 +351,17 @@ class VeObligation(models.Model):
         return created
 
     def _generate_for_client(self, client, year, month):
-        """Generar las obligaciones de un cliente para un período (RF-12)."""
+        """Generar las obligaciones de un cliente para un período (RF-7, RF-12)."""
         period = f'{month:02d}/{year}'
         created = 0
         for obligation_type in client.applicable_type_ids:
+            generation_months = _parse_generation_months(obligation_type.generation_months)
+            if generation_months is not None:
+                if month in generation_months:
+                    created += self._create_obligation_if_missing(
+                        client, obligation_type, period, 'monthly', year
+                    )
+                continue
             periodicity = obligation_type.periodicity
             if periodicity == 'quincenal':
                 if not client.is_spe:

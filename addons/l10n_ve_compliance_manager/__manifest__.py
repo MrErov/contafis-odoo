@@ -32,6 +32,7 @@ Incluye:
         'data/islr_calendar_2026.xml',
         'data/bank_holidays_2026.xml',
         'data/institution_data.xml',
+        'data/islr_obligation_types.xml',
         'data/account_tax_data.xml',
         'data/document_type_cartelera.xml',
         'data/ir_config_parameter_data.xml',

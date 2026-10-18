@@ -36,6 +36,7 @@
                             <field name="category"/>
                             <field name="tax_type"/>
                             <field name="periodicity"/>
+                            <field name="generation_months"/>
                         </group>
                         <group>
                             <field name="due_day_rule"/>

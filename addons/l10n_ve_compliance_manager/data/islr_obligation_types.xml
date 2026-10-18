@@ -1,0 +1,38 @@
+<odoo>
+    <data noupdate="1">
+        <!--
+        Tipos de obligación de ISLR (Fase 004, spec 004 — RF-4, RF-7).
+
+        noupdate="1": el contador puede editar estos tipos (meses de generación,
+        alertas, base de cálculo, etc.) y las actualizaciones del módulo no
+        pisan sus cambios (constitución #2: datos del contador, no del sistema).
+
+        - Estimadas de ISLR: 3 anticipos al año (junio, septiembre y diciembre)
+          con vencimiento por la tabla est_islr del calendario SENIAT 2026.
+        - Retenciones de ISLR: mensual, con vencimiento al mes siguiente por la
+          tabla ret_islr del calendario SENIAT 2026.
+
+        Las fechas de la tabla son de REFERENCIA, sujetas a verificación con la
+        Gaceta Oficial: si la providencia oficial difiere, el contador corrige
+        la tabla desde la interfaz.
+        -->
+        <record id="obligation_type_islr_estimadas" model="l10n.ve.obligation.type">
+            <field name="name">Estimadas de ISLR</field>
+            <field name="institution_id" ref="institution_demo_seniat"/>
+            <field name="category">fiscal_nacional</field>
+            <field name="tax_type">islr</field>
+            <field name="periodicity">monthly</field>
+            <field name="generation_months">6,9,12</field>
+            <field name="seniat_table_code">est_islr</field>
+        </record>
+
+        <record id="obligation_type_islr_retenciones" model="l10n.ve.obligation.type">
+            <field name="name">Retenciones de ISLR</field>
+            <field name="institution_id" ref="institution_demo_seniat"/>
+            <field name="category">fiscal_nacional</field>
+            <field name="tax_type">islr</field>
+            <field name="periodicity">monthly</field>
+            <field name="seniat_table_code">ret_islr</field>
+        </record>
+    </data>
+</odoo>
