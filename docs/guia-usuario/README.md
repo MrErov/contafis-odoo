@@ -12,7 +12,7 @@ clientes en Venezuela con Odoo 19 Community.
 5. [Libro de Compras y Ventas](./05-libro-compras-ventas.md)
 6. [Planilla IVA 99030](./06-planilla-iva-99030.md)
 7. [Retenciones](./07-retenciones.md)
-8. [Calendario SENIAT](./08-calendario-seniat.md)
+8. [Calendario SENIAT e ISLR](./08-calendario-seniat.md)
 9. [Cartelera fiscal](./09-cartelera-fiscal.md)
 10. [Alertas](./10-alertas.md)
 11. [Exportar y respaldar datos](./11-exportar-respaldos.md)

@@ -42,10 +42,10 @@ Sí. Es el escenario principal del módulo. Ver sección 03.
 Se puede revertir el asiento desde Contabilidad y volver a cargar. Ver sección 04.
 
 **¿El sistema calcula automáticamente las retenciones?**
-No. El registro es manual. Ver [Limitaciones conocidas](./anexo-limitaciones.md).
+Sí, en facturas de proveedor con el botón [Generar Retención]: IVA 75% e ISLR 3% (el IGTF todavía no se calcula). Ver [Limitaciones conocidas](./anexo-limitaciones.md).
 
 **¿El sistema calcula el calendario SENIAT por RIF?**
-No. Está en roadmap. Ver [Limitaciones conocidas](./anexo-limitaciones.md).
+Sí. El vencimiento se calcula con las tablas del calendario según el último dígito del RIF. Ver [Calendario SENIAT](./08-calendario-seniat.md).
 
 **¿Puedo exportar los datos a otro sistema?**
 Sí. El libro y la planilla se exportan a Excel. Ver sección 11.

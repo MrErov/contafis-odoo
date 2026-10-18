@@ -6,13 +6,13 @@ En Venezuela, el comprador retiene un porcentaje del IVA o ISLR al proveedor y l
 
 <div class="note">
 
-El módulo actual implementa un registro básico de retenciones (nombre, contacto, monto, factura, estado). El cálculo automático de IVA (75%/100%), ISLR e IGTF está en el roadmap.
+El módulo genera las retenciones automáticamente desde la factura de proveedor con el botón [Generar Retención] (IVA 75% e ISLR 3% por defecto, configurables en los tipos de obligación). El cálculo de IGTF está pendiente.
 
 </div>
 
 ## Registrar una retención
 
-El modelo `l10n.retention` permite registrar retenciones manualmente:
+El modelo `l10n.retention` guarda las retenciones (creadas automáticamente desde la factura o registradas a mano):
 
 - **Nombre:** identificador del comprobante (secuencia automática)
 - **Contacto:** partner retenido
@@ -26,7 +26,7 @@ El modelo `l10n.retention` permite registrar retenciones manualmente:
 
 ## Ver retenciones registradas
 
-Actualmente no existe una vista lista dedicada para retenciones. Se accede desde Contabilidad → Retenciones cuando la funcionalidad esté completa.
+Las retenciones se consultan en la pestaña *Retenciones* de la factura de proveedor. El módulo no tiene un menú propio de retenciones.
 
 ## Cómo se relaciona con el libro
 
@@ -34,7 +34,7 @@ Los campos `retention_number`, `vat_retained` y `retention_direction` de `l10n.v
 
 ## Limitaciones actuales
 
-- No hay cálculo automático de IVA retenido
+- No hay cálculo de IGTF
 - No hay distinción IVA/ISLR/IGTF en el modelo
 - No hay reporte específico al SENIAT
 - No hay action/menú dedicado

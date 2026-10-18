@@ -52,7 +52,7 @@ async function seedDemoData(page) {
     const env = window.odoo.__WOWL_DEBUG__.root.env;
     const orm = env.services.orm;
     const call = (model, method, args = [], kwargs = {}) => orm.call(model, method, args, kwargs);
-    const stats = { partners: 0, clients: 0, documents: 0, statuses: 0, returns: 0, alerts: 0 };
+    const stats = { partners: 0, clients: 0, documents: 0, statuses: 0, returns: 0, alerts: 0, obligations: 0 };
 
     let companyId = env.services.company && env.services.company.currentCompany
       ? env.services.company.currentCompany.id
@@ -183,12 +183,30 @@ async function seedDemoData(page) {
     await seedAlert(clientB, 'document_expiring', 'sent');
     await seedAlert(clientC, 'missing_payment', 'done');
 
+    const islrTypes = await orm.search('l10n.ve.obligation.type', [
+      ['seniat_table_code', 'in', ['est_islr', 'ret_islr']],
+    ]);
+    if (islrTypes.length) {
+      for (const clientId of [clientA, clientB, clientC]) {
+        await call('l10n.ve.compliance.client', 'write', [[clientId], {
+          applicable_type_ids: [[6, 0, islrTypes]],
+        }]);
+      }
+      for (const clientId of [clientA, clientB, clientC]) {
+        const action = await call('l10n.ve.compliance.client', 'action_generate_obligations', [[clientId]]);
+        const message = (action && action.params && action.params.message) || '';
+        const match = /generaron (\d+)/.exec(message);
+        stats.obligations += match ? Number(match[1]) : 0;
+      }
+    }
+
     return stats;
   });
   console.log(
     `\u2713 seed demo: ${result.partners} partners, ${result.clients} clients, `
     + `${result.documents} docs, ${result.statuses} snapshots, `
-    + `${result.returns} planillas, ${result.alerts} alertas`,
+    + `${result.returns} planillas, ${result.alerts} alertas, `
+    + `${result.obligations} obligaciones`,
   );
 }
 
@@ -490,6 +508,46 @@ const specs = [
     annotations: [
       { selector: '.o_list_button_add', label: '1' },
     ],
+  },
+  {
+    name: '08-01-calendario-tablas',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_seniat_calendar?view_type=list',
+    waitFor: '.o_list_view',
+    annotations: [],
+  },
+  {
+    name: '08-02-calendario-tabla-form',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_seniat_calendar?view_type=list',
+    waitFor: '.o_list_view',
+    beforeCapture: async (page) => {
+      await page.locator('.o_list_view .o_data_row').first().click();
+      await page.waitForSelector('.o_form_view', { timeout: 15000 });
+    },
+    annotations: [],
+  },
+  {
+    name: '08-03-feriados-bancarios',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_bank_holiday?view_type=list',
+    waitFor: '.o_list_view',
+    annotations: [],
+  },
+  {
+    name: '08-04-cliente-config-fiscal',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_compliance_client?view_type=list',
+    waitFor: '.o_list_view',
+    beforeCapture: async (page) => {
+      await page.locator('.o_list_view .o_data_row').first().click();
+      await page.waitForSelector('.o_form_view', { timeout: 15000 });
+      await page.locator('.o_notebook a.nav-link', { hasText: 'Configuración Fiscal' }).first().click();
+      await page.waitForTimeout(600);
+    },
+    annotations: [],
+  },
+  {
+    name: '08-05-proximos-vencimientos',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_obligation_due_soon',
+    waitFor: '.o_list_view',
+    annotations: [],
   },
   {
     name: '09-01-cartelera-status',

@@ -2,36 +2,30 @@
 
 Esta sección lista las funcionalidades que el módulo **todavía no implementa** o que funcionan parcialmente.
 
-## Calendario SENIAT automático
+## Calendario SENIAT e ISLR
 
-**Estado:** implementado (spec 003, calendario 2026).
+**Estado:** implementado (specs 003 y 004). Ver [Calendario SENIAT](./08-calendario-seniat.md) para el uso paso a paso.
 
-**Lo que funciona:**
-- Cálculo del vencimiento por último dígito del RIF con las tablas oficiales 2026 (quincenas SPE y mensual no-SPE)
-- Corrimiento automático a día hábil (fines de semana y feriados bancarios 2026)
-- Generación automática mensual por cliente + botón manual "Generar obligaciones"
-- Estimadas de ISLR (jun/sep/dic) y Retenciones de ISLR mensuales con vencimiento por último dígito del RIF (tablas de referencia editables)
-- Bandeja "Próximos vencimientos" (30 días), alertas al contador y visibilidad por contador
+**Datos de referencia precargados:**
+- Tablas 2026: a.1 y a.2 (quincenas de SPE), est_islr (estimadas de ISLR, jun/sep/dic) y ret_islr (retenciones de ISLR, vence el mes siguiente)
+- Feriados bancarios 2026 (corrimiento automático al siguiente día hábil)
 
-**Limitaciones actuales:**
-- Solo viene precargado el calendario 2026. Para años siguientes usar "Copiar a otro año" y revisar los días según la providencia vigente
-- Los feriados bancarios 2026 vienen precargados; los de años futuros se cargan/editan a mano
+**Para años posteriores a 2026:** use el botón [Copiar a otro año] del Calendario SENIAT y revise los días y los feriados contra la providencia vigente.
 
-**Alternativa manual:** el contador puede editar la fecha en Obligaciones por cliente (queda marcada como override y no se corrige sola).
+**Corrección manual:** el contador puede editar la fecha en Obligaciones por cliente (queda marcada como override y no se corrige sola).
 
 **Referencia:** Providencia SNAT/2025/000091 (Gaceta Oficial N° 43.283 del 23-dic-2025).
 
 ## Cálculo automático de retenciones
 
-**Estado:** registro manual únicamente.
+**Estado:** implementado para IVA e ISLR (por defecto 75% y 3%).
+
+**Lo que funciona:** el botón [Generar Retención] de las facturas de proveedor (`in_invoice`) crea las retenciones de IVA e ISLR con las tasas configuradas en los tipos de obligación (respaldo: 75% y 3%). La pestaña *Retenciones* de la factura las lista y el libro de compras registra `retention_number`, `vat_retained` y `retention_direction`.
 
 **Qué falta:**
-- Campos específicos para IVA / ISLR / IGTF en el modelo de retención
-- Cálculo automático de 75%/100% del IVA según tipo de contribuyente
-- Cálculo de ISLR según tabla del SENIAT
-- Reporte mensual de retenciones al SENIAT
-
-**Lo que sí funciona:** registro básico de la retención (nombre, partner, monto, fecha) y asociación al libro de compras (`retention_number`, `vat_retained`, `retention_direction`).
+- Cálculo de IGTF (hoy no se genera)
+- Reporte/archivo mensual de retenciones al SENIAT
+- Menú dedicado de retenciones (hoy se consultan desde la factura)
 
 ## API de WhatsApp
 
