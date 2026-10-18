@@ -1,8 +1,11 @@
 from datetime import timedelta
 
+from dateutil.relativedelta import relativedelta
+from lxml import etree
 from odoo import fields
 from odoo.tests import TransactionCase, tagged
 from odoo.tools import convert
+from odoo.tools.safe_eval import safe_eval
 from psycopg2 import IntegrityError
 
 TEST_YEAR = 2099  # año libre de la precarga oficial (2026)
@@ -972,3 +975,232 @@ class TestAlertNotifications(TransactionCase):
         })
         body = template._render_field('body_html', calendar_alert.ids)[calendar_alert.id]
         self.assertIn('Falta el calendario', body)
+
+
+@tagged('post_install', '-at_install')
+class TestAccountantRecordRules(TransactionCase):
+    """T8: seguridad por contador — reglas de registro (RF-17)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.Client = cls.env['l10n.ve.compliance.client']
+        cls.Obligation = cls.env['l10n.ve.obligation']
+        cls.accountant_group = cls.env.ref('account.group_account_user')
+        cls.compliance_group = cls.env.ref(
+            'l10n_ve_compliance_manager.l10n_ve_compliance_accountant'
+        )
+        cls.admin_user = cls.env.ref('base.user_admin')
+        cls.partner = cls.env['res.partner'].create({'name': 'Partner T8'})
+        cls.contador_a = cls.env['res.users'].create({
+            'name': 'Contador A T8',
+            'login': 'contador_a_t8',
+            'group_ids': [(6, 0, cls.accountant_group.ids)],
+        })
+        cls.contador_b = cls.env['res.users'].create({
+            'name': 'Contador B T8',
+            'login': 'contador_b_t8',
+            'group_ids': [(6, 0, (cls.accountant_group | cls.compliance_group).ids)],
+        })
+        cls.client_a = cls._create_client('Cliente A T8', cls.contador_a)
+        cls.client_b = cls._create_client('Cliente B T8', cls.contador_b)
+        cls.client_no_accountant = cls._create_client('Cliente sin contador T8', None)
+        cls.obligation_a = cls._create_obligation(cls.client_a, 'OBL-A-T8')
+        cls.obligation_b = cls._create_obligation(cls.client_b, 'OBL-B-T8')
+        cls.obligation_no_accountant = cls._create_obligation(
+            cls.client_no_accountant, 'OBL-N-T8'
+        )
+
+    @classmethod
+    def _create_client(cls, name, accountant):
+        return cls.Client.create({
+            'name': name,
+            'partner_id': cls.partner.id,
+            'company_id': cls.env.company.id,
+            'accountant_id': accountant.id if accountant else False,
+        })
+
+    @classmethod
+    def _create_obligation(cls, client, name):
+        return cls.Obligation.create({
+            'name': name,
+            'client_id': client.id,
+        })
+
+    def _all_client_ids(self):
+        return (self.client_a + self.client_b + self.client_no_accountant).ids
+
+    def _all_obligation_ids(self):
+        return (
+            self.obligation_a + self.obligation_b + self.obligation_no_accountant
+        ).ids
+
+    def test_rules_loaded_with_expected_domains(self):
+        """RF-17: reglas de registro por contador y allow-all para el admin."""
+        obligation_rule = self.env.ref(
+            'l10n_ve_compliance_manager.rule_l10n_ve_obligation_accountant'
+        )
+        self.assertEqual(obligation_rule.model_id.model, 'l10n.ve.obligation')
+        self.assertEqual(
+            obligation_rule.domain_force,
+            "[('client_id.accountant_id', '=', user.id)]",
+        )
+        self.assertIn(self.accountant_group, obligation_rule.groups)
+        self.assertIn(self.compliance_group, obligation_rule.groups)
+        client_rule = self.env.ref(
+            'l10n_ve_compliance_manager.rule_l10n_ve_compliance_client_accountant'
+        )
+        self.assertEqual(client_rule.model_id.model, 'l10n.ve.compliance.client')
+        self.assertEqual(client_rule.domain_force, "[('accountant_id', '=', user.id)]")
+        admin_rule = self.env.ref(
+            'l10n_ve_compliance_manager.rule_l10n_ve_obligation_admin'
+        )
+        self.assertEqual(admin_rule.domain_force, "[(1, '=', 1)]")
+        self.assertIn(self.env.ref('base.group_system'), admin_rule.groups)
+
+    def test_obligation_isolation_between_accountants(self):
+        """RF-17: un contador no ve las obligaciones del otro contador."""
+        visible_to_a = self.Obligation.with_user(self.contador_a).search([
+            ('id', 'in', self._all_obligation_ids()),
+        ])
+        self.assertIn(self.obligation_a, visible_to_a)
+        self.assertNotIn(self.obligation_b, visible_to_a)
+        self.assertNotIn(self.obligation_no_accountant, visible_to_a)
+        visible_to_b = self.Obligation.with_user(self.contador_b).search([
+            ('id', 'in', self._all_obligation_ids()),
+        ])
+        self.assertIn(self.obligation_b, visible_to_b)
+        self.assertNotIn(self.obligation_a, visible_to_b)
+        self.assertNotIn(self.obligation_no_accountant, visible_to_b)
+
+    def test_client_isolation_between_accountants(self):
+        """RF-17: cada contador solo ve los clientes donde figura asignado."""
+        visible_to_a = self.Client.with_user(self.contador_a).search([
+            ('id', 'in', self._all_client_ids()),
+        ])
+        self.assertEqual(visible_to_a.ids, [self.client_a.id])
+        visible_to_b = self.Client.with_user(self.contador_b).search([
+            ('id', 'in', self._all_client_ids()),
+        ])
+        self.assertEqual(visible_to_b.ids, [self.client_b.id])
+
+    def test_client_without_accountant_only_visible_to_admin(self):
+        """RF-17: el cliente sin contador no lo ve ningún contador y el admin sí."""
+        client_domain = [('id', '=', self.client_no_accountant.id)]
+        self.assertFalse(self.Client.with_user(self.contador_a).search(client_domain))
+        self.assertTrue(self.Client.with_user(self.admin_user).search(client_domain))
+        obligation_domain = [('id', '=', self.obligation_no_accountant.id)]
+        self.assertFalse(
+            self.Obligation.with_user(self.contador_a).search(obligation_domain)
+        )
+        self.assertTrue(
+            self.Obligation.with_user(self.admin_user).search(obligation_domain)
+        )
+
+    def test_admin_sees_all_obligations(self):
+        """RF-17: el administrador ve las obligaciones de todos los contadores."""
+        visible = self.Obligation.with_user(self.admin_user).search([
+            ('id', 'in', self._all_obligation_ids()),
+        ])
+        self.assertEqual(set(visible.ids), set(self._all_obligation_ids()))
+
+
+@tagged('post_install', '-at_install')
+class TestDueSoonTray(TransactionCase):
+    """T8: bandeja "Próximos vencimientos" — vista, acción, filtros y menú (RF-18)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.Obligation = cls.env['l10n.ve.obligation']
+        cls.partner = cls.env['res.partner'].create({'name': 'Partner T8 bandeja'})
+        cls.client = cls.env['l10n.ve.compliance.client'].create({
+            'name': 'Cliente T8 bandeja',
+            'partner_id': cls.partner.id,
+            'company_id': cls.env.company.id,
+        })
+
+    def _create_manual_obligation(self, days_from_today):
+        obligation = self.Obligation.create({
+            'name': f'OBL-T8-{days_from_today}',
+            'client_id': self.client.id,
+        })
+        obligation.due_date = fields.Date.today() + timedelta(days=days_from_today)
+        return obligation
+
+    def test_due_soon_list_view(self):
+        """RF-18: la bandeja muestra cliente, tipo, período, quincena, vencimiento y estado."""
+        view = self.env.ref(
+            'l10n_ve_compliance_manager.view_l10n_ve_obligation_due_soon_list'
+        )
+        self.assertEqual(view.type, 'list')
+        self.assertEqual(view.model, 'l10n.ve.obligation')
+        for field_name in (
+            'client_id', 'obligation_type_id', 'period', 'quincena', 'due_date', 'state',
+        ):
+            self.assertIn(f'name="{field_name}"', view.arch)
+        self.assertIn('default_order="due_date asc"', view.arch)
+
+    def test_due_soon_action(self):
+        """RF-18: la acción abre las obligaciones pendientes con el filtro de 30 días."""
+        action = self.env.ref(
+            'l10n_ve_compliance_manager.action_l10n_ve_obligation_due_soon'
+        )
+        self.assertEqual(action.res_model, 'l10n.ve.obligation')
+        self.assertEqual(action.view_mode, 'list,form')
+        self.assertEqual(
+            action.view_id,
+            self.env.ref(
+                'l10n_ve_compliance_manager.view_l10n_ve_obligation_due_soon_list'
+            ),
+        )
+        self.assertEqual(
+            safe_eval(action.domain),
+            [('state', 'in', ('pending', 'overdue'))],
+        )
+        self.assertTrue(
+            safe_eval(action.context).get('search_default_filter_due_30_days')
+        )
+
+    def test_due_soon_menu(self):
+        """RF-18: el menú "Próximos vencimientos" cuelga de la raíz Cumplimiento VE."""
+        menu = self.env.ref(
+            'l10n_ve_compliance_manager.menu_l10n_ve_compliance_due_soon'
+        )
+        self.assertEqual(menu.name, 'Próximos vencimientos')
+        self.assertEqual(
+            menu.parent_id,
+            self.env.ref('l10n_ve_compliance_manager.menu_l10n_ve_compliance_root'),
+        )
+        self.assertEqual(
+            menu.action,
+            self.env.ref(
+                'l10n_ve_compliance_manager.action_l10n_ve_obligation_due_soon'
+            ),
+        )
+
+    def test_due_soon_search_filters(self):
+        """RF-18: existen los filtros Vencen esta semana, Vencidas, Mis clientes y 30 días."""
+        view = self.env.ref('l10n_ve_compliance_manager.view_l10n_ve_obligation_search')
+        for label in (
+            'Vencen esta semana', 'Vencidas', 'Mis clientes', 'Próximos 30 días',
+        ):
+            self.assertIn(label, view.arch)
+
+    def test_due_30_days_filter_limits_by_date(self):
+        """RF-18: el filtro "Próximos 30 días" acota por fecha de vencimiento."""
+        view = self.env.ref('l10n_ve_compliance_manager.view_l10n_ve_obligation_search')
+        root = etree.fromstring(view.arch.encode())
+        filter_elements = root.xpath("//filter[@name='filter_due_30_days']")
+        self.assertEqual(
+            len(filter_elements), 1, 'Debe existir el filtro "Próximos 30 días".',
+        )
+        domain = safe_eval(
+            filter_elements[0].get('domain'),
+            {'context_today': fields.Date.today, 'relativedelta': relativedelta},
+        )
+        inside = self._create_manual_obligation(10)
+        outside = self._create_manual_obligation(60)
+        found = self.Obligation.search(domain + [('id', 'in', (inside + outside).ids)])
+        self.assertIn(inside, found)
+        self.assertNotIn(outside, found)

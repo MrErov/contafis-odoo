@@ -29,7 +29,7 @@ Comando oficial de tests (única fuente del conteo):
 - [x] **T7. Alertas al contador: destinatario `accountant_id`, CC opcional del cliente, email real con la plantilla existente + link wa.me.** RF-14, RF-15, RF-16
       Hecho cuando: alerta creada con destinatario = partner del contador; con `alert_cc_client` incluye al cliente; el email genera `mail.mail` y marca `state=sent`; contador sin email queda `pending` sin romper el cron.
 
-- [ ] **T8. Seguridad por contador (`security/ir_rule.xml`) + bandeja "Próximos vencimientos" (acción + filtro 30 días).** RF-17, RF-18
+- [x] **T8. Seguridad por contador (`security/ir_rule.xml`) + bandeja "Próximos vencimientos" (acción + filtro 30 días).** RF-17, RF-18
       Hecho cuando: `with_user(contador_b)` no ve clientes/obligaciones de `contador_a`; cliente sin `accountant_id` invisible para contadores y visible para admin; el menú abre la bandeja con el filtro de 30 días por defecto.
 
 - [ ] **T9. Wizard "Copiar tabla a otro año" (transient + vista dialog).** RF-3 (HU-4)

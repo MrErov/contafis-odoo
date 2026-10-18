@@ -1,0 +1,55 @@
+<odoo>
+    <data>
+        <record id="rule_l10n_ve_compliance_client_accountant" model="ir.rule">
+            <field name="name">Cliente: solo mi cartera asignada</field>
+            <field name="model_id" ref="model_l10n_ve_compliance_client"/>
+            <field name="domain_force">[('accountant_id', '=', user.id)]</field>
+            <field name="groups" eval="[(6, 0, [ref('account.group_account_user'), ref('l10n_ve_compliance_accountant')])]"/>
+        </record>
+        <record id="rule_l10n_ve_compliance_client_admin" model="ir.rule">
+            <field name="name">Cliente: el administrador ve todo</field>
+            <field name="model_id" ref="model_l10n_ve_compliance_client"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        </record>
+
+        <record id="rule_l10n_ve_obligation_accountant" model="ir.rule">
+            <field name="name">Obligación: solo mi cartera asignada</field>
+            <field name="model_id" ref="model_l10n_ve_obligation"/>
+            <field name="domain_force">[('client_id.accountant_id', '=', user.id)]</field>
+            <field name="groups" eval="[(6, 0, [ref('account.group_account_user'), ref('l10n_ve_compliance_accountant')])]"/>
+        </record>
+        <record id="rule_l10n_ve_obligation_admin" model="ir.rule">
+            <field name="name">Obligación: el administrador ve todo</field>
+            <field name="model_id" ref="model_l10n_ve_obligation"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        </record>
+
+        <record id="rule_l10n_ve_document_accountant" model="ir.rule">
+            <field name="name">Documento: solo mi cartera asignada</field>
+            <field name="model_id" ref="model_l10n_ve_document"/>
+            <field name="domain_force">[('client_id.accountant_id', '=', user.id)]</field>
+            <field name="groups" eval="[(6, 0, [ref('account.group_account_user'), ref('l10n_ve_compliance_accountant')])]"/>
+        </record>
+        <record id="rule_l10n_ve_document_admin" model="ir.rule">
+            <field name="name">Documento: el administrador ve todo</field>
+            <field name="model_id" ref="model_l10n_ve_document"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        </record>
+
+        <record id="rule_l10n_ve_alert_accountant" model="ir.rule">
+            <field name="name">Alerta: solo mi cartera asignada</field>
+            <field name="model_id" ref="model_l10n_ve_alert"/>
+            <field name="domain_force">[('client_id.accountant_id', '=', user.id)]</field>
+            <field name="groups" eval="[(6, 0, [ref('account.group_account_user'), ref('l10n_ve_compliance_accountant')])]"/>
+        </record>
+        <record id="rule_l10n_ve_alert_admin" model="ir.rule">
+            <field name="name">Alerta: el administrador ve todo</field>
+            <field name="model_id" ref="model_l10n_ve_alert"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        </record>
+    </data>
+</odoo>
