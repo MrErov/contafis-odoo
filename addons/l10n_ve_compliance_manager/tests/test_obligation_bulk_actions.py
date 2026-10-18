@@ -110,10 +110,16 @@ class TestObligationBulkActions(TransactionCase):
         )
 
         self.assertIn('<graph', obligation_graph.arch)
+        self.assertIn('state', obligation_graph.arch)
+        self.assertIn('due_date', obligation_graph.arch)
         self.assertIn('amount', obligation_graph.arch)
         self.assertIn('<pivot', obligation_pivot.arch)
+        self.assertIn('obligation_type_id', obligation_pivot.arch)
+        self.assertIn('client_id', obligation_pivot.arch)
         self.assertIn('<graph', alert_graph.arch)
+        self.assertIn('alert_type', alert_graph.arch)
         self.assertIn('<pivot', alert_pivot.arch)
+        self.assertIn('channel', alert_pivot.arch)
 
         self.env['l10n.ve.obligation'].get_view(
             obligation_graph.id, 'graph',

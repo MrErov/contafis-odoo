@@ -1,6 +1,6 @@
 # Spec 005 - Bandeja de vencimientos accionable y análisis (KPIs)
 
-Estado: propuesta (pendiente de revisión del usuario)
+Estado: implementada (T1–T5 completos; 245 tests verdes; verificación visual en navegador)
 
 ## Contexto y objetivo
 

@@ -8,6 +8,7 @@ Proporcionar al contador una vista consolidada del estado de cumplimiento de tod
 - Modelo `l10n.ve.compliance.client`: `compliance_status` (`al_dia`/`pendiente`/`vencido`, computed), `compliance_score` (0-100, computed), `pending_alert_count` (computed)
 - Vista kanban: tarjeta por cliente con semáforo (`compliance_status`), puntuación, badge "Alertas pendientes"
 - Vista list/form: detalle obligaciones, alertas, documentos
+- Menú "Análisis": gráfico de barras y tabla dinámica nativos (graph/pivot) de obligaciones y alertas
 - Reporte PDF `compliance_report.xml`: resumen ejecutivo por cliente (obligaciones vencidas, pendientes, alertas, documentos por vencer)
 
 **No incluye:**
@@ -34,9 +35,13 @@ Proporcionar al contador una vista consolidada del estado de cumplimiento de tod
 3. **pending_alert_count**: alertas vinculadas al cliente con `state=pending`.
 4. **Kanban**: usa `pending_alert_count` (campo computed), no `sum()` inline.
 5. **Reporte PDF**: agrupa por cliente → obligaciones vencidas, pendientes, alertas pendientes, documentos por vencer (<30 días).
+6. **Análisis**: vistas nativas `graph`/`pivot` (acciones `graph,pivot,list`) sobre `l10n.ve.obligation`
+   (agrupables por estado, tipo, cliente, período, mes de vencimiento; medidas cantidad y monto) y
+   `l10n.ve.alert` (estado, canal, tipo, cliente). Sin modelos OWL; las record rules por contador siguen aplicando.
 
 ## Criterios de aceptación (tests)
 - `test_compliance_score`: cliente con 1 pagada + 1 pendiente no vencida → 100.0; agrega vencida → 66.67; marca vencida como `cancelled` → 100.0; cliente sin obligaciones → 100.0; score siempre 0-100.
+- `test_obligation_bulk_actions.py`: las vistas graph/pivot cargan (`get_view`) con sus campos de agrupación, y existen las acciones y el menú "Análisis".
 
 ## Referencias
 - docs/specs/01-calendario-seniat.md (due_date origen de score)

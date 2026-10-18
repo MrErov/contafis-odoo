@@ -6,8 +6,6 @@
         <field name="arch" type="xml">
             <graph string="Obligaciones" type="bar">
                 <field name="state"/>
-                <field name="obligation_type_id"/>
-                <field name="client_id"/>
                 <field name="due_date" interval="month"/>
                 <field name="amount" type="measure"/>
             </graph>
@@ -35,7 +33,6 @@
         <field name="arch" type="xml">
             <graph string="Alertas" type="bar">
                 <field name="state"/>
-                <field name="channel"/>
                 <field name="alert_type"/>
             </graph>
         </field>

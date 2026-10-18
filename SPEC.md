@@ -244,6 +244,14 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Tests de generación congelados con `odoo.tests.freeze_time` (`2026-10-15`): la ventana del cron queda dentro de las tablas 2026 y se elimina el time-bomb de diciembre 2026
 - ✅ 222 tests pasando (217 + 5 nuevos de constraints y mapeo)
 
+### Fase 005: Bandeja de vencimientos accionable + Análisis (spec 005) — COMPLETADA
+- ✅ Acciones de modelo `action_mark_paid` / `action_reopen` (fecha de pago automática, comprobante conservado al reabrir)
+- ✅ Wizard "Registrar pago" desde la fila de la bandeja y el formulario (fecha, referencia, comprobante adjunto)
+- ✅ Alerta manual a demanda (`alert_type=manual`) con deduplicación contra pendientes/enviadas y link `wa.me` por el flujo existente
+- ✅ Acciones masivas "Marcar pagadas (hoy)" / "Reabrir seleccionadas" (server actions ligadas a la lista)
+- ✅ Menú "Análisis" con vistas graph + pivot de obligaciones y alertas
+- ✅ 245 tests pasando; tareas T1–T5 `[x]` en `specs/005-bandeja-acciones-kpis/tasks.md`
+
 ### Trabajo Futuro
 - ⬜ Hardening 004.1 — Minor 1: recalcular `due_date` de obligaciones no vencidas al cambiar el tipo o el cliente (pendiente de decisión del usuario)
 - ⬜ Spec 11: Conciliación ISLR
@@ -267,7 +275,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
-- ✅ 222 tests backend + 7 tests E2E = 229 tests pasando
+- ✅ 245 tests backend + 7 tests E2E = 252 tests pasando
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`
