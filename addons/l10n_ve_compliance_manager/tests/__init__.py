@@ -9,6 +9,7 @@ from . import (
     test_import_vat_book,
     test_import_wizard,
     test_obligation,
+    test_obligation_actions,
     test_physical_invoice_wizard,
     test_retention_service,
     test_seniat_calendar,

@@ -1,7 +1,7 @@
 from calendar import monthrange
 from datetime import date, timedelta
 
-from odoo import api, fields, models
+from odoo import _, api, fields, models
 
 
 def _add_months(year, month, n):
@@ -118,6 +118,71 @@ class VeObligation(models.Model):
             and obligation.due_date < today
         )
         overdue.write({'state': 'overdue'})
+
+    def _get_reopen_state(self, today):
+        """Estado al reabrir una obligación pagada: vencida si ya pasó."""
+        self.ensure_one()
+        if self.due_date and self.due_date < today:
+            return 'overdue'
+        return 'pending'
+
+    def action_mark_paid(self):
+        """Marca como pagadas las obligaciones pendientes o vencidas.
+
+        Registra la fecha de pago con la fecha de hoy cuando aún no está
+        definida; conserva los valores existentes y deja fuera a las
+        obligaciones en otros estados (pagadas o canceladas).
+        """
+        eligible = self.filtered(
+            lambda obligation: obligation.state in ('pending', 'overdue')
+        )
+        today = fields.Date.today()
+        for obligation in eligible:
+            values = {'state': 'paid'}
+            if not obligation.payment_date:
+                values['payment_date'] = today
+            obligation.write(values)
+        skipped = len(self) - len(eligible)
+        message = _('Se marcaron %s obligación(es) como pagadas.') % len(eligible)
+        if skipped:
+            message += ' ' + _('%s quedaron fuera por su estado.') % skipped
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success' if eligible else 'warning',
+                'message': message,
+                'sticky': False,
+            },
+        }
+
+    def action_reopen(self):
+        """Reabre obligaciones pagadas para corregir un pago mal registrado.
+
+        El estado pasa a pendiente, o a vencida si el vencimiento ya pasó;
+        se limpian fecha y referencia de pago y se conserva el comprobante.
+        """
+        eligible = self.filtered(lambda obligation: obligation.state == 'paid')
+        today = fields.Date.today()
+        for obligation in eligible:
+            obligation.write({
+                'state': obligation._get_reopen_state(today),
+                'payment_date': False,
+                'payment_reference': False,
+            })
+        skipped = len(self) - len(eligible)
+        message = _('Se reabrieron %s obligación(es).') % len(eligible)
+        if skipped:
+            message += ' ' + _('%s quedaron fuera por su estado.') % skipped
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success' if eligible else 'warning',
+                'message': message,
+                'sticky': False,
+            },
+        }
 
     @api.depends(
         'due_date_override',
