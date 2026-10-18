@@ -167,7 +167,7 @@ class VeObligation(models.Model):
     def _resolve_due_date(self, month, year, today):
         table_code = self.obligation_type_id.seniat_table_code
         if table_code and table_code != 'none':
-            if self.client_id.is_spe:
+            if self.client_id.is_spe or table_code in ('est_islr', 'ret_islr'):
                 return self._resolve_due_date_calendar(month, year)
             return self._resolve_day_15(month, year)
         rule = self.obligation_type_id.due_day_rule
@@ -405,7 +405,9 @@ class VeObligation(models.Model):
 
     def _is_calendar_available(self, client, obligation_type, year, quincena):
         table_code = obligation_type.seniat_table_code
-        if not client.is_spe or not table_code or table_code == 'none':
+        if not table_code or table_code == 'none':
+            return True
+        if table_code in ('a1', 'a2') and not client.is_spe:
             return True
         code = _quincena_table_code(obligation_type.periodicity, table_code, quincena)
         table = self.env['l10n.ve.seniat.calendar.table'].search([

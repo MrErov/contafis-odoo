@@ -369,18 +369,21 @@ class TestIslrObligationGeneration(TransactionCase):
         return self.Obligation.search(domain)
 
     def test_generate_estimadas_only_configured_months(self):
-        """RF-5/RF-7: con generation_months='6,9,12' solo esos meses generan."""
+        """RF-5/RF-7: ciclo anual, con generation_months='6,9,12' solo esos meses generan."""
         client = self._create_client(applicable_type_ids=self.estimadas.ids)
-        for month in (4, 5, 7, 8):
+        for month in range(1, 13):
+            expected = 1 if month in (6, 9, 12) else 0
             self.assertEqual(
-                self.Obligation._generate_for_client(client, 2026, month), 0,
-                f'Estimadas no debe generarse en el mes {month}.',
+                self.Obligation._generate_for_client(client, 2026, month),
+                expected,
+                f'El mes {month} debe generar {expected} estimadas.',
             )
-            self.assertFalse(self._obligations(client, self.estimadas, f'{month:02d}/2026'))
+            self.assertEqual(
+                len(self._obligations(client, self.estimadas, f'{month:02d}/2026')),
+                expected,
+            )
         for month in (6, 9, 12):
-            self.assertEqual(self.Obligation._generate_for_client(client, 2026, month), 1)
             obligations = self._obligations(client, self.estimadas, f'{month:02d}/2026')
-            self.assertEqual(len(obligations), 1)
             self.assertEqual(obligations.quincena, 'monthly')
         self.assertEqual(self.Obligation._generate_for_client(client, 2026, 6), 0)
         self.assertEqual(len(self._obligations(client, self.estimadas)), 3)
@@ -404,6 +407,130 @@ class TestIslrObligationGeneration(TransactionCase):
         })
         client = self._create_client(applicable_type_ids=otype.ids)
         self.assertEqual(self.Obligation._generate_for_client(client, 2026, 5), 1)
+
+
+@tagged('post_install', '-at_install')
+class TestIslrDueDateWithoutSpe(TransactionCase):
+    """T4 spec 004: vencimiento ISLR por tabla sin gate SPE y tabla faltante (RF-8 a RF-12)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.Obligation = cls.env['l10n.ve.obligation']
+        cls.ObligationType = cls.env['l10n.ve.obligation.type']
+        cls.Alert = cls.env['l10n.ve.alert']
+        cls.estimadas = cls.env.ref(
+            'l10n_ve_compliance_manager.obligation_type_islr_estimadas'
+        )
+        cls.retenciones = cls.env.ref(
+            'l10n_ve_compliance_manager.obligation_type_islr_retenciones'
+        )
+        cls.partner = cls.env['res.partner'].create({'name': 'Partner vencimientos ISLR T4'})
+
+    def _create_client(self, rif='J-00000000-0', is_spe=False, **kwargs):
+        vals = {
+            'name': f'Cliente vencimientos ISLR T4 {rif}',
+            'partner_id': self.partner.id,
+            'company_id': self.env.company.id,
+            'rif': rif,
+            'is_spe': is_spe,
+        }
+        vals.update(kwargs)
+        return self.env['l10n.ve.compliance.client'].create(vals)
+
+    def _create_obligation(self, client, obligation_type, period):
+        return self.Obligation.create({
+            'name': f'OBL-T4-{period}',
+            'client_id': client.id,
+            'obligation_type_id': obligation_type.id,
+            'period': period,
+            'quincena': 'monthly',
+        })
+
+    def test_non_spe_estimadas_uses_islr_table(self):
+        """RF-8: no-SPE con Estimadas vence por tabla (06/2026 dígito 5 → lunes 15)."""
+        client = self._create_client(
+            'J-00000005-5', is_spe=False, applicable_type_ids=self.estimadas.ids,
+        )
+        obligation = self._create_obligation(client, self.estimadas, '06/2026')
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-06-15'))
+
+    def test_non_spe_retenciones_uses_next_month_offset(self):
+        """RF-8: no-SPE con Retenciones 03/2026 dígito 0 → 2026-04-10 (month_offset=1)."""
+        client = self._create_client(
+            'J-00000000-0', is_spe=False, applicable_type_ids=self.retenciones.ids,
+        )
+        obligation = self._create_obligation(client, self.retenciones, '03/2026')
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-04-10'))
+
+    def test_spe_estimadas_keeps_calendar_behavior(self):
+        """RF-9: un cliente SPE con Estimadas conserva el cálculo por tabla."""
+        client = self._create_client(
+            'J-00000005-5', is_spe=True, applicable_type_ids=self.estimadas.ids,
+        )
+        obligation = self._create_obligation(client, self.estimadas, '06/2026')
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-06-15'))
+
+    def test_non_spe_iva_still_uses_day_15(self):
+        """RF-9: un tipo con tabla a.1 sin SPE mantiene la regla del día 15."""
+        iva = self.ObligationType.create({
+            'name': 'IVA Mensual T4 no-SPE',
+            'periodicity': 'monthly',
+            'seniat_table_code': 'a1',
+        })
+        client = self._create_client(
+            'J-00000000-0', is_spe=False, applicable_type_ids=iva.ids,
+        )
+        obligation = self._create_obligation(client, iva, '05/2026')
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-06-15'))
+
+    def test_islr_weekend_due_date_shifts_to_monday(self):
+        """RF-12: 06/2026 dígito 3 cae sábado 13 y se corre al lunes 15."""
+        client = self._create_client(
+            'J-00000003-3', is_spe=False, applicable_type_ids=self.estimadas.ids,
+        )
+        obligation = self._create_obligation(client, self.estimadas, '06/2026')
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-06-15'))
+
+    def test_islr_missing_table_skips_generation_and_alerts(self):
+        """RF-10: año sin tablas ISLR → sin obligaciones, sin fecha falsa y alerta única."""
+        client = self._create_client(
+            applicable_type_ids=(self.estimadas + self.retenciones).ids,
+        )
+        created = self.Obligation._generate_for_client(client, TEST_YEAR, 6)
+        self.assertEqual(created, 0)
+        self.assertFalse(self.Obligation.search([
+            ('client_id', '=', client.id),
+            ('period', 'ilike', f'/{TEST_YEAR}'),
+        ]))
+        alerts = self.Alert.search([
+            ('client_id', '=', client.id),
+            ('alert_type', '=', 'calendar_missing'),
+        ])
+        self.assertEqual(len(alerts), 1)
+        self.assertIn(str(TEST_YEAR), alerts.name)
+        obligation = self._create_obligation(client, self.estimadas, f'06/{TEST_YEAR}')
+        self.assertFalse(obligation.due_date)
+
+    def test_islr_missing_row_leaves_due_date_empty(self):
+        """RF-11: tabla del año sin fila mes/dígito → obligación visible sin vencimiento."""
+        self.env['l10n.ve.seniat.calendar.table'].create({
+            'year': TEST_YEAR,
+            'code': 'est_islr',
+            'month_offset': '0',
+        })
+        client = self._create_client(
+            'J-00000005-5', is_spe=False, applicable_type_ids=self.estimadas.ids,
+        )
+        created = self.Obligation._generate_for_client(client, TEST_YEAR, 6)
+        self.assertEqual(created, 1)
+        obligation = self.Obligation.search([
+            ('client_id', '=', client.id),
+            ('obligation_type_id', '=', self.estimadas.id),
+            ('period', '=', f'06/{TEST_YEAR}'),
+        ])
+        self.assertEqual(len(obligation), 1)
+        self.assertFalse(obligation.due_date)
 
 
 @tagged('post_install', '-at_install')
