@@ -1,5 +1,5 @@
 {
-    'name': 'L10n VE Compliance Manager',
+    'name': 'Venezuela - Cumplimiento Fiscal y Documental',
     'version': '19.0.1.2.0',
     'author': 'Eurick Ospino',
     'website': 'https://github.com/MrErov/contafis-odoo-19.0v',

@@ -1,6 +1,7 @@
 <odoo>
     <menuitem id="menu_l10n_ve_compliance_root"
               name="Cumplimiento VE"
+              web_icon="l10n_ve_compliance_manager,static/description/icon.png"
               sequence="10"/>
 
     <menuitem id="menu_l10n_ve_compliance_clients"
