@@ -25,6 +25,8 @@
         <field name="arch" type="xml">
             <form string="Obligación">
                 <header>
+                    <button name="action_open_payment_wizard" type="object" string="Registrar pago" class="oe_highlight" invisible="state not in ('pending', 'overdue')"/>
+                    <button name="action_reopen" type="object" string="Reabrir" invisible="state != 'paid'"/>
                     <field name="state" widget="statusbar" statusbar_visible="pending,paid,overdue,cancelled"/>
                 </header>
                 <sheet>
@@ -176,6 +178,7 @@
                 <field name="quincena"/>
                 <field name="due_date"/>
                 <field name="state"/>
+                <button name="action_open_payment_wizard" type="object" string="Registrar pago" icon="fa-check-circle" invisible="state not in ('pending', 'overdue')"/>
             </list>
         </field>
     </record>

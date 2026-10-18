@@ -142,18 +142,18 @@ class VeObligation(models.Model):
             if not obligation.payment_date:
                 values['payment_date'] = today
             obligation.write(values)
-        skipped = len(self) - len(eligible)
-        message = _('Se marcaron %s obligación(es) como pagadas.') % len(eligible)
-        if skipped:
-            message += ' ' + _('%s quedaron fuera por su estado.') % skipped
+        return True
+
+    def action_open_payment_wizard(self):
+        """Abre el wizard para registrar el pago de la obligación."""
+        self.ensure_one()
         return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'type': 'success' if eligible else 'warning',
-                'message': message,
-                'sticky': False,
-            },
+            'type': 'ir.actions.act_window',
+            'name': _('Registrar pago'),
+            'res_model': 'l10n.ve.obligation.payment.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_obligation_id': self.id},
         }
 
     def action_reopen(self):
@@ -170,19 +170,7 @@ class VeObligation(models.Model):
                 'payment_date': False,
                 'payment_reference': False,
             })
-        skipped = len(self) - len(eligible)
-        message = _('Se reabrieron %s obligación(es).') % len(eligible)
-        if skipped:
-            message += ' ' + _('%s quedaron fuera por su estado.') % skipped
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'type': 'success' if eligible else 'warning',
-                'message': message,
-                'sticky': False,
-            },
-        }
+        return True
 
     @api.depends(
         'due_date_override',

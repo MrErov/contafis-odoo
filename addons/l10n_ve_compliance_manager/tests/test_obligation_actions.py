@@ -48,13 +48,9 @@ class TestObligationActions(TransactionCase):
 
         result = obligation.action_mark_paid()
 
+        self.assertTrue(result)
         self.assertEqual(obligation.state, 'paid')
         self.assertEqual(obligation.payment_date, fields.Date.today())
-        self.assertEqual(result['tag'], 'display_notification')
-        self.assertEqual(
-            result['params']['message'],
-            'Se marcaron 1 obligación(es) como pagadas.',
-        )
 
     def test_mark_paid_bulk_mixed_states(self):
         obligation_type = self._create_obligation_type()
@@ -73,6 +69,7 @@ class TestObligationActions(TransactionCase):
 
         result = (pending | with_date | cancelled | already_paid).action_mark_paid()
 
+        self.assertTrue(result)
         self.assertEqual(pending.state, 'paid')
         self.assertEqual(pending.payment_date, today)
         self.assertEqual(with_date.state, 'paid')
@@ -82,7 +79,6 @@ class TestObligationActions(TransactionCase):
         )
         self.assertEqual(cancelled.state, 'cancelled')
         self.assertEqual(already_paid.payment_date, existing_date)
-        self.assertIn('2 quedaron fuera por su estado.', result['params']['message'])
 
     def test_mark_paid_overdue_allowed(self):
         obligation_type = self._create_obligation_type()
@@ -107,16 +103,13 @@ class TestObligationActions(TransactionCase):
 
         result = obligation.action_reopen()
 
+        self.assertTrue(result)
         self.assertEqual(obligation.state, 'pending')
         self.assertFalse(obligation.payment_date)
         self.assertFalse(obligation.payment_reference)
         self.assertEqual(
             obligation.payment_attachment, b'ZmlsZQ==',
             'El comprobante debe conservarse al reabrir',
-        )
-        self.assertEqual(
-            result['params']['message'],
-            'Se reabrieron 1 obligación(es).',
         )
 
     def test_reopen_after_due_sets_overdue(self):
@@ -134,9 +127,5 @@ class TestObligationActions(TransactionCase):
 
         result = obligation.action_reopen()
 
+        self.assertTrue(result)
         self.assertEqual(obligation.state, 'pending')
-        self.assertEqual(result['params']['type'], 'warning')
-        self.assertEqual(
-            result['params']['message'],
-            'Se reabrieron 0 obligación(es). 1 quedaron fuera por su estado.',
-        )

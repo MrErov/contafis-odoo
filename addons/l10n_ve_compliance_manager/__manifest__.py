@@ -44,6 +44,7 @@ Incluye:
         'views/alert_views.xml',
         'views/compliance_client_views.xml',
         'views/obligation_views.xml',
+        'views/obligation_payment_wizard_views.xml',
         'wizards/copy_calendar_wizard_views.xml',
         'views/seniat_calendar_views.xml',
         'views/bank_holiday_views.xml',

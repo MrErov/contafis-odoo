@@ -11,6 +11,8 @@ access_l10n_ve_obligation_type_accountant,l10n.ve.obligation.type.accountant,mod
 access_l10n_ve_obligation_user,l10n.ve.obligation.user,model_l10n_ve_obligation,account.group_account_user,1,0,0,0
 access_l10n_ve_obligation_manager,l10n.ve.obligation.manager,model_l10n_ve_obligation,account.group_account_manager,1,1,1,1
 access_l10n_ve_obligation_accountant,l10n.ve.obligation.accountant,model_l10n_ve_obligation,l10n_ve_compliance_accountant,1,1,1,1
+access_l10n_ve_obligation_payment_wizard_user,l10n.ve.obligation.payment.wizard.user,model_l10n_ve_obligation_payment_wizard,base.group_user,1,1,1,1
+access_l10n_ve_obligation_payment_wizard_manager,l10n.ve.obligation.payment.wizard.manager,model_l10n_ve_obligation_payment_wizard,account.group_account_manager,1,1,1,1
 access_l10n_ve_document_type_user,l10n.ve.document.type.user,model_l10n_ve_document_type,account.group_account_user,1,0,0,0
 access_l10n_ve_document_type_manager,l10n.ve.document.type.manager,model_l10n_ve_document_type,account.group_account_manager,1,1,1,1
 access_l10n_ve_document_type_accountant,l10n.ve.document.type.accountant,model_l10n_ve_document_type,l10n_ve_compliance_accountant,1,1,1,1
