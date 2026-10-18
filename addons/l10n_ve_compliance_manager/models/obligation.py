@@ -320,6 +320,7 @@ class VeObligation(models.Model):
                 'sent_date': fields.Datetime.now(),
             })
 
+    @api.model
     def _cron_generate_obligations(self):
         """Generar las obligaciones del mes actual y el siguiente para todos los clientes."""
         clients = self.env['l10n.ve.compliance.client'].search([])

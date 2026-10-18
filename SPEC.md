@@ -215,12 +215,23 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Artefactos: `specs/002-mcp-odoo/{spec,plan,tasks}.md` + sección "MCP Odoo" en `AGENTS.md`
 - ✅ 121 tests pasando
 
+### Fase 003: Calendario SENIAT (spec 003) — COMPLETADA
+- ✅ Modelos `l10n.ve.seniat.calendar.table`/`l10n.ve.seniat.calendar` (`models.Constraint`) + precarga 2026 a.1/a.2 (240 líneas, `noupdate="1"`)
+- ✅ `l10n.ve.bank.holiday` + 13 feriados nacionales 2026; corrimiento a día hábil bancario
+- ✅ Cálculo de `due_date`: quincenas SPE por tabla (último dígito RIF), no-SPE día 15, `1-15` legacy vía a.1, `dia_fijo`
+- ✅ `_cron_generate_obligations` (ventana mes actual + próximo, idempotente), botón "Generar obligaciones" y alerta `calendar_missing`
+- ✅ Alertas al contador (`accountant_id`, CC opcional, email + `wa.me`) y seguridad por contador (`security/ir_rule.xml`)
+- ✅ Bandeja "Próximos vencimientos" (filtro 30 días) y wizard "Copiar a otro año"
+- ✅ Demo data SPE/no-SPE + test de integración end-to-end (`TestCalendarIntegration`)
+- ✅ 193 tests pasando; tareas T1–T10 `[x]` en `specs/003-calendario-seniat/tasks.md`
+
 ### Trabajo Futuro
 - ⬜ Spec 11: Conciliación ISLR
+- ⬜ Precargar tablas ISLR (est_islr/ret_islr) del calendario SENIAT 2026 (el modelo `code` + `month_offset` ya las soporta)
 - ⬜ Fase H: E2E con Playwright — 5/7 sub-fases completadas (0-4 + 7 CI); Fases 5-6 diferidas
 - ⬜ Tests de integración con fixtures de cartelera y conciliación fiscal (ya en repo, sin tests)
 - ⬜ post_init_hook: hacerlo efectivo con schema change (nullable source)
-- ⬜ Migrar `_sql_constraints` a `models.Constraint`
+- ⬜ Migrar `_sql_constraints` a `models.Constraint` en modelos antiguos (los 4 modelos nuevos de spec 003 ya lo usan)
 - ⬜ Warning cartelera_status_current_ids no searchable
 - ⬜ country_id guard en _post() para multi-país
 - ⬜ Menú directo para vat.book.line list
@@ -236,7 +247,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
-- ✅ 121 tests backend + 7 tests E2E = 128 tests pasando
+- ✅ 193 tests backend + 7 tests E2E = 200 tests pasando
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`

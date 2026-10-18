@@ -35,5 +35,5 @@ Comando oficial de tests (única fuente del conteo):
 - [x] **T9. Wizard "Copiar tabla a otro año" (transient + vista dialog).** RF-3 (HU-4)
       Hecho cuando: copiar a.1 de 2026 a 2027 duplica 120 líneas; intentar copiar sobre un (year, code) existente muestra error de usuario.
 
-- [ ] **T10. Suite de integración en `tests/test_seniat_calendar.py`, demo data y cierre de documentación.** RF-1 – RF-20 (suite completa)
+- [x] **T10. Suite de integración en `tests/test_seniat_calendar.py`, demo data y cierre de documentación.** RF-1 – RF-20 (suite completa)
       Hecho cuando: `0 failed` con el conteo Odoo ≥ 121 + tests nuevos; demo manual (admin crea año 2027 copiando tabla, contador ve su bandeja); `docs/capacidades/01-calendario-seniat.md`, `docs/guia-usuario/anexo-limitaciones.md` y `docs/memory.md` actualizados; `git status` sin archivos inesperados.

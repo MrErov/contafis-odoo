@@ -1,35 +1,53 @@
 # 01 - Calendario SENIAT
 
 ## Propósito
-Calcular la fecha de vencimiento (due_date) de obligaciones fiscales venezolanas según el último dígito del RIF, siguiendo la Providencia SNAT/2025/000091. Permite al contador no depender de tablas públicas cambiantes.
+Calcular la fecha de vencimiento (due_date) de obligaciones fiscales venezolanas según el último dígito del RIF, siguiendo la Providencia SNAT/2025/000091 (Gaceta Oficial N° 43.283 del 23-dic-2025). El calendario se administra como datos editables (tablas), no como código.
 
 ## Alcance
 **Incluye:**
-- Cálculo de due_date por regla: `1-15`, `primeros_5_dias_habiles`, `ultimo_digito_rif`, `dia_fijo`
-- Diccionario `SENIAT_2026_CALENDAR` en `obligation.py` (mes → dígito RIF → día)
-- Resolución de mes/año objetivo (`_get_target_month`) considerando periodicidad
-- Fallback seguro: regla `1-15` fuera de 2026 retorna `False`
+- Modelos `l10n.ve.seniat.calendar.table` (year, code, month_offset) y `l10n.ve.seniat.calendar` (month × rif_digit → day) con constraints de unicidad (`models.Constraint`)
+- Precarga 2026: tablas a.1 (vence en el mismo mes) y a.2 (vence en el mes siguiente), 120 líneas cada una (`data/seniat_calendar_2026.xml`, `noupdate="1"`)
+- Feriados bancarios (`l10n.ve.bank.holiday`, precarga 2026) y corrimiento al siguiente día hábil bancario
+- Cálculo de `due_date`: quincenal SPE vía tabla a.1/a.2, no-SPE día 15 (`dia_fijo`), regla `1-15` legacy vía a.1, `primeros_5_dias_habiles`, `ultimo_digito_rif`
+- Generación automática de obligaciones (ventana mes actual + próximo), idempotente, con botón manual "Generar obligaciones"
+- Alerta `calendar_missing` cuando falta la tabla del año
+- Wizard "Copiar a otro año" para cargar años futuros desde la UI
 
 **No incluye:**
-- Calendarios SENIAT de años distintos a 2026 (requiere actualización manual)
-- Vencimientos IVSS/INCES/BANAVIH (ver spec 02/03/05)
+- Precarga de años distintos a 2026 (se copian con el wizard "Copiar a otro año" o se editan a mano)
+- Tablas ISLR (est_islr/ret_islr): diferidas; el modelo (`code` + `month_offset`) ya las soporta
+- Feriados bancarios de años futuros (editables por UI)
 
 ## Modelos involucrados
-- `l10n.ve.obligation`: campo `due_date` (computed + inverse), `period`, `obligation_type_id`
-- `l10n.ve.obligation.type`: `due_day_rule`, `due_day_value`, `periodicity`
-- `l10n.ve.compliance.client`: `rif_last_digit` (computed from RIF)
+- `l10n.ve.seniat.calendar.table`: tabla del año (year, code, month_offset, line_ids)
+- `l10n.ve.seniat.calendar`: línea month × rif_digit → day
+- `l10n.ve.bank.holiday`: feriado bancario (date UNIQUE, year computed stored)
+- `l10n.ve.copy.calendar.wizard`: wizard transient de copia de tablas entre años
+- `l10n.ve.obligation`: `due_date` (computed + inverse), `period`, `quincena` (monthly/q1/q2)
+- `l10n.ve.compliance.client`: `is_spe`, `applicable_type_ids`, `rif_last_digit`
+- `l10n.ve.obligation.type`: `seniat_table_code`, `periodicity` (quincenal), `alert_cc_client`
 
 ## Reglas de negocio
-1. **Regla `1-15` (SENIAT 2026)**: Día 1-15 según tabla oficial por dígito RIF (0-9). Solo válida para año 2026.
-2. **Regla `primeros_5_dias_habiles`**: Primeros 5 días hábiles del mes objetivo (IVSS, BANAVIH).
-3. **Regla `ultimo_digito_rif`**: Día = dígito RIF (0→10). Para obligaciones municipales/otras.
-4. **Regla `dia_fijo`**: Día fijo configurable (`due_day_value`, máx 28).
-5. **Inverso manual**: Si usuario edita `due_date`, se marca `due_date_override=True` y persiste el valor manual.
+1. **SPE quincenal**: q1 vence por la tabla a.1 (mes del período); q2 por la tabla a.2 (mes siguiente).
+2. **No-SPE / `dia_fijo`**: día 15 del mes objetivo, corrido a día hábil si cae fin de semana o feriado.
+3. **Corrimiento**: sábado, domingo o feriado bancario → siguiente día hábil (solo hacia adelante).
+4. **Tabla faltante**: no se generan obligaciones y se crea una única alerta `calendar_missing` por año.
+5. **Idempotencia**: clave (client, type, period, quincena); correr el cron dos veces no duplica.
+6. **Override manual**: editar `due_date` marca `due_date_override=True` y el valor no se corrige automáticamente.
 
 ## Criterios de aceptación (tests)
-- `test_compute_due_date_seniat`: valida cálculo para cada dígito RIF (0-9) en meses 1-12 de 2026 usando `SENIAT_2026_CALENDAR`.
+- `TestSeniatCalendarModels` / `TestSeniatCalendar2026Data`: constraints, precarga 2026 vs `SENIAT_2026_CALENDAR` (guardia legacy), edición persistente tras `-u`
+- `TestBankHolidayModel` / `TestBankHoliday2026Data`: constraint UNIQUE(date), precarga 2026
+- `TestObligationTypeSeniatConfig` / `TestComplianceClientSeniatConfig` / `TestSeniatConfigViews`: configuración SPE y tipos por cliente
+- `TestObligationDueDateCalculation`: cálculo por dígito/mes, quincenas, corrimiento, no-SPE, sin RIF, override
+- `TestObligationGeneration`: ventana rodante, idempotencia, `calendar_missing`
+- `TestAlertNotifications`: destinatarios (contador/CC cliente), email y `wa.me`
+- `TestAccountantRecordRules` / `TestDueSoonTray`: visibilidad por contador y bandeja 30 días
+- `TestCopyCalendarWizard`: copia 2026→2027 (2 tablas, 240 líneas) y errores de validación
+- `TestCalendarIntegration`: flujo end-to-end del contador; el histórico `test_compute_due_date_seniat` (en `test_obligation.py`) sigue en verde
 
 ## Referencias
 - Providencia SNAT/2025/000091 (calendario SENIAT 2026)
+- `specs/003-calendario-seniat/{spec,plan,tasks}.md`
 - docs/specs/02-gestion-alertas.md (usa due_date para alertas due_soon/overdue)
 - docs/specs/05-dashboard-reportes.md (compliance_score usa due_date)

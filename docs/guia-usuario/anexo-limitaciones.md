@@ -4,15 +4,20 @@ Esta sección lista las funcionalidades que el módulo **todavía no implementa*
 
 ## Calendario SENIAT automático
 
-**Estado:** NO implementado.
+**Estado:** implementado (spec 003, calendario 2026).
 
-**Qué falta:**
-- Modelo `l10n.ve.seniat.calendar` con vencimientos por RIF
-- Cálculo automático de fechas según último dígito del RIF
-- Vista de próximos vencimientos por cliente
-- Alertas automáticas N días antes del vencimiento
+**Lo que funciona:**
+- Cálculo del vencimiento por último dígito del RIF con las tablas oficiales 2026 (quincenas SPE y mensual no-SPE)
+- Corrimiento automático a día hábil (fines de semana y feriados bancarios 2026)
+- Generación automática mensual por cliente + botón manual "Generar obligaciones"
+- Bandeja "Próximos vencimientos" (30 días), alertas al contador y visibilidad por contador
 
-**Alternativa manual:** el contador puede registrar fechas manualmente en Obligaciones por cliente.
+**Limitaciones actuales:**
+- Solo viene precargado el calendario 2026. Para años siguientes usar "Copiar a otro año" y revisar los días según la providencia vigente
+- Los feriados bancarios 2026 vienen precargados; los de años futuros se cargan/editan a mano
+- No incluye tablas de retenciones ISLR (est/ret); solo IVA (a.1/a.2)
+
+**Alternativa manual:** el contador puede editar la fecha en Obligaciones por cliente (queda marcada como override y no se corrige sola).
 
 **Referencia:** Providencia SNAT/2025/000091 (Gaceta Oficial N° 43.283 del 23-dic-2025).
 
@@ -52,7 +57,7 @@ Esta sección lista las funcionalidades que el módulo **todavía no implementa*
 ## Otros pendientes
 
 - Guard `country_id` en `_post()` para uso multi-país (actual: asume Venezuela)
-- Migración de `_sql_constraints` a `models.Constraint` (Odoo 19 deprecó el primero)
+- Migración de `_sql_constraints` a `models.Constraint` en modelos antiguos (Odoo 19 deprecó el primero; hecho en los modelos nuevos de spec 003)
 - Extensión de tests para verificar permisos de admin (los tests actuales corren como root)
 - Sub-fase 5 E2E: Planilla IVA + líneas del libro
 - Sub-fase 6 E2E: Multi-company

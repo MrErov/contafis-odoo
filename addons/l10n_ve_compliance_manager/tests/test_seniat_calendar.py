@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 
 from dateutil.relativedelta import relativedelta
 from lxml import etree
@@ -1292,3 +1292,125 @@ class TestCopyCalendarWizard(TransactionCase):
         )
         self.assertIn('Copiar a otro año', view.arch)
         self.assertIn('display="always"', view.arch)
+
+
+@tagged('post_install', '-at_install')
+class TestCalendarIntegration(TransactionCase):
+    """T10: flujo end-to-end del contador — cliente SPE → tipo quincenal → cron →
+    quincenas generadas con vencimiento oficial → bandeja de próximos vencimientos."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.Obligation = cls.env['l10n.ve.obligation']
+        cls.ObligationType = cls.env['l10n.ve.obligation.type']
+        cls.Client = cls.env['l10n.ve.compliance.client']
+        cls.BankHoliday = cls.env['l10n.ve.bank.holiday']
+        cls.partner = cls.env['res.partner'].create({'name': 'Distribuidora T10'})
+        cls.accountant = cls.env['res.users'].create({
+            'name': 'Contador T10',
+            'login': 'contador_t10',
+            'email': 'contador.t10@example.com',
+        })
+
+    def _window_periods(self):
+        today = fields.Date.today()
+        next_month = today.month % 12 + 1
+        next_year = today.year + (today.month == 12)
+        return [(today.year, today.month), (next_year, next_month)]
+
+    def _expected_due_date(self, code, year, month, rif_digit=5):
+        """Recalcula el vencimiento con los datos oficiales crudos (día + offset
+        de tabla + corrimiento a día hábil por fin de semana o feriado)."""
+        table = self.env.ref(
+            f'l10n_ve_compliance_manager.seniat_calendar_2026_{code}'
+        )
+        line = table.line_ids.filtered(
+            lambda line: line.month == month and line.rif_digit == rif_digit
+        )
+        self.assertEqual(
+            len(line), 1, f'Falta la línea {code} {month}/{year} dígito {rif_digit}.'
+        )
+        target_month = month + int(table.month_offset)
+        target_year = year
+        if target_month > 12:
+            target_month, target_year = 1, year + 1
+        due_date = date(target_year, target_month, line.day)
+        while (
+            due_date.weekday() >= 5
+            or self.BankHoliday.search_count([('date', '=', due_date)])
+        ):
+            due_date += timedelta(days=1)
+        return due_date
+
+    def _client_obligations(self, client, obligation_type):
+        return self.Obligation.search([
+            ('client_id', '=', client.id),
+            ('obligation_type_id', '=', obligation_type.id),
+        ])
+
+    def test_end_to_end_accountant_flow(self):
+        """RF-6/RF-9–RF-13: el cron genera las 2 quincenas del cliente SPE con los
+        vencimientos oficiales, sin duplicar, y la bandeja las muestra (RF-18)."""
+        iva_quincenal = self.ObligationType.create({
+            'name': 'IVA Quincenal Integración T10',
+            'tax_type': 'iva',
+            'periodicity': 'quincenal',
+            'seniat_table_code': 'a1',
+        })
+        client = self.Client.create({
+            'name': 'Sujeto Pasivo Especial T10',
+            'partner_id': self.partner.id,
+            'company_id': self.env.company.id,
+            'rif': 'J-00000005-5',
+            'is_spe': True,
+            'accountant_id': self.accountant.id,
+            'applicable_type_ids': [(6, 0, iva_quincenal.ids)],
+        })
+
+        self.Obligation._cron_generate_obligations()
+
+        quincenas = self._client_obligations(client, iva_quincenal)
+        self.assertEqual(
+            len(quincenas), 4,
+            'El cron debe crear 2 quincenas por cada mes de la ventana (mes actual + próximo).',
+        )
+        for year, month in self._window_periods():
+            period = f'{month:02d}/{year}'
+            q1 = quincenas.filtered(lambda o: o.period == period and o.quincena == 'q1')
+            q2 = quincenas.filtered(lambda o: o.period == period and o.quincena == 'q2')
+            self.assertEqual(len(q1), 1, f'{period} debe tener exactamente una obligación q1.')
+            self.assertEqual(len(q2), 1, f'{period} debe tener exactamente una obligación q2.')
+            self.assertEqual(q1.due_date, self._expected_due_date('a1', year, month))
+            self.assertEqual(q2.due_date, self._expected_due_date('a2', year, month))
+            self.assertGreaterEqual(
+                q2.due_date,
+                date(year + (month == 12), month % 12 + 1, 1),
+                'RF-11: la 2da quincena vence en el mes siguiente al período.',
+            )
+            self.assertEqual(q1.state, 'pending')
+            self.assertEqual(q2.state, 'pending')
+
+        self.Obligation._cron_generate_obligations()
+        self.assertEqual(
+            len(self._client_obligations(client, iva_quincenal)), 4,
+            'RF-13: correr el cron de nuevo no debe duplicar las quincenas.',
+        )
+
+        current_year, current_month = self._window_periods()[0]
+        current_q1 = quincenas.filtered(
+            lambda o: o.period == f'{current_month:02d}/{current_year}' and o.quincena == 'q1'
+        )
+        due_soon = self.Obligation.search([
+            ('client_id', '=', client.id),
+            ('state', 'in', ('pending', 'overdue')),
+            ('due_date', '<=', fields.Date.today() + timedelta(days=30)),
+        ])
+        self.assertIn(
+            current_q1, due_soon,
+            'RF-18: la bandeja de próximos 30 días debe mostrar la quincena en curso.',
+        )
+        self.assertFalse(self.env['l10n.ve.alert'].search([
+            ('client_id', '=', client.id),
+            ('alert_type', '=', 'calendar_missing'),
+        ]), 'RF-4: con el calendario 2026 cargado no debe haber alertas de calendario faltante.')

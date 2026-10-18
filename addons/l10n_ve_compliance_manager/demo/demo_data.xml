@@ -6,7 +6,8 @@
             <field name="institution_id" ref="institution_demo_seniat"/>
             <field name="category">fiscal_nacional</field>
             <field name="tax_type">iva</field>
-            <field name="periodicity">monthly</field>
+            <field name="periodicity">quincenal</field>
+            <field name="seniat_table_code">a1</field>
             <field name="due_day_rule">1-15</field>
             <field name="base_calculation">invoice</field>
             <field name="rate">16.0</field>
@@ -204,6 +205,59 @@
             <field name="required_for">company</field>
             <field name="alert_channel">email</field>
         </record>
+
+        <record id="obligation_type_demo_iva_no_spe" model="l10n.ve.obligation.type">
+            <field name="name">IVA Mensual (no SPE)</field>
+            <field name="institution_id" ref="institution_demo_seniat"/>
+            <field name="category">fiscal_nacional</field>
+            <field name="tax_type">iva</field>
+            <field name="periodicity">monthly</field>
+            <field name="seniat_table_code">a1</field>
+            <field name="due_day_rule">dia_fijo</field>
+            <field name="due_day_value">15</field>
+            <field name="base_calculation">invoice</field>
+            <field name="rate">16.0</field>
+            <field name="currency_id" ref="base.USD"/>
+            <field name="alert_days_before">5</field>
+            <field name="alert_channel">email</field>
+            <field name="alert_enabled">True</field>
+            <field name="alert_on_overdue">True</field>
+            <field name="alert_on_missing_payment">True</field>
+        </record>
+
+        <record id="demo_partner_spe" model="res.partner">
+            <field name="name">Distribuidora La Vega, C.A.</field>
+            <field name="email">contacto@distribuidoralavega.example.com</field>
+        </record>
+
+        <record id="demo_partner_no_spe" model="res.partner">
+            <field name="name">Servicios Andinos, C.A.</field>
+            <field name="email">contacto@serviciosandinos.example.com</field>
+        </record>
+
+        <record id="demo_compliance_client_spe" model="l10n.ve.compliance.client">
+            <field name="name">Distribuidora La Vega, C.A.</field>
+            <field name="partner_id" ref="demo_partner_spe"/>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="rif">J-31642758-5</field>
+            <field name="is_spe" eval="True"/>
+            <field name="accountant_id" ref="base.user_admin"/>
+            <field name="applicable_type_ids"
+                   eval="[(6, 0, [ref('obligation_type_demo_iva')])]"/>
+        </record>
+
+        <record id="demo_compliance_client_no_spe" model="l10n.ve.compliance.client">
+            <field name="name">Servicios Andinos, C.A.</field>
+            <field name="partner_id" ref="demo_partner_no_spe"/>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="rif">J-29876543-1</field>
+            <field name="is_spe" eval="False"/>
+            <field name="accountant_id" ref="base.user_admin"/>
+            <field name="applicable_type_ids"
+                   eval="[(6, 0, [ref('obligation_type_demo_iva_no_spe')])]"/>
+        </record>
+
+        <function model="l10n.ve.obligation" name="_cron_generate_obligations"/>
 
     </data>
 </odoo>
