@@ -26,7 +26,7 @@ Comando oficial de tests (única fuente del conteo):
 - [x] **T6. Generación automática: `_cron_generate_obligations` (ventana mes actual + próximo), idempotencia, botón "Generar obligaciones" y alerta `calendar_missing`.** RF-4, RF-12, RF-13
       Hecho cuando: un cliente SPE genera 2 quincenas + resto de tipos; correr el cron 2 veces no duplica; año 2027 sin calendario no crea obligaciones y registra una sola alerta `calendar_missing`.
 
-- [ ] **T7. Alertas al contador: destinatario `accountant_id`, CC opcional del cliente, email real con la plantilla existente + link wa.me.** RF-14, RF-15, RF-16
+- [x] **T7. Alertas al contador: destinatario `accountant_id`, CC opcional del cliente, email real con la plantilla existente + link wa.me.** RF-14, RF-15, RF-16
       Hecho cuando: alerta creada con destinatario = partner del contador; con `alert_cc_client` incluye al cliente; el email genera `mail.mail` y marca `state=sent`; contador sin email queda `pending` sin romper el cron.
 
 - [ ] **T8. Seguridad por contador (`security/ir_rule.xml`) + bandeja "Próximos vencimientos" (acción + filtro 30 días).** RF-17, RF-18

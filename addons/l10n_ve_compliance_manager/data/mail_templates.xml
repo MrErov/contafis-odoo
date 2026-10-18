@@ -3,12 +3,31 @@
         <record id="email_template_l10n_ve_alert" model="mail.template">
             <field name="name">Cumplimiento VE: Alerta de cumplimiento</field>
             <field name="model_id" ref="model_l10n_ve_alert"/>
+            <field name="use_default_to">False</field>
             <field name="partner_to">{{ ','.join(map(str, object.recipient_ids.ids)) }}</field>
             <field name="subject">[Cumplimiento VE] {{ object.client_id.name or '' }} - {{ object.alert_type or '' }}</field>
             <field name="body_html" type="html">
                 <div style="font-family: Arial, sans-serif; font-size: 13px;">
-                    <p>Estimado cliente,</p>
-                    <p>Se ha generado la siguiente alerta de cumplimiento:</p>
+                    <p>Estimado(a) contador(a),</p>
+                    <t t-if="object.alert_type == 'due_soon'">
+                        <p><b>Tienes una obligación por vencer.</b></p>
+                    </t>
+                    <t t-elif="object.alert_type == 'overdue'">
+                        <p><b>Tienes una obligación vencida.</b></p>
+                    </t>
+                    <t t-elif="object.alert_type == 'missing_payment'">
+                        <p><b>Tienes una obligación vencida sin pago registrado.</b></p>
+                    </t>
+                    <t t-elif="object.alert_type == 'document_expiring'">
+                        <p><b>Tienes un documento por vencer.</b></p>
+                    </t>
+                    <t t-elif="object.alert_type == 'calendar_missing'">
+                        <p><b>Falta el calendario SENIAT del año requerido.</b></p>
+                    </t>
+                    <t t-else="">
+                        <p><b>Tienes una alerta de cumplimiento.</b></p>
+                    </t>
+                    <p>Detalle de la alerta:</p>
                     <table style="border-collapse: collapse;" border="0" cellpadding="5">
                         <tr>
                             <td><b>Cliente:</b></td>

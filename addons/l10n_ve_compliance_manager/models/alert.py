@@ -63,3 +63,35 @@ class VeAlert(models.Model):
         if not phone:
             return False
         return f'https://wa.me/{phone}?text={quote(self._get_wa_text())}'
+
+    def _get_wa_partner(self):
+        """Partner cuyo teléfono alimenta el link wa.me.
+
+        El teléfono del contador asignado tiene prioridad; si el cliente no
+        tiene contador, se usa el primer destinatario disponible. El orden de
+        un Many2many se rige por `_order` de res.partner, por lo que no se
+        puede confiar en `recipient_ids[0]`.
+        """
+        self.ensure_one()
+        accountant_partner = self.client_id.accountant_id.partner_id
+        if accountant_partner:
+            return accountant_partner
+        return self.recipient_ids[:1]
+
+    def _send_email(self):
+        """Enviar la alerta por email con la plantilla del módulo (RF-16).
+
+        Devuelve False (y deja la alerta pendiente) cuando ningún
+        destinatario tiene email, para no romper el cron.
+        """
+        self.ensure_one()
+        if not self.recipient_ids.filtered('email'):
+            return False
+        template = self.env.ref(
+            'l10n_ve_compliance_manager.email_template_l10n_ve_alert',
+            raise_if_not_found=False,
+        )
+        if not template:
+            return False
+        template.send_mail(self.id, force_send=False)
+        return True

@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from odoo import fields
 from odoo.tests import TransactionCase, tagged
 from odoo.tools import convert
@@ -770,3 +772,203 @@ class TestObligationGeneration(TransactionCase):
             self.Obligation.ALERT_TYPE_LABELS['calendar_missing'],
             'Calendario faltante',
         )
+
+
+@tagged('post_install', '-at_install')
+class TestAlertNotifications(TransactionCase):
+    """T7: alertas al contador — destinatario, CC opcional, email real y WhatsApp
+    (RF-14, RF-15, RF-16)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.Obligation = cls.env['l10n.ve.obligation']
+        cls.ObligationType = cls.env['l10n.ve.obligation.type']
+        cls.Alert = cls.env['l10n.ve.alert']
+        cls.Mail = cls.env['mail.mail']
+        cls.accountant = cls.env['res.users'].create({
+            'name': 'Contador T7',
+            'login': 'contador_t7',
+            'email': 'contador.t7@example.com',
+        })
+        cls.accountant.partner_id.phone = '+58 414-1234567'
+        cls.client_partner = cls.env['res.partner'].create({
+            'name': 'Cliente T7 Contacto',
+            'email': 'cliente.t7@example.com',
+            'phone': '+58 212-5555555',
+        })
+        cls.today = fields.Date.today()
+
+    def _create_client(self, **kwargs):
+        vals = {
+            'name': 'Cliente T7',
+            'partner_id': self.client_partner.id,
+            'company_id': self.env.company.id,
+            'rif': 'J-00000000-0',
+            'accountant_id': self.accountant.id,
+        }
+        vals.update(kwargs)
+        return self.env['l10n.ve.compliance.client'].create(vals)
+
+    def _create_type(self, **kwargs):
+        vals = {
+            'name': 'IVA T7',
+            'alert_enabled': True,
+            'alert_days_before': 5,
+            'alert_channel': 'email',
+        }
+        vals.update(kwargs)
+        return self.ObligationType.create(vals)
+
+    def _create_due_soon_obligation(self, client, obligation_type):
+        obligation = self.Obligation.create({
+            'name': f'OBL-T7-{obligation_type.name}',
+            'client_id': client.id,
+            'obligation_type_id': obligation_type.id,
+        })
+        obligation.due_date = self.today + timedelta(days=3)
+        return obligation
+
+    def _alerts_for(self, obligation, alert_type='due_soon', channel=None):
+        domain = [
+            ('obligation_id', '=', obligation.id),
+            ('alert_type', '=', alert_type),
+        ]
+        if channel:
+            domain.append(('channel', '=', channel))
+        return self.Alert.search(domain)
+
+    def test_alert_recipients_accountant(self):
+        """RF-14: el destinatario principal es el partner del contador asignado."""
+        client = self._create_client()
+        obligation_type = self._create_type()
+        obligation = self._create_due_soon_obligation(client, obligation_type)
+
+        self.Obligation._cron_generate_compliance_alerts()
+
+        alerts = self._alerts_for(obligation)
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts.recipient_ids, self.accountant.partner_id)
+
+    def test_alert_recipients_cc_client(self):
+        """RF-15: con alert_cc_client se agrega el contacto del cliente como destinatario."""
+        client = self._create_client()
+        obligation_type = self._create_type(alert_cc_client=True)
+        obligation = self._create_due_soon_obligation(client, obligation_type)
+
+        self.Obligation._cron_generate_compliance_alerts()
+
+        alerts = self._alerts_for(obligation)
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(
+            alerts.recipient_ids,
+            self.accountant.partner_id | self.client_partner,
+        )
+
+    def test_alert_recipients_no_accountant(self):
+        """RF-14: sin contador la alerta se crea sin destinatarios y queda pendiente."""
+        client = self._create_client(accountant_id=False)
+        obligation_type = self._create_type()
+        obligation = self._create_due_soon_obligation(client, obligation_type)
+
+        self.Obligation._cron_generate_compliance_alerts()
+
+        alerts = self._alerts_for(obligation)
+        self.assertEqual(len(alerts), 1)
+        self.assertFalse(alerts.recipient_ids)
+        self.assertEqual(alerts.state, 'pending')
+
+    def test_alert_email_sent(self):
+        """RF-16: el email crea un mail.mail para los destinatarios y marca la alerta enviada."""
+        client = self._create_client()
+        obligation_type = self._create_type(alert_cc_client=True)
+        obligation = self._create_due_soon_obligation(client, obligation_type)
+
+        self.Obligation._cron_generate_compliance_alerts()
+
+        alerts = self._alerts_for(obligation, channel='email')
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts.state, 'sent')
+        self.assertTrue(alerts.sent_date)
+        mails = self.Mail.search([
+            ('model', '=', 'l10n.ve.alert'),
+            ('res_id', '=', alerts.id),
+        ])
+        self.assertEqual(len(mails), 1)
+        self.assertEqual(
+            mails.recipient_ids,
+            self.accountant.partner_id | self.client_partner,
+        )
+        self.assertEqual(mails.state, 'outgoing')
+        self.assertIn('obligación por vencer', mails.body)
+
+    def test_alert_email_without_recipient_email_stays_pending(self):
+        """RF-16: contador sin email → la alerta queda pendiente y el cron no falla."""
+        accountant = self.env['res.users'].create({
+            'name': 'Contador T7 Sin Email',
+            'login': 'contador_t7_sin_email',
+        })
+        accountant.partner_id.email = False
+        client = self._create_client(accountant_id=accountant.id)
+        obligation_type = self._create_type()
+        obligation = self._create_due_soon_obligation(client, obligation_type)
+
+        self.Obligation._cron_generate_compliance_alerts()
+
+        alerts = self._alerts_for(obligation, channel='email')
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts.state, 'pending')
+        self.assertFalse(alerts.sent_date)
+        self.assertFalse(self.Mail.search([
+            ('model', '=', 'l10n.ve.alert'),
+            ('res_id', '=', alerts.id),
+        ]))
+
+    def test_alert_whatsapp_link_uses_accountant_phone(self):
+        """RF-16: el link wa.me usa el teléfono del contador aunque el cliente vaya en copia."""
+        client = self._create_client()
+        obligation_type = self._create_type(
+            alert_cc_client=True, alert_channel='whatsapp',
+        )
+        obligation = self._create_due_soon_obligation(client, obligation_type)
+
+        self.Obligation._cron_generate_compliance_alerts()
+
+        alerts = self._alerts_for(obligation, channel='whatsapp')
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts.state, 'sent')
+        url = alerts.get_wa_url(self.accountant.partner_id.id)
+        self.assertTrue(url.startswith('https://wa.me/584141234567?text='))
+        self.assertIn(url, alerts.message)
+        self.assertNotIn('582125555555', alerts.message)
+
+    def test_template_body_clear_for_accountant(self):
+        """RF-16: la plantilla explica en claro la obligación por vencer y el calendario faltante."""
+        template = self.env.ref('l10n_ve_compliance_manager.email_template_l10n_ve_alert')
+        self.assertEqual(template.model, 'l10n.ve.alert')
+        client = self._create_client()
+        obligation = self._create_due_soon_obligation(client, self._create_type())
+        due_soon_alert = self.Alert.create({
+            'name': 'Alerta T7 vence pronto',
+            'client_id': client.id,
+            'obligation_id': obligation.id,
+            'alert_type': 'due_soon',
+            'date': fields.Datetime.now(),
+            'channel': 'email',
+            'recipient_ids': [(6, 0, self.accountant.partner_id.ids)],
+            'message': 'Mensaje de prueba',
+        })
+        body = template._render_field('body_html', due_soon_alert.ids)[due_soon_alert.id]
+        self.assertIn('obligación por vencer', body)
+
+        calendar_alert = self.Alert.create({
+            'name': 'Alerta T7 calendario faltante',
+            'client_id': client.id,
+            'alert_type': 'calendar_missing',
+            'date': fields.Datetime.now(),
+            'channel': 'email',
+            'recipient_ids': [(6, 0, self.accountant.partner_id.ids)],
+            'message': 'Mensaje de prueba',
+        })
+        body = template._render_field('body_html', calendar_alert.ids)[calendar_alert.id]
+        self.assertIn('Falta el calendario', body)

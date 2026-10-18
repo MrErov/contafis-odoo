@@ -269,7 +269,11 @@ class VeObligation(models.Model):
 
     def _create_alert(self, client, obligation, alert_type, channel, now):
         alert_obj = self.env['l10n.ve.alert']
-        recipients = client.partner_id
+        recipients = client.accountant_id.partner_id
+        if (obligation.obligation_type_id.alert_cc_client
+                and client.partner_id
+                and client.partner_id != recipients):
+            recipients |= client.partner_id
         for channel_name in self._get_alert_channels(channel):
             exists = alert_obj.search([
                 ('client_id', '=', client.id),
@@ -298,11 +302,19 @@ class VeObligation(models.Model):
             self._send_alert(alert)
 
     def _send_alert(self, alert):
-        if alert.channel == 'whatsapp' and alert.recipient_ids:
-            link = alert.get_wa_url(alert.recipient_ids[0].id)
-            if link:
-                alert.message = f'{alert.message}\nWhatsApp: {link}'
+        if alert.channel == 'email':
+            if alert._send_email():
+                alert.write({
+                    'state': 'sent',
+                    'sent_date': fields.Datetime.now(),
+                })
+            return
         if alert.channel == 'whatsapp':
+            partner = alert._get_wa_partner()
+            if partner:
+                link = alert.get_wa_url(partner.id)
+                if link:
+                    alert.message = f'{alert.message}\nWhatsApp: {link}'
             alert.write({
                 'state': 'sent',
                 'sent_date': fields.Datetime.now(),
