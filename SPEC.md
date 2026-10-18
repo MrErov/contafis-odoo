@@ -39,6 +39,10 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - `l10n.ve.institution` — SENIAT, IVSS, INCES, BANAVIH, municipales, SAREN
 - `l10n.ve.obligation.type` — Configuración regla vencimiento, alertas, tasas
 - `l10n.ve.obligation` — Instancia por período, due_date computed, estado, retención
+- `l10n.ve.seniat.calendar.table` — Tabla SENIAT por año/código (a.1/a.2/est_islr/ret_islr); 2026 precargada
+- `l10n.ve.seniat.calendar` — Día de vencimiento por mes y último dígito del RIF
+- `l10n.ve.bank.holiday` — Feriados bancarios (base del corrimiento a día hábil)
+- `l10n.ve.copy.calendar.wizard` — Wizard "Copiar a otro año" del calendario SENIAT
 - `l10n.ve.document.type` / `l10n.ve.document` — Cartelera fiscal
 - `l10n.ve.alert` — Notificaciones multi-tipo, multi-canal
 - `l10n.retention` — Comprobante retención (secuencia RET-YYYY-NNNN)
