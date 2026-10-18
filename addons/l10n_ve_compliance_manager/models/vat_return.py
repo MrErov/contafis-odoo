@@ -100,10 +100,10 @@ class VatReturn(models.Model):
     export_file = fields.Binary(string='Archivo Excel Exportado', readonly=True)
     export_filename = fields.Char(string='Nombre Archivo Exportado', readonly=True)
 
-    _sql_constraints = [
-        ('unique_return', 'UNIQUE(company_id, period_month)',
-         'Ya existe una declaración IVA 99030 para esta compañía y período.'),
-    ]
+    _unique_return = models.Constraint(
+        'UNIQUE(company_id, period_month)',
+        'Ya existe una declaración IVA 99030 para esta compañía y período.',
+    )
 
     def action_load_from_book(self):
         """Carga los ítems desde las líneas del libro de compras/ventas del período."""

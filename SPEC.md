@@ -249,19 +249,19 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ⬜ Spec 11: Conciliación ISLR
 - ✅ Precargar tablas ISLR (est_islr/ret_islr) del calendario SENIAT 2026 — HECHO (spec 004)
 - ⬜ Fase H: E2E con Playwright — 5/7 sub-fases completadas (0-4 + 7 CI); Fases 5-6 diferidas
-- ⬜ Tests de integración con fixtures de cartelera y conciliación fiscal (ya en repo, sin tests)
+- ⬜ Tests de integración con fixtures de cartelera y conciliación fiscal — `Control_Cartelera_Fiscal_Prueba.xlsx` y `CONCILIACION_FINANCIERA_Y_FISCAL_DEMO_2026.xlsx` están en `.gitignore` (solo `Libro_COMPRAS_VENTAS_Ficticio.xlsx` está versionado); versionarlos si se escriben los tests
 - ⬜ post_init_hook: hacerlo efectivo con schema change (nullable source)
-- ⬜ Migrar `_sql_constraints` a `models.Constraint` en modelos antiguos (los 4 modelos nuevos de spec 003 ya lo usan)
-- ⬜ Warning cartelera_status_current_ids no searchable
+- ✅ Migrar `_sql_constraints` a `models.Constraint` — HECHO (último: `vat_return.py` → `_unique_return`)
+- ✅ Warning cartelera_status_current_ids no searchable — HECHO (`search='_search_cartelera_status_current_ids'`)
 - ⬜ country_id guard en _post() para multi-país
-- ⬜ Menú directo para vat.book.line list
+- ✅ Menú directo para vat.book.line list — HECHO (`menu_l10n_ve_vat_book_line`, sequence 65)
 - ⬜ Importación de asientos contables (account.move)
-- ⬜ Fix RIF None en export XLSX cuando company.vat está vacío
+- ✅ Fix RIF None en export XLSX cuando company.vat está vacío — HECHO (`vat_return.py` y `vat_book_export_wizard.py` ya usan `vat or ''`)
 - ⬜ DevOps.1b: ruff-format (opcional, reformatearía 30+ archivos)
 - ⬜ DevOps.2: GitHub Actions CI (lint + test jobs) — **HECHO (B3-e2e-ci)**
 
 ### Deuda Técnica (nueva)
-- Helper `_get_or_create_tax_group()` duplicado en 4 test files (test_account_tax, test_export_regression, test_physical_invoice_wizard, test_vat_book_line_sync, test_vat_book_line_fields). Extraer a `tests/common.py` para evitar duplicación.
+- Helper `_get_or_create_tax_group()` duplicado en 7 test files (`test_account_tax`, `test_export_regression`, `test_physical_invoice_wizard`, `test_retention_service`, `test_vat_book_generate`, `test_vat_book_line_sync`, `test_vat_return`). Extraer a `tests/common.py` para evitar duplicación.
 
 ## Estado del Portafolio
 

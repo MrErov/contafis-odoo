@@ -57,6 +57,7 @@ class ComplianceClient(models.Model):
         'l10n.ve.cartelera.status',
         'client_id',
         compute='_compute_cartelera_status_current',
+        search='_search_cartelera_status_current_ids',
         string='Cartelera Mes Actual',
     )
     cartelera_html = fields.Html(
@@ -248,3 +249,29 @@ class ComplianceClient(models.Model):
                 ('year', '=', current_year),
                 ('month', '=', current_month),
             ])
+
+    def _search_cartelera_status_current_ids(self, operator, value):
+        """Traduce búsquedas sobre el One2many computado del mes actual.
+
+        Soporta el filtro «está / no está seteado» (True/False) y la búsqueda
+        por id de status ('=' / 'in'); el resto delega en el motor de dominios.
+        """
+        today = fields.Date.today()
+        current = self.env['l10n.ve.cartelera.status'].search([
+            ('year', '=', today.year),
+            ('month', '=', str(today.month)),
+        ])
+        current_client_ids = current.client_id.ids
+
+        # True: el cliente tiene cartelera del mes; False: no tiene
+        if isinstance(value, bool) and operator in ('=', '!='):
+            has_status = (value is True) == (operator == '=')
+            return [('id', 'in' if has_status else 'not in', current_client_ids)]
+
+        if operator in ('=', 'in'):
+            if operator == '=':
+                value = [value]
+            matched = current.filtered(lambda status: status.id in value)
+            return [('id', 'in', matched.client_id.ids)]
+
+        return NotImplemented

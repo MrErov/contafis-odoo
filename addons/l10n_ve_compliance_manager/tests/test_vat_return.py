@@ -215,15 +215,14 @@ class TestVatReturn(TransactionCase):
         self.assertEqual(vat_return.item_53, 320.0)  # pago
 
     def test_vat_return_unique_constraint(self):
-        """Constraint único por compañía y período - verifica que el constraint SQL existe."""
+        """Constraint único por compañía y período - verifica que el constraint existe."""
         model = self.env['l10n.ve.vat.return']
-        constraints = model._sql_constraints
-        constraint_names = [c[0] for c in constraints]
-        self.assertIn('unique_return', constraint_names)
-
-        unique_constraint = next(c for c in constraints if c[0] == 'unique_return')
-        self.assertIn('company_id', unique_constraint[1])
-        self.assertIn('period_month', unique_constraint[1])
+        self.assertTrue(hasattr(model, '_unique_return'))
+        unique_constraint = model._unique_return
+        self.assertEqual(unique_constraint.name, 'unique_return')
+        definition = unique_constraint.get_definition(model.pool)
+        self.assertIn('company_id', definition)
+        self.assertIn('period_month', definition)
 
     def test_vat_return_item_66_retenciones(self):
         """item_66 carga retenciones direction='by_buyer' (ventas)."""

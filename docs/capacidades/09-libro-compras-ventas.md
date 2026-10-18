@@ -134,6 +134,7 @@ XLSX). El layout del PDF no cambió.
 
 ### Nota de implementación
 
-Si la compañía no tiene RIF seteado, el export muestra None en la
-columna RIF. Pendiente: agregar fallback `company.vat or ''` en el
-método de export XLSX.
+El export XLSX usa `self.company_id.vat or ''` en la cabecera de la
+Planilla 99030 y `line.partner_id.vat or ''` en las columnas R.I.F. del
+libro de compras/ventas. Si la compañía o el partner no tienen RIF, la
+celda se exporta vacía (no `None`).
