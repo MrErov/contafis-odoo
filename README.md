@@ -36,21 +36,35 @@ El módulo centraliza el seguimiento de:
   instancia de Odoo.
 - **Calendario SENIAT 2026:** cálculo automático de vencimientos según el
   último dígito del RIF, conforme a la Providencia Administrativa
-  N° SNAT/2025/000091 (Gaceta Oficial N° 43.283).
+  N° SNAT/2025/000091 (Gaceta Oficial N° 43.283). Tablas a.1/a.2 (IVA
+  quincenal, Sujeto Pasivo Especial) precargadas y editables.
+- **Tablas de ISLR 2026:** estimadas de ISLR (jun/sep/dic) y retenciones
+  de ISLR (mensual, vence el mes siguiente) por último dígito del RIF,
+  asignables a cualquier cliente (sin gate SPE) y marcadas como
+  referencia sujeta a verificación con la Gaceta Oficial.
+- **Feriados bancarios y corrimiento:** 13 feriados nacionales 2026
+  editables; los vencimientos que caen en fin de semana o feriado se
+  corren al siguiente día hábil.
+- **Generación automática:** cron mensual con ventana rodante (mes actual
+  + próximo) e idempotente; botón "Generar obligaciones" por cliente y
+  alerta `calendar_missing` si falta la tabla del año.
+- **Wizard "Copiar a otro año":** duplica las tablas del calendario
+  (a.1/a.2/est_islr/ret_islr) hacia un año nuevo.
 - **Reglas parafiscales:** "primeros 5 días hábiles" para IVSS, BANAVIH
   y Paro Forzoso; periodicidad trimestral para INCES.
 - **Cartelera fiscal:** control de vigencia de documentos obligatorios
   con alertas de renovación configurables.
 - **Alertas automáticas:** email vía `mail.template` y WhatsApp vía
-  `wa.me` (sin costo de API).
+  `wa.me` (sin costo de API), con escalado al contador del cliente.
 - **Dashboard del contador:** estado de cumplimiento por cliente con
   puntuación de 0 a 100.
 - **Retenciones:** vinculadas a facturas de proveedor (`in_invoice`) y
   publicadas en `account.move`.
 - **Reportes PDF:** estado de cumplimiento exportable por cliente.
-- **Seguridad por grupos:** `account.group_account_user` (lectura),
-  `account.group_account_manager` (CRUD), y grupo propio
-  `l10n_ve_compliance_accountant`.
+- **Seguridad por grupos y por contador:** `account.group_account_user`
+  (lectura), `account.group_account_manager` (CRUD), grupo propio
+  `l10n_ve_compliance_accountant` y record rules que aíslan los datos
+  de cada cliente según `accountant_id`.
 
 ---
 
@@ -66,6 +80,10 @@ El módulo centraliza el seguimiento de:
 | `l10n.ve.document` | Documento con vigencia, adjunto y estado |
 | `l10n.ve.alert` | Alertas generadas por el cron |
 | `l10n.retention` | Retenciones vinculadas a `account.move` |
+| `l10n.ve.seniat.calendar.table` | Tabla SENIAT por año y código: a.1/a.2/est_islr/ret_islr (2026 precargada) |
+| `l10n.ve.seniat.calendar` | Día de vencimiento por mes y último dígito del RIF |
+| `l10n.ve.bank.holiday` | Feriados bancarios (base del corrimiento a día hábil) |
+| `l10n.ve.copy.calendar.wizard` | Wizard "Copiar calendario a otro año" |
 | **Extensiones** | `account.move`, `res.partner` |
 
 ---
@@ -107,21 +125,39 @@ Alternativamente, si usas una instalación local de Odoo, copia la carpeta
 
 ## 🧪 Tests
 
-El módulo incluye pruebas unitarias con `TransactionCase` que cubren:
+**217 pruebas backend** (`TransactionCase`) + **7 pruebas E2E** (Playwright)
+= **224 pruebas** pasando sobre Odoo 19.0 + PostgreSQL vía Docker.
 
-- Cálculo de vencimientos SENIAT (dígitos 0 y 1, enero 2026).
-- Generación de alertas por el cron (due_soon, overdue, missing_payment).
-- Cálculo de `compliance_score` (rango 0–100).
-- Generación automática de retenciones en facturas `in_invoice`.
-- Cambio a `expired` de documentos vencidos.
+Cobertura backend:
 
-Ejecutar:
+- Tablas SENIAT 2026 (a.1/a.2/est_islr/ret_islr), feriados bancarios y
+  corrimiento a día hábil.
+- Cálculo de vencimientos por último dígito del RIF: quincenas SPE
+  (a.1/a.2), día 15 no-SPE, estimadas ISLR jun/sep/dic y retenciones
+  ISLR mensuales.
+- Generación automática idempotente (ventana rodante), alerta
+  `calendar_missing` y flujo de alertas reutilizado.
+- Reglas de seguridad por contador y bandeja "Próximos vencimientos".
+- Wizard "Copiar a otro año" (duplica tablas y líneas).
+- Alertas del cron (`due_soon`, `overdue`, `missing_payment`) y
+  `compliance_score` (rango 0–100).
+- Retenciones en facturas `in_invoice`, cartelera documental y libro de
+  compras/ventas (import/export Excel, planilla IVA 99030).
+
+Ejecutar backend:
 
 ```bash
 docker compose run --rm web odoo -d contea \
   -u l10n_ve_compliance_manager \
   --test-enable --stop-after-init --workers 0 \
   --test-tags /l10n_ve_compliance_manager:standard
+```
+
+Ejecutar E2E (requiere Odoo levantado en `http://localhost:8090`):
+
+```bash
+npm install
+npm run test:e2e
 ```
 
 ---
@@ -143,22 +179,27 @@ contafis-odoo-19.0v/
 │   └── skills/
 │       └── calcular-retencion-venezuela/
 ├── docs/
-│   └── capacidades/
-│       ├── 01-calendario-seniat.md
-│       ├── 02-gestion-alertas.md
-│       ├── 03-cartelera-fiscal.md
-│       ├── 04-retenciones.md
-│       ├── 05-dashboard-reportes.md
-│       ├── 06-importacion-excel.md
-│       ├── 07-cartelera-excel.md
-│       ├── 08-evidencias.md
-│       ├── 09-libro-compras-ventas.md
-│       └── 10-importacion-libro-compras-ventas.md
+│   ├── capacidades/
+│   │   ├── 01-calendario-seniat.md
+│   │   ├── 02-gestion-alertas.md
+│   │   ├── 03-cartelera-fiscal.md
+│   │   ├── 04-retenciones.md
+│   │   ├── 05-dashboard-reportes.md
+│   │   ├── 06-importacion-excel.md
+│   │   ├── 07-cartelera-excel.md
+│   │   ├── 08-evidencias.md
+│   │   ├── 09-libro-compras-ventas.md
+│   │   └── 10-importacion-libro-compras-ventas.md
+│   └── guia-usuario/          # fuente + PDF de la guía (50 págs.)
+├── specs/                     # SDD: 001-backend-odoo-first … 004-tablas-islr
+├── tests/
+│   └── e2e/                   # Playwright (smoke, wizard, regenerar libro)
 └── addons/
     └── l10n_ve_compliance_manager/
         ├── __manifest__.py
         ├── models/
         ├── views/
+        ├── wizards/
         ├── data/
         ├── demo/
         ├── security/
@@ -194,24 +235,30 @@ agentes IA:
 
 ## 📸 Capturas
 
-Próximamente: dashboard del contador, vista de obligaciones, alertas
-generadas por el cron y reporte PDF.
+La guía de usuario incluye capturas reales del flujo completo (dashboard,
+obligaciones, calendario SENIAT, alertas, wizard de factura física y
+reportes): ver [`docs/guia-usuario/guia-usuario.pdf`](docs/guia-usuario/).
 
 ---
 
 ## 🗺️ Roadmap
 
-- ☑ Fase 1: Estructura del módulo y modelos base
-- ☑ Fase 2: Seguridad y vistas (list / form / kanban / search)
-- ☑ Fase 3: Cálculo de vencimientos, cron y alertas
-- ☑ Fase 4: Secuencias, datos demo y calendario SENIAT 2026
-- ☑ Fase 5: Dashboard del contador y reporte PDF
-- ☑ Fase 6: Retenciones e integración con `account.move`
-- ☑ Fase 7: Pruebas unitarias
-- □ Integración con MCP de Odoo (desarrollo asistido por IA)
-- □ Tests extendidos (document_missing, calendario SENIAT otros años)
-- □ Integración opcional con WhatsApp Business API
+- ☑ Fases 1-7: módulo base (modelos, vistas, cron, alertas, dashboard,
+  retenciones y primeras pruebas unitarias)
+- ☑ Spec 001: backend Odoo-first (wizard factura física, sync
+  `account.move` → libro de compras/ventas)
+- ☑ Fase H: E2E Playwright + CI en GitHub Actions (lint + backend + e2e)
+- ☑ Fase I: guía de usuario (portada, TOC, capturas reales, PDF 50 págs.)
+- ☑ Spec 002: integración MCP de Odoo para OpenCode Desktop
+- ☑ Spec 003: calendario SENIAT 2026 (tablas a.1/a.2, feriados,
+  corrimiento a día hábil, generación automática, seguridad por contador,
+  bandeja de vencimientos y wizard de copia)
+- ☑ Spec 004: tablas de ISLR 2026 (estimadas jun/sep/dic y retenciones
+  mensuales, sin gate SPE)
+- □ Spec 11: conciliación ISLR (montos y tasas de retención)
+- □ E2E Fases 5-6: planilla IVA y multi-company
 - □ Portal del cliente (solo lectura)
+- □ Integración opcional con WhatsApp Business API
 
 ---
 
