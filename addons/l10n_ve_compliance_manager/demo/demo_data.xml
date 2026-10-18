@@ -254,7 +254,7 @@
             <field name="is_spe" eval="False"/>
             <field name="accountant_id" ref="base.user_admin"/>
             <field name="applicable_type_ids"
-                   eval="[(6, 0, [ref('obligation_type_demo_iva_no_spe')])]"/>
+                   eval="[(6, 0, [ref('obligation_type_demo_iva_no_spe'), ref('obligation_type_islr_estimadas'), ref('obligation_type_islr_retenciones')])]"/>
         </record>
 
         <function model="l10n.ve.obligation" name="_cron_generate_obligations"/>

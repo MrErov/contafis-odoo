@@ -51,9 +51,10 @@ class VeObligationType(models.Model):
         ('est_islr', 'Estimadas de ISLR'),
         ('ret_islr', 'Retenciones de ISLR'),
     ], string='Tabla SENIAT', default='none',
-        help='Calendario oficial SENIAT que aplica a este tipo cuando el cliente '
-             'es Sujeto Pasivo Especial: el vencimiento se calcula según el '
-             'último dígito del RIF. "No usa calendario" conserva la regla '
+        help='Calendario oficial SENIAT que aplica a este tipo: el vencimiento se '
+             'calcula según el último dígito del RIF. Las tablas a.1/a.2 solo '
+             'aplican a clientes Sujeto Pasivo Especial; est_islr/ret_islr siguen '
+             'siempre al tipo asignado. "No usa calendario" conserva la regla '
              'general del tipo.')
     base_calculation = fields.Selection([
         ('invoice', 'Sobre facturación'),

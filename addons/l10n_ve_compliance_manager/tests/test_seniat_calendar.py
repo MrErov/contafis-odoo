@@ -463,6 +463,14 @@ class TestIslrDueDateWithoutSpe(TransactionCase):
         obligation = self._create_obligation(client, self.retenciones, '03/2026')
         self.assertEqual(obligation.due_date, fields.Date.to_date('2026-04-10'))
 
+    def test_retenciones_december_rolls_into_next_year(self):
+        """RF-6/RF-8: retenciones 12/2026 dígito 9 vencen el 2027-01-19 (mes siguiente)."""
+        client = self._create_client(
+            'J-00000009-9', is_spe=False, applicable_type_ids=self.retenciones.ids,
+        )
+        obligation = self._create_obligation(client, self.retenciones, '12/2026')
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2027-01-19'))
+
     def test_spe_estimadas_keeps_calendar_behavior(self):
         """RF-9: un cliente SPE con Estimadas conserva el cálculo por tabla."""
         client = self._create_client(
@@ -1195,6 +1203,33 @@ class TestAlertNotifications(TransactionCase):
         self.assertEqual(len(alerts), 1)
         self.assertEqual(alerts.recipient_ids, self.accountant.partner_id)
 
+    def test_islr_obligation_reuses_alert_flow(self):
+        """RF-13: una obligación de ISLR por vencer usa el flujo de alertas del tipo."""
+        islr_type = self.env.ref(
+            'l10n_ve_compliance_manager.obligation_type_islr_retenciones'
+        )
+        islr_type.write({
+            'alert_enabled': True,
+            'alert_days_before': 5,
+            'alert_channel': 'email',
+        })
+        client = self._create_client(applicable_type_ids=islr_type.ids)
+        obligation = self.Obligation.create({
+            'name': 'Retención de ISLR T5',
+            'client_id': client.id,
+            'obligation_type_id': islr_type.id,
+            'period': '10/2026',
+            'quincena': 'monthly',
+        })
+        obligation.due_date = self.today + timedelta(days=3)
+
+        self.Obligation._cron_generate_compliance_alerts()
+
+        alerts = self._alerts_for(obligation, channel='email')
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts.recipient_ids, self.accountant.partner_id)
+        self.assertEqual(alerts.state, 'sent')
+
     def test_alert_recipients_cc_client(self):
         """RF-15: con alert_cc_client se agrega el contacto del cliente como destinatario."""
         client = self._create_client()
@@ -1763,3 +1798,74 @@ class TestCalendarIntegration(TransactionCase):
             ('client_id', '=', client.id),
             ('alert_type', '=', 'calendar_missing'),
         ]), 'RF-4: con el calendario 2026 cargado no debe haber alertas de calendario faltante.')
+
+
+@tagged('post_install', '-at_install')
+class TestDemoDataIslr(TransactionCase):
+    """T5/T6 spec 004: demo del cliente piloto con Estimadas y Retenciones de ISLR."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.Obligation = cls.env['l10n.ve.obligation']
+        cls.estimadas = cls.env.ref(
+            'l10n_ve_compliance_manager.obligation_type_islr_estimadas'
+        )
+        cls.retenciones = cls.env.ref(
+            'l10n_ve_compliance_manager.obligation_type_islr_retenciones'
+        )
+        convert.convert_file(
+            cls.env,
+            'l10n_ve_compliance_manager',
+            'demo/demo_data.xml',
+            None,
+            mode='init',
+        )
+        cls.client = cls.env.ref(
+            'l10n_ve_compliance_manager.demo_compliance_client_no_spe'
+        )
+
+    def _window_periods(self):
+        today = fields.Date.today()
+        next_month = today.month % 12 + 1
+        next_year = today.year + (today.month == 12)
+        return [
+            f'{today.month:02d}/{today.year}',
+            f'{next_month:02d}/{next_year}',
+        ]
+
+    def _retention(self, period):
+        return self.Obligation.search([
+            ('client_id', '=', self.client.id),
+            ('obligation_type_id', '=', self.retenciones.id),
+            ('period', '=', period),
+        ])
+
+    def test_demo_client_has_both_islr_types(self):
+        """T6: el cliente demo no-SPE trae asignados Estimadas y Retenciones de ISLR."""
+        self.assertIn(self.estimadas, self.client.applicable_type_ids)
+        self.assertIn(self.retenciones, self.client.applicable_type_ids)
+
+    def test_demo_function_generates_retenciones_window(self):
+        """T5/RF-6: el <function> del demo generó una retención por mes de la ventana."""
+        for period in self._window_periods():
+            retention = self._retention(period)
+            self.assertEqual(len(retention), 1, f'Falta la retención de {period}.')
+            self.assertEqual(retention.quincena, 'monthly')
+            self.assertTrue(retention.due_date)
+        self.assertEqual(
+            self.Obligation._generate_window_for_client(self.client), 0,
+            'RF-13: repetir la generación del cliente demo no debe duplicar.',
+        )
+
+    def test_demo_client_generates_estimadas_in_configured_month(self):
+        """RF-5: el cliente demo genera su estimada en un mes configurado (jun/sep/dic)."""
+        self.Obligation._generate_for_client(self.client, 2026, 12)
+        estimada = self.Obligation.search([
+            ('client_id', '=', self.client.id),
+            ('obligation_type_id', '=', self.estimadas.id),
+            ('period', '=', '12/2026'),
+        ])
+        self.assertEqual(len(estimada), 1)
+        self.assertEqual(estimada.quincena, 'monthly')
+        self.assertEqual(estimada.due_date, fields.Date.to_date('2026-12-11'))
