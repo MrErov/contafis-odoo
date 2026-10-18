@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_server_obligation_mark_paid" model="ir.actions.server">
+        <field name="name">Marcar pagadas (hoy)</field>
+        <field name="model_id" ref="model_l10n_ve_obligation"/>
+        <field name="binding_model_id" ref="model_l10n_ve_obligation"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+records = model.browse(env.context.get('active_ids', []))
+eligible = records.filtered(
+    lambda obligation: obligation.state in ('pending', 'overdue')
+)
+skipped = len(records) - len(eligible)
+eligible.action_mark_paid()
+message = 'Se marcaron %s obligación(es) como pagadas.' % len(eligible)
+if skipped:
+    message += ' %s quedaron fuera por su estado.' % skipped
+action = {
+    'type': 'ir.actions.client',
+    'tag': 'display_notification',
+    'params': {
+        'type': 'success' if eligible else 'warning',
+        'message': message,
+        'sticky': False,
+        'next': {'type': 'ir.actions.client', 'tag': 'soft_reload'},
+    },
+}
+        </field>
+    </record>
+
+    <record id="action_server_obligation_reopen" model="ir.actions.server">
+        <field name="name">Reabrir seleccionadas</field>
+        <field name="model_id" ref="model_l10n_ve_obligation"/>
+        <field name="binding_model_id" ref="model_l10n_ve_obligation"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+records = model.browse(env.context.get('active_ids', []))
+paid = records.filtered(lambda obligation: obligation.state == 'paid')
+skipped = len(records) - len(paid)
+paid.action_reopen()
+message = 'Se reabrieron %s obligación(es).' % len(paid)
+if skipped:
+    message += ' %s quedaron fuera por su estado.' % skipped
+action = {
+    'type': 'ir.actions.client',
+    'tag': 'display_notification',
+    'params': {
+        'type': 'success' if paid else 'warning',
+        'message': message,
+        'sticky': False,
+        'next': {'type': 'ir.actions.client', 'tag': 'soft_reload'},
+    },
+}
+        </field>
+    </record>
+</odoo>

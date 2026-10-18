@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_l10n_ve_obligation_graph" model="ir.ui.view">
+        <field name="name">l10n.ve.obligation.graph</field>
+        <field name="model">l10n.ve.obligation</field>
+        <field name="arch" type="xml">
+            <graph string="Obligaciones" type="bar">
+                <field name="state"/>
+                <field name="obligation_type_id"/>
+                <field name="client_id"/>
+                <field name="due_date" interval="month"/>
+                <field name="amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_l10n_ve_obligation_pivot" model="ir.ui.view">
+        <field name="name">l10n.ve.obligation.pivot</field>
+        <field name="model">l10n.ve.obligation</field>
+        <field name="arch" type="xml">
+            <pivot string="Obligaciones">
+                <field name="state" type="row"/>
+                <field name="period" type="row"/>
+                <field name="obligation_type_id" type="col"/>
+                <field name="client_id" type="col"/>
+                <field name="due_date" interval="month" type="col"/>
+                <field name="amount" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_l10n_ve_alert_graph" model="ir.ui.view">
+        <field name="name">l10n.ve.alert.graph</field>
+        <field name="model">l10n.ve.alert</field>
+        <field name="arch" type="xml">
+            <graph string="Alertas" type="bar">
+                <field name="state"/>
+                <field name="channel"/>
+                <field name="alert_type"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_l10n_ve_alert_pivot" model="ir.ui.view">
+        <field name="name">l10n.ve.alert.pivot</field>
+        <field name="model">l10n.ve.alert</field>
+        <field name="arch" type="xml">
+            <pivot string="Alertas">
+                <field name="state" type="row"/>
+                <field name="channel" type="col"/>
+                <field name="alert_type" type="col"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="action_l10n_ve_obligation_analysis" model="ir.actions.act_window">
+        <field name="name">Obligaciones</field>
+        <field name="res_model">l10n.ve.obligation</field>
+        <field name="view_mode">graph,pivot,list</field>
+    </record>
+
+    <record id="action_l10n_ve_alert_analysis" model="ir.actions.act_window">
+        <field name="name">Alertas</field>
+        <field name="res_model">l10n.ve.alert</field>
+        <field name="view_mode">graph,pivot,list</field>
+    </record>
+
+    <menuitem id="menu_l10n_ve_compliance_analysis"
+              name="Análisis"
+              parent="menu_l10n_ve_compliance_root"
+              sequence="47"/>
+
+    <menuitem id="menu_l10n_ve_compliance_analysis_obligations"
+              name="Obligaciones"
+              parent="menu_l10n_ve_compliance_analysis"
+              action="action_l10n_ve_obligation_analysis"
+              sequence="10"/>
+
+    <menuitem id="menu_l10n_ve_compliance_analysis_alerts"
+              name="Alertas"
+              parent="menu_l10n_ve_compliance_analysis"
+              action="action_l10n_ve_alert_analysis"
+              sequence="20"/>
+</odoo>
