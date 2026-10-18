@@ -1,4 +1,7 @@
-from odoo import fields, models
+import re
+
+from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 
 
 class VeObligationType(models.Model):
@@ -80,3 +83,34 @@ class VeObligationType(models.Model):
     )
     alert_on_overdue = fields.Boolean(string='Alertar al vencer')
     alert_on_missing_payment = fields.Boolean(string='Alertar por falta de pago')
+
+    @api.constrains('generation_months')
+    def _check_generation_months(self):
+        for record in self:
+            if not record.generation_months:
+                continue
+            if not re.fullmatch(r'[0-9]+(,[0-9]+)*', record.generation_months):
+                raise ValidationError(
+                    'El campo "Meses de generación" debe ser una lista de meses '
+                    '(1-12) separados por coma, por ejemplo: 6,9,12.'
+                )
+            if any(
+                not 1 <= int(token) <= 12
+                for token in record.generation_months.split(',')
+            ):
+                raise ValidationError(
+                    'El campo "Meses de generación" solo admite meses del 1 al 12.'
+                )
+
+    @api.constrains('periodicity', 'seniat_table_code')
+    def _check_quincenal_islr_table(self):
+        for record in self:
+            if (
+                record.periodicity == 'quincenal'
+                and record.seniat_table_code in ('est_islr', 'ret_islr')
+            ):
+                raise ValidationError(
+                    'Un tipo de obligación con periodicidad quincenal no puede '
+                    'usar las tablas de ISLR (Estimadas/Retenciones de ISLR): '
+                    'esas obligaciones se generan con periodicidad mensual.'
+                )

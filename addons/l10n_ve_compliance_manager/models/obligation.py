@@ -10,6 +10,8 @@ def _add_months(year, month, n):
 
 
 def _quincena_table_code(periodicity, table_code, quincena):
+    if table_code in ('est_islr', 'ret_islr'):
+        return table_code
     if periodicity == 'quincenal' and quincena in ('q1', 'q2'):
         return 'a1' if quincena == 'q1' else 'a2'
     return table_code
@@ -98,6 +100,8 @@ class VeObligation(models.Model):
     alert_ids = fields.One2many('l10n.ve.alert', 'obligation_id', string='Alertas')
     responsible_id = fields.Many2one('res.users', string='Responsable')
     notes = fields.Text(string='Notas')
+
+    _client_type_period_idx = models.Index('(client_id, obligation_type_id, period, quincena)')
 
     def _cron_generate_compliance_alerts(self):
         today = fields.Date.today()

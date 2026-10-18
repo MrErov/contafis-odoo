@@ -237,7 +237,15 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Wizard "Copiar a otro año" incluye est_islr/ret_islr (RF-14); demo + verificación visual (T6)
 - ✅ 217 tests pasando; tareas T1–T7 `[x]` en `specs/004-tablas-islr/tasks.md`
 
+### Fase 004.1: Hardening ISLR (Post-Code Review) — COMPLETADA
+- ✅ `_quincena_table_code` ya no remapea `est_islr`/`ret_islr` a a1/a2 en tipos quincenales: el vencimiento ISLR resuelve siempre por su propia tabla
+- ✅ `@api.constrains` en el tipo de obligación: prohíbe la combinación quincenal + tabla ISLR y valida `generation_months` (estrictamente comas, meses 1-12)
+- ✅ Índice `_client_type_period_idx` en `l10n.ve.obligation` para la búsqueda de idempotencia del cron
+- ✅ Tests de generación congelados con `odoo.tests.freeze_time` (`2026-10-15`): la ventana del cron queda dentro de las tablas 2026 y se elimina el time-bomb de diciembre 2026
+- ✅ 222 tests pasando (217 + 5 nuevos de constraints y mapeo)
+
 ### Trabajo Futuro
+- ⬜ Hardening 004.1 — Minor 1: recalcular `due_date` de obligaciones no vencidas al cambiar el tipo o el cliente (pendiente de decisión del usuario)
 - ⬜ Spec 11: Conciliación ISLR
 - ✅ Precargar tablas ISLR (est_islr/ret_islr) del calendario SENIAT 2026 — HECHO (spec 004)
 - ⬜ Fase H: E2E con Playwright — 5/7 sub-fases completadas (0-4 + 7 CI); Fases 5-6 diferidas
@@ -259,7 +267,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
-- ✅ 217 tests backend + 7 tests E2E = 224 tests pasando
+- ✅ 222 tests backend + 7 tests E2E = 229 tests pasando
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`

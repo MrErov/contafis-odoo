@@ -3,13 +3,18 @@ from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 from lxml import etree
 from odoo import fields
-from odoo.exceptions import UserError
-from odoo.tests import TransactionCase, tagged
+from odoo.addons.l10n_ve_compliance_manager.models.obligation import (
+    _parse_generation_months,
+    _quincena_table_code,
+)
+from odoo.exceptions import UserError, ValidationError
+from odoo.tests import TransactionCase, freeze_time, tagged
 from odoo.tools import convert
 from odoo.tools.safe_eval import safe_eval
 from psycopg2 import IntegrityError
 
 TEST_YEAR = 2099  # año libre de la precarga oficial (2026)
+FROZEN_TODAY = '2026-10-15'  # congela la ventana de generación dentro de las tablas 2026
 
 
 @tagged('post_install', '-at_install')
@@ -330,6 +335,43 @@ class TestIslrObligationTypes(TransactionCase):
             'noupdate="1": la actualización no debe pisar la edición del contador.',
         )
 
+    def test_generation_months_valid_formats_accepted(self):
+        """El formato estricto de comas y meses 1-12 se acepta tal cual."""
+        for value in ('6,9,12', '1', '12', '1,12'):
+            otype = self.ObligationType.create({
+                'name': f'Tipo meses válidos {value}',
+                'periodicity': 'monthly',
+                'generation_months': value,
+            })
+            self.assertEqual(otype.generation_months, value)
+
+    def test_generation_months_invalid_formats_rejected(self):
+        """Code review: generation_months exige comas y meses del 1 al 12."""
+        for value in ('abc', '6;9', '6 9', '6, 9', '6,,9', '6,', '0', '13', '6,13'):
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                self.ObligationType.create({
+                    'name': f'Tipo meses inválidos {value}',
+                    'periodicity': 'monthly',
+                    'generation_months': value,
+                })
+
+    def test_quincenal_islr_table_rejected(self):
+        """Code review: quincenal + tabla ISLR es una combinación inválida."""
+        for table_code in ('est_islr', 'ret_islr'):
+            with self.subTest(table_code=table_code), self.assertRaises(ValidationError):
+                self.ObligationType.create({
+                    'name': f'ISLR quincenal inválido {table_code}',
+                    'periodicity': 'quincenal',
+                    'seniat_table_code': table_code,
+                })
+        valid = self.ObligationType.create({
+            'name': 'IVA quincenal válido code review',
+            'periodicity': 'quincenal',
+            'seniat_table_code': 'a1',
+        })
+        self.assertEqual(valid.seniat_table_code, 'a1')
+        self.assertEqual(self.estimadas.periodicity, 'monthly')
+
 
 @tagged('post_install', '-at_install')
 class TestIslrObligationGeneration(TransactionCase):
@@ -398,12 +440,12 @@ class TestIslrObligationGeneration(TransactionCase):
         self.assertTrue(self._obligations(client, self.retenciones, '06/2026'))
 
     def test_generation_months_invalid_falls_back_to_periodicity(self):
-        """RF-7: un valor inválido equivale a vacío: se usa la periodicidad."""
+        """RF-7: un valor de legado inválido equivale a vacío: se usa la periodicidad."""
+        self.assertIsNone(_parse_generation_months('abc'))
         otype = self.ObligationType.create({
-            'name': 'Retenciones ISLR valor inválido T2',
+            'name': 'Retenciones ISLR sin meses T2',
             'tax_type': 'islr',
             'periodicity': 'monthly',
-            'generation_months': 'abc',
         })
         client = self._create_client(applicable_type_ids=otype.ids)
         self.assertEqual(self.Obligation._generate_for_client(client, 2026, 5), 1)
@@ -944,8 +986,21 @@ class TestObligationDueDateCalculation(TransactionCase):
             to_date('2026-01-28'),
         )
 
+    def test_quincena_table_code_islr_tables_are_not_remapped(self):
+        """Code review: est_islr/ret_islr nunca se sustituyen por a1/a2."""
+        self.assertEqual(_quincena_table_code('quincenal', 'est_islr', 'q1'), 'est_islr')
+        self.assertEqual(_quincena_table_code('quincenal', 'ret_islr', 'q2'), 'ret_islr')
+        self.assertEqual(_quincena_table_code('monthly', 'est_islr', 'monthly'), 'est_islr')
+
+    def test_quincena_table_code_keeps_iva_quincena_mapping(self):
+        """Las quincenas de IVA conservan el mapeo q1→a1 y q2→a2."""
+        self.assertEqual(_quincena_table_code('quincenal', 'a1', 'q1'), 'a1')
+        self.assertEqual(_quincena_table_code('quincenal', 'a1', 'q2'), 'a2')
+        self.assertEqual(_quincena_table_code('quincenal', 'a2', 'q1'), 'a1')
+
 
 @tagged('post_install', '-at_install')
+@freeze_time(FROZEN_TODAY)
 class TestObligationGeneration(TransactionCase):
     """T6: generación automática, idempotencia y alerta de calendario faltante."""
 
@@ -1679,6 +1734,7 @@ class TestCopyCalendarWizard(TransactionCase):
 
 
 @tagged('post_install', '-at_install')
+@freeze_time(FROZEN_TODAY)
 class TestCalendarIntegration(TransactionCase):
     """T10: flujo end-to-end del contador — cliente SPE → tipo quincenal → cron →
     quincenas generadas con vencimiento oficial → bandeja de próximos vencimientos."""
@@ -1801,6 +1857,7 @@ class TestCalendarIntegration(TransactionCase):
 
 
 @tagged('post_install', '-at_install')
+@freeze_time(FROZEN_TODAY)
 class TestDemoDataIslr(TransactionCase):
     """T5/T6 spec 004: demo del cliente piloto con Estimadas y Retenciones de ISLR."""
 
