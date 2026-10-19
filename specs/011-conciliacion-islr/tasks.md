@@ -14,7 +14,7 @@ Plan: `specs/011-conciliacion-islr/plan.md`. Spec: `specs/011-conciliacion-islr/
 - [x] **T4. Wizard: tipo "Conciliación ISLR" + carga con detección estricta** (`IMPORT_TYPES`, campos detectados, `_load_islr_conciliation_file`, preview con cliente/año/rubros; errores: RIF inexistente, RIF en dos compañías). RF-1, RF-3.
   Hecho cuando: test carga el fixture y expone cliente/año/nº rubros; tests de RIF inexistente y de ambigüedad multi-compañía lanzan `UserError` con mensaje claro.
 
-- [ ] **T5. Wizard: importación, reemplazo y trazabilidad** (`_import_islr_conciliation`, crear/reemplazar registro y líneas, checkbox de confirmación de reemplazo, aviso si cambió el RIF). RF-2, RF-6.
+- [x] **T5. Wizard: importación, reemplazo y trazabilidad** (`_import_islr_conciliation`, crear/reemplazar registro y líneas, checkbox de confirmación de reemplazo, aviso si cambió el RIF). RF-2, RF-6.
   Hecho cuando: test reimportar sin confirmar → `UserError`; con confirmar → reemplaza sin duplicar líneas y `modified_by/at` quedan registrados.
 
 - [ ] **T6. Vistas lista/form + acción + menú** ("Conciliación ISLR" bajo "Cumplimiento VE", sequence 42, con bloque de advertencias y pestañas). RF-13.

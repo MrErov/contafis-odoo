@@ -462,12 +462,10 @@ class TestIslrConciliacionTotals(TransactionCase):
         self.assertNotIn('Rubro sin mapeo', html)
 
 
-@tagged('post_install', '-at_install')
-class TestIslrConciliacionWizardLoad(TransactionCase):
-    """Wizard de importación: carga de conciliación ISLR (Spec 011 — T4)."""
+class IslrWizardTestMixin:
+    """Helpers compartidos por los tests del wizard de conciliación ISLR."""
 
-    def setUp(self):
-        super().setUp()
+    def _islr_wizard_setup(self):
         self.env['l10n.ve.islr.reconciliation.line'].search([]).unlink()
         self.env['l10n.ve.islr.reconciliation'].search([]).unlink()
         self.env['l10n.ve.import.wizard'].search([]).unlink()
@@ -496,6 +494,15 @@ class TestIslrConciliacionWizardLoad(TransactionCase):
             'filename': filename,
         })
         return wizard.action_load_file()
+
+
+@tagged('post_install', '-at_install')
+class TestIslrConciliacionWizardLoad(IslrWizardTestMixin, TransactionCase):
+    """Wizard de importación: carga de conciliación ISLR (Spec 011 — T4)."""
+
+    def setUp(self):
+        super().setUp()
+        self._islr_wizard_setup()
 
     def test_tipo_disponible(self):
         selection = self.env['l10n.ve.import.wizard']._fields['import_type'].selection
@@ -607,3 +614,122 @@ class TestIslrConciliacionWizardLoad(TransactionCase):
         wizard = self._create_wizard()
         with self.assertRaises(UserError):
             wizard.action_load_file()
+
+
+@tagged('post_install', '-at_install')
+class TestIslrConciliacionWizardImport(IslrWizardTestMixin, TransactionCase):
+    """Wizard: importación, reemplazo y trazabilidad (Spec 011 — T5)."""
+
+    def setUp(self):
+        super().setUp()
+        self._islr_wizard_setup()
+        self.Reconciliacion = self.env['l10n.ve.islr.reconciliation']
+
+    def _find_record(self):
+        return self.Reconciliacion.search([
+            ('client_id', '=', self.client.id),
+            ('fiscal_year', '=', 2025),
+        ])
+
+    def _import_fixture(self):
+        wizard = self._create_wizard()
+        self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
+        wizard.action_import()
+        return wizard
+
+    def test_import_crea_registro_draft_con_lineas(self):
+        wizard = self._import_fixture()
+        record = self._find_record()
+        self.assertEqual(len(record), 1)
+        self.assertEqual(record.state, 'draft')
+        self.assertEqual(len(record.line_ids), 10)
+        self.assertAlmostEqual(record.utilidad_neta_fiscal, 211916.32, delta=0.02)
+        self.assertEqual(record.monto_a_pagar_xlsx, 47863.69)
+        self.assertEqual(wizard.state, 'done')
+        self.assertEqual(wizard.conciliacion_existing_id, record)
+
+    def test_import_trazabilidad_del_archivo(self):
+        self._import_fixture()
+        record = self._find_record()
+        meta = record.import_meta
+        self.assertEqual(meta['source_file'], 'conciliacion.xlsx')
+        self.assertEqual(meta['imported_by'], self.env.user.login)
+        self.assertTrue(meta['imported_at'])
+        self.assertIn('duplicates', meta)
+        self.assertIn('text_cells', meta)
+
+    def test_sin_datos_cargados_aborta(self):
+        wizard = self._create_wizard()
+        with self.assertRaises(UserError) as caught:
+            wizard.action_import()
+        self.assertIn('Cargue', str(caught.exception))
+
+    def test_reimportar_sin_confirmar_aborta(self):
+        self._import_fixture()
+        wizard = self._create_wizard()
+        self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
+        self.assertTrue(wizard.conciliacion_existing_id)
+        with self.assertRaises(UserError) as caught:
+            wizard.action_import()
+        message = str(caught.exception)
+        self.assertIn('Confirmar Reemplazo', message)
+        record = self._find_record()
+        self.assertEqual(len(record), 1)
+        self.assertEqual(len(record.line_ids), 10)
+
+    def test_reimportar_confirmado_reemplaza_sin_duplicar(self):
+        self._import_fixture()
+        record = self._find_record()
+        ventas = record.line_ids.filtered(lambda line: line.code == 'ventas')
+        ventas.write({'amount_accounting': 999.0, 'amount_fiscal': 999.0})
+        wizard = self._create_wizard()
+        self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
+        wizard.replace_confirmed = True
+        wizard.action_import()
+        record = self._find_record()
+        self.assertEqual(len(record), 1)
+        self.assertEqual(len(record.line_ids), 10)
+        ventas = record.line_ids.filtered(lambda line: line.code == 'ventas')
+        self.assertEqual(len(ventas), 1)
+        self.assertEqual(ventas.amount_fiscal, 1991278.8)
+        self.assertEqual(record.modified_by, self.env.user)
+        self.assertTrue(record.modified_at)
+
+    def test_reimportar_validado_reinicia_borrador_y_borra_pdf(self):
+        self._import_fixture()
+        record = self._find_record()
+        attachment = self.env['ir.attachment'].create({
+            'name': 'conciliacion.pdf',
+            'datas': base64.b64encode(b'pdf'),
+            'res_model': record._name,
+            'res_id': record.id,
+        })
+        record.write({'state': 'validated', 'pdf_attachment_id': attachment.id})
+        wizard = self._create_wizard()
+        self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
+        wizard.replace_confirmed = True
+        wizard.action_import()
+        self.assertEqual(record.state, 'draft')
+        self.assertFalse(record.pdf_attachment_id)
+        self.assertFalse(attachment.exists())
+
+    def test_rif_con_formato_distinto_advierte_al_confirmar(self):
+        self.client.rif = 'J999999990'
+        self._import_fixture()
+        wizard = self._create_wizard()
+        self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
+        self.assertTrue(wizard.conciliacion_existing_id)
+        with self.assertRaises(UserError) as caught:
+            wizard.action_import()
+        message = str(caught.exception)
+        self.assertIn('Confirmar Reemplazo', message)
+        self.assertIn('RIF del archivo', message)
+        wizard.replace_confirmed = True
+        wizard.action_import()
+        record = self._find_record()
+        self.assertEqual(
+            record.import_meta['rif_mismatch']['sheet'], 'J-99999999-0'
+        )
+        self.assertEqual(
+            record.import_meta['rif_mismatch']['client'], 'J999999990'
+        )
