@@ -55,6 +55,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - `l10n.ve.vat.book.line` — Línea de libro de compras/ventas IVA
 - `l10n.ve.vat.book.generate` — Wizard de generación desde account.move
 - `l10n.ve.vat.return` — Planilla IVA 99030 (48 ítems fijos)
+- `l10n.ve.islr.reconciliation` / `l10n.ve.islr.reconciliation.line` — Conciliación fiscal ISLR (import Excel con advertencias, validar → PDF)
 
 ## Extensiones Core
 - `account.move`: `retention_ids`, `retention_amount`, `action_generate_retention()` (solo `in_invoice`)
