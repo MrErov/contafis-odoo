@@ -284,3 +284,173 @@ class TestParseConciliacionSynthetic(TransactionCase):
         data = parse_conciliacion_xlsx(self._build_bytes(cells))
         self.assertEqual(data['rubros'][0]['code'], 'otro')
         self.assertEqual(data['rubros'][0]['category'], 'income')
+
+
+@tagged('post_install', '-at_install')
+class TestIslrConciliacionTotals(TransactionCase):
+    """Computes de totales y advertencias (Spec 011 — T3, RF-7 a RF-11, RF-17)."""
+
+    def setUp(self):
+        super().setUp()
+        self.env['l10n.ve.islr.reconciliation.line'].search([]).unlink()
+        self.env['l10n.ve.islr.reconciliation'].search([]).unlink()
+        self.partner = self.env['res.partner'].create({
+            'name': 'Cliente Totales Test',
+            'vat': 'J-12345678-9',
+        })
+        self.client = self.env['l10n.ve.compliance.client'].create({
+            'name': 'Cliente Totales Test',
+            'partner_id': self.partner.id,
+            'company_id': self.env.company.id,
+            'rif': 'J-12345678-9',
+        })
+        self.Reconciliacion = self.env['l10n.ve.islr.reconciliation']
+        self.Line = self.env['l10n.ve.islr.reconciliation.line']
+
+    def _create_reconciliation(self):
+        return self.Reconciliacion.create({
+            'client_id': self.client.id,
+            'company_id': self.env.company.id,
+            'fiscal_year': 2025,
+        })
+
+    def _add_line(self, rec, code, category, accounting, fiscal, not_deductible=0.0, label=None):
+        return self.Line.create({
+            'reconciliation_id': rec.id,
+            'code': code,
+            'category': category,
+            'label': label or code,
+            'amount_accounting': accounting,
+            'amount_fiscal': fiscal,
+            'amount_not_deductible': not_deductible,
+        })
+
+    def _simple_reconciliation(self):
+        rec = self._create_reconciliation()
+        self._add_line(rec, 'ventas', 'income', 1000.0, 900.0)
+        self._add_line(rec, 'inventario_inicial', 'cost', 100.0, 80.0)
+        self._add_line(rec, 'compras_mercancia', 'cost', 300.0, 300.0)
+        self._add_line(rec, 'inventario_final', 'cost', 50.0, 50.0)
+        self._add_line(rec, 'sueldos_directivos', 'deduction', 40.0, 30.0)
+        return rec
+
+    def test_computes_basicos(self):
+        rec = self._simple_reconciliation()
+        self.assertEqual(rec.total_ingresos_accounting, 1000.0)
+        self.assertEqual(rec.total_ingresos_fiscal, 900.0)
+        self.assertEqual(rec.mercancia_disponible_accounting, 400.0)
+        self.assertEqual(rec.mercancia_disponible_fiscal, 380.0)
+        self.assertEqual(rec.total_costo_venta_accounting, 350.0)
+        self.assertEqual(rec.total_costo_venta_fiscal, 330.0)
+        self.assertEqual(rec.renta_bruta_accounting, 650.0)
+        self.assertEqual(rec.renta_bruta_fiscal, 570.0)
+        self.assertEqual(rec.total_deducciones_accounting, 40.0)
+        self.assertEqual(rec.total_deducciones_fiscal, 30.0)
+        self.assertEqual(rec.utilidad_neta_accounting, 610.0)
+        self.assertEqual(rec.utilidad_neta_fiscal, 540.0)
+        self.assertEqual(round(rec.monto_a_pagar_calculado, 2), 183.6)
+
+    def test_recalculo_al_editar_linea(self):
+        rec = self._simple_reconciliation()
+        line = rec.line_ids.filtered(lambda line: line.code == 'ventas')
+        line.write({'amount_accounting': 1500.0, 'amount_fiscal': 1400.0})
+        self.assertEqual(rec.total_ingresos_accounting, 1500.0)
+        self.assertEqual(rec.mercancia_disponible_accounting, 400.0)
+        self.assertEqual(rec.utilidad_neta_accounting, 1110.0)
+
+    def test_warning_descuadre_contra_excel(self):
+        rec = self._simple_reconciliation()
+        rec.write({'totals_xlsx': {'total_deducciones': {'accounting': 999.0, 'fiscal': 30.0}}})
+        self.assertIn('Descuadre en', rec.warning_html)
+        self.assertIn('Total deducciones', rec.warning_html)
+        self.assertIn('(contabilidad)', rec.warning_html)
+        rec.write({'totals_xlsx': {'total_deducciones': {'accounting': 40.0, 'fiscal': 30.0}}})
+        self.assertNotIn('Total deducciones', rec.warning_html or '')
+
+    def test_warning_identidad(self):
+        rec = self._create_reconciliation()
+        self._add_line(rec, 'ventas', 'income', 1000.0, 900.0)
+        self.assertIn('identidad', rec.warning_html)
+
+    def test_warning_tope_diez_por_ciento(self):
+        rec = self._create_reconciliation()
+        self._add_line(rec, 'ventas', 'income', 100.0, 100.0)
+        self._add_line(rec, 'sueldos_directivos', 'deduction', 20.0, 20.0)
+        self.assertIn('tope del 10%', rec.warning_html)
+
+    def test_warning_tope_sin_base(self):
+        rec = self._create_reconciliation()
+        self._add_line(rec, 'ventas', 'income', 100.0, 0.0)
+        self._add_line(rec, 'sueldos_directivos', 'deduction', 5.0, 5.0)
+        self.assertIn('No hay ingresos fiscales', rec.warning_html)
+
+    def test_warning_monto(self):
+        rec = self._simple_reconciliation()
+        rec.write({'monto_a_pagar_xlsx': 100.0})
+        self.assertIn('Monto a pagar calculado', rec.warning_html)
+        self.assertIn('183.60', rec.warning_html)
+
+    def test_warning_rubro_desconocido(self):
+        rec = self._create_reconciliation()
+        self._add_line(rec, 'otro', 'deduction', 10.0, 10.0, label='Rubro Raro')
+        self.assertIn('Rubro sin mapeo', rec.warning_html)
+
+    def test_warning_duplicado_y_texto(self):
+        rec = self._simple_reconciliation()
+        rec.write({'import_meta': {'duplicates': ['ventas'], 'text_cells': ['C14', 'D15']}})
+        self.assertIn('duplicado', rec.warning_html)
+        self.assertIn('C14', rec.warning_html)
+
+    def test_warning_html_false_cuando_todo_cuadra(self):
+        rec = self._create_reconciliation()
+        self._add_line(rec, 'ventas', 'income', 1000.0, 1000.0)
+        self._add_line(rec, 'inventario_inicial', 'cost', 100.0, 100.0)
+        self._add_line(rec, 'compras_mercancia', 'cost', 300.0, 300.0)
+        self._add_line(rec, 'inventario_final', 'cost', 50.0, 50.0)
+        self._add_line(rec, 'sueldos_directivos', 'deduction', 40.0, 40.0)
+        rec.write({
+            'totals_xlsx': {
+                'total_ingresos': {'accounting': 1000.0, 'fiscal': 1000.0},
+                'mercancia_disponible': {'accounting': 400.0, 'fiscal': 400.0},
+                'total_costo_venta': {'accounting': 350.0, 'fiscal': 350.0},
+                'renta_bruta': {'accounting': 650.0, 'fiscal': 650.0},
+                'total_deducciones': {'accounting': 40.0, 'fiscal': 40.0},
+                'utilidad_neta': {'accounting': 610.0, 'fiscal': 610.0},
+            },
+            'monto_a_pagar_xlsx': 207.4,
+        })
+        self.assertFalse(rec.warning_html)
+
+    def test_fixture_advertencias_esperadas(self):
+        data = parse_conciliacion_xlsx(FIXTURE_PATH.read_bytes())
+        rec = self._create_reconciliation()
+        for rubro in data['rubros']:
+            self.Line.create({
+                'reconciliation_id': rec.id,
+                'sequence': rubro['sequence'],
+                'code': rubro['code'],
+                'category': rubro['category'],
+                'label': rubro['label'],
+                'amount_accounting': rubro['accounting'],
+                'amount_fiscal': rubro['fiscal'],
+                'amount_not_deductible': rubro['not_deductible'],
+                'legal_basis': rubro['legal_basis'] or False,
+            })
+        rec.write({
+            'totals_xlsx': data['totals'],
+            'monto_a_pagar_xlsx': data['monto_a_pagar_xlsx'],
+            'import_meta': {
+                'duplicates': data['duplicates'],
+                'text_cells': data['text_cells'],
+            },
+        })
+        html = rec.warning_html
+        self.assertIn('Total deducciones', html)
+        self.assertIn('Utilidad neta', html)
+        self.assertIn('(contabilidad)', html)
+        self.assertIn('Monto a pagar calculado', html)
+        self.assertIn('72,051.55', html)
+        self.assertNotIn('(fiscal)', html)
+        self.assertNotIn('tope del 10%', html)
+        self.assertNotIn('identidad', html)
+        self.assertNotIn('Rubro sin mapeo', html)
