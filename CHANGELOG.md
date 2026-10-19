@@ -5,6 +5,24 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.0.0/).
 
 ## [Unreleased]
 
+### Añadido
+
+- Guía de usuario: capítulo "Bandeja y análisis" (registrar pago, alerta manual,
+  acciones masivas y vistas de análisis de obligaciones y alertas).
+
+### Cambiado
+
+- Guía de usuario: portada rediseñada con logo y versión, numeración de capítulos
+  (01-13), tipografía de impresión y PDF de 58 páginas; "Exportar y respaldar
+  datos" pasa a capítulo 12 y "Solución de problemas y FAQ" a 13.
+- Tests: helper `_get_or_create_tax_group` unificado en `tests/common.py`
+  (7 archivos de test).
+
+### Corregido
+
+- Instalación limpia: `obligation_analysis_views.xml` ahora se carga después de
+  `menu.xml` en el manifest (el orden anterior rompía `-i` en CI).
+
 ## [1.2.0] - 2026-10-18
 
 ### Añadido
