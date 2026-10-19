@@ -75,7 +75,7 @@ En la pestaña **Permisos de acceso** se define qué puede hacer el usuario y so
 ![Permisos de acceso del contador: empresas asignadas y derechos](./assets/screenshots/02-07-user-access.png)
 
 - **Función:** deje **Usuario**. La opción *Administrador* da acceso a toda la configuración del sistema y no es necesaria para un contador.
-- **Empresas:** agregue una etiqueta por cada cliente que atenderá ese contador. Sin empresas asignadas, el usuario no verá datos de ningún cliente.
+- **Empresas:** agregue una etiqueta por cada cliente que atenderá ese contador (incluya aquí toda empresa nueva que cree en el punto 4). Sin empresas asignadas, el usuario no verá datos de ningún cliente.
 - **Empresa predeterminada:** la empresa con la que abre sesión; el contador puede cambiarla luego desde la barra superior.
 - **Derechos de acceso:** marque **Contador de Cumplimiento VE** (uso completo del módulo) y, si va a trabajar con el *Libro de Compras y Ventas* y las *Planillas de IVA*, el rol **Contabilidad → Administrador**.
 
@@ -103,7 +103,13 @@ Repita el proceso por cada cliente:
 
 </div>
 
-Su propia firma ya quedó como empresa en el punto 2; las empresas de los clientes son adicionales y no se mezclan entre sí. En la sección 03 aprenderá a activar una o varias empresas a la vez para trabajar con todos los clientes desde la misma pantalla.
+<div class="note">
+
+Solo el **administrador** puede crear empresas (Función *Administrador* en los permisos del usuario, punto 3). Si usted es contador, pida al administrador que cree la empresa y la agregue a su lista **Empresas**; una empresa que no esté en esa lista es invisible para usted.
+
+</div>
+
+Su propia firma ya quedó como empresa en el punto 2; las empresas de los clientes son adicionales y no se mezclan entre sí. Al dar de alta un cliente nuevo, recuerde también agregar su empresa a la lista **Empresas** del contador que lo atenderá (punto 3). En la sección 03 aprenderá a activar una o varias empresas a la vez para trabajar con todos los clientes desde la misma pantalla.
 
 ## 5. Verificar que el módulo esté instalado
 
