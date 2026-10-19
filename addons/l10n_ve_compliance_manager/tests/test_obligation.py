@@ -58,6 +58,39 @@ class TestObligation(TransactionCase):
         self.assertEqual(ob_0.due_date, fields.Date.to_date('2026-01-28'))
         self.assertEqual(ob_1.due_date, fields.Date.to_date('2026-01-19'))
 
+    def test_recompute_due_date_on_change_when_unpaid(self):
+        client_0 = self._create_client('Cliente 0 Recalculo', 'J-00000000-0')
+        client_1 = self._create_client('Cliente 1 Recalculo', 'J-00000001-1')
+        obligation_type = self._create_obligation_type()
+        fixed_type = self._create_obligation_type(due_day_rule='dia_fijo')
+
+        obligation = self._create_obligation(client_0, obligation_type, '01/2026')
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-01-28'))
+
+        obligation.client_id = client_1
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-01-19'))
+
+        obligation.obligation_type_id = fixed_type
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-02-01'))
+
+        obligation.state = 'overdue'
+        obligation.obligation_type_id = obligation_type
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-01-19'))
+
+    def test_keep_due_date_on_change_when_paid(self):
+        client_0 = self._create_client('Cliente 0 Pagado', 'J-00000000-0')
+        client_1 = self._create_client('Cliente 1 Pagado', 'J-00000001-1')
+        obligation_type = self._create_obligation_type()
+        fixed_type = self._create_obligation_type(due_day_rule='dia_fijo')
+
+        obligation = self._create_obligation(client_0, obligation_type, '01/2026')
+        obligation.state = 'paid'
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-01-28'))
+
+        obligation.client_id = client_1
+        obligation.obligation_type_id = fixed_type
+        self.assertEqual(obligation.due_date, fields.Date.to_date('2026-01-28'))
+
     def test_cron_generate_alerts(self):
         client = self._create_client('Cliente Cron', 'J-00000003-3')
         obligation_type = self._create_obligation_type(
