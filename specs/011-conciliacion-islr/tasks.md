@@ -17,7 +17,7 @@ Plan: `specs/011-conciliacion-islr/plan.md`. Spec: `specs/011-conciliacion-islr/
 - [x] **T5. Wizard: importación, reemplazo y trazabilidad** (`_import_islr_conciliation`, crear/reemplazar registro y líneas, checkbox de confirmación de reemplazo, aviso si cambió el RIF). RF-2, RF-6.
   Hecho cuando: test reimportar sin confirmar → `UserError`; con confirmar → reemplaza sin duplicar líneas y `modified_by/at` quedan registrados.
 
-- [ ] **T6. Vistas lista/form + acción + menú** ("Conciliación ISLR" bajo "Cumplimiento VE", sequence 42, con bloque de advertencias y pestañas). RF-13.
+- [x] **T6. Vistas lista/form + acción + menú** ("Conciliación ISLR" bajo "Cumplimiento VE", sequence 42, con bloque de advertencias y pestañas). RF-13.
   Hecho cuando: `load_menus` del admin incluye "Conciliación ISLR" con su acción y `get_views` carga lista y formulario sin errores de validación XML.
 
 - [ ] **T7. Reporte QWeb + ciclo de vida validar/revertir** (`report/islr_conciliation_report.xml` réplica del bloque principal; `action_validate` genera y adjunta PDF; editar un registro validado lo devuelve a `draft` y elimina el PDF; botón Imprimir). RF-12, RF-14.

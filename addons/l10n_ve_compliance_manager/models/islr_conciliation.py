@@ -376,6 +376,21 @@ class IslrReconciliation(models.Model):
              '(alimentan las advertencias).',
     )
 
+    source_file = fields.Char(
+        string='Archivo Fuente',
+        compute='_compute_import_trace',
+    )
+
+    imported_by = fields.Char(
+        string='Importado por',
+        compute='_compute_import_trace',
+    )
+
+    imported_at = fields.Datetime(
+        string='Importado en',
+        compute='_compute_import_trace',
+    )
+
     warning_html = fields.Html(
         string='Advertencias',
         compute='_compute_warning_html',
@@ -535,6 +550,23 @@ class IslrReconciliation(models.Model):
             vals['modified_by'] = self.env.user.id
         vals['modified_at'] = fields.Datetime.now()
         return super().write(vals)
+
+    @api.depends('import_meta')
+    def _compute_import_trace(self):
+        for record in self:
+            meta = record.import_meta or {}
+            record.source_file = meta.get('source_file') or ''
+            record.imported_by = meta.get('imported_by') or ''
+            raw = str(meta.get('imported_at') or '').replace('T', ' ')
+            record.imported_at = fields.Datetime.to_datetime(raw) or False
+
+    def action_validate(self):
+        """Marca la conciliación como validada."""
+        self.write({'state': 'validated'})
+
+    def action_revert_draft(self):
+        """Devuelve la conciliación a borrador."""
+        self.write({'state': 'draft'})
 
     _unique_client_year = models.Constraint(
         'UNIQUE(client_id, company_id, fiscal_year)',

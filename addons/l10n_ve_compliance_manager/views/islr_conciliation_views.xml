@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Acción principal -->
+        <record id="action_l10n_ve_islr_conciliation" model="ir.actions.act_window">
+            <field name="name">Conciliación ISLR</field>
+            <field name="res_model">l10n.ve.islr.reconciliation</field>
+            <field name="view_mode">list,form</field>
+            <field name="context">{'search_default_group_year': 1}</field>
+        </record>
+
+        <!-- Acción del wizard de importación -->
+        <record id="action_l10n_ve_islr_conciliation_import" model="ir.actions.act_window">
+            <field name="name">Importar Conciliación ISLR</field>
+            <field name="res_model">l10n.ve.import.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+            <field name="context">{'default_import_type': 'islr_conciliation'}</field>
+        </record>
+
+        <!-- Lista -->
+        <record id="view_l10n_ve_islr_reconciliation_list" model="ir.ui.view">
+            <field name="name">l10n.ve.islr.reconciliation.list</field>
+            <field name="model">l10n.ve.islr.reconciliation</field>
+            <field name="arch" type="xml">
+                <list string="Conciliaciones ISLR"
+                      decoration-muted="state == 'draft'"
+                      decoration-success="state == 'validated'">
+                    <field name="name"/>
+                    <field name="client_id"/>
+                    <field name="company_id" groups="base.group_multi_company"/>
+                    <field name="fiscal_year"/>
+                    <field name="state" widget="badge"
+                           decoration-muted="state == 'draft'"
+                           decoration-success="state == 'validated'"/>
+                    <field name="utilidad_neta_fiscal" widget="float"
+                           string="Utilidad Neta (Fiscal)"/>
+                    <field name="monto_a_pagar_xlsx" widget="float"
+                           string="Monto a Pagar"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Formulario -->
+        <record id="view_l10n_ve_islr_reconciliation_form" model="ir.ui.view">
+            <field name="name">l10n.ve.islr.reconciliation.form</field>
+            <field name="model">l10n.ve.islr.reconciliation</field>
+            <field name="arch" type="xml">
+                <form string="Conciliación ISLR">
+                    <header>
+                        <button name="action_validate" string="Validar"
+                                type="object" class="btn-primary"
+                                invisible="state != 'draft'"/>
+                        <button name="action_revert_draft" string="Volver a Borrador"
+                                type="object"
+                                invisible="state != 'validated'"/>
+                        <button name="%(action_l10n_ve_islr_conciliation_import)d"
+                                string="Importar desde Excel"
+                                type="action" class="btn-secondary"
+                                invisible="not id"
+                                context="{'default_import_type': 'islr_conciliation'}"/>
+                        <field name="state" widget="statusbar"
+                               statusbar_visible="draft,validated"/>
+                    </header>
+                    <sheet>
+                        <div class="alert alert-warning" role="alert"
+                             invisible="not warning_html">
+                            <h4 class="alert-heading">
+                                <i class="fa fa-exclamation-triangle"/> Advertencias
+                            </h4>
+                            <field name="warning_html" nolabel="1" readonly="1"/>
+                        </div>
+                        <group>
+                            <group>
+                                <field name="client_id"
+                                       options="{'no_create': True}"/>
+                                <field name="fiscal_year"/>
+                                <field name="company_id"
+                                       groups="base.group_multi_company"
+                                       options="{'no_create': True}"/>
+                            </group>
+                            <group>
+                                <field name="utilidad_neta_fiscal" widget="float"/>
+                                <field name="monto_a_pagar_xlsx"/>
+                                <field name="monto_a_pagar_calculado" widget="float"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Rubros" name="page_rubros">
+                                <field name="line_ids" nolabel="1">
+                                    <list editable="bottom"
+                                          decoration-muted="amount_accounting == 0 and amount_fiscal == 0">
+                                        <field name="sequence" widget="handle"/>
+                                        <field name="category"/>
+                                        <field name="code"/>
+                                        <field name="label"/>
+                                        <field name="amount_accounting"
+                                               sum="Total Contabilidad"/>
+                                        <field name="amount_fiscal"
+                                               sum="Total Fiscal"/>
+                                        <field name="amount_not_deductible"
+                                               sum="Total No Deducible"/>
+                                        <field name="legal_basis"/>
+                                    </list>
+                                </field>
+                            </page>
+                            <page string="Totales" name="page_totales">
+                                <group>
+                                    <group string="Contabilidad">
+                                        <field name="total_ingresos_accounting"
+                                               widget="float"/>
+                                        <field name="mercancia_disponible_accounting"
+                                               widget="float"/>
+                                        <field name="total_costo_venta_accounting"
+                                               widget="float"/>
+                                        <field name="renta_bruta_accounting"
+                                               widget="float"/>
+                                        <field name="total_deducciones_accounting"
+                                               widget="float"/>
+                                        <field name="utilidad_neta_accounting"
+                                               widget="float"/>
+                                    </group>
+                                    <group string="Fiscal">
+                                        <field name="total_ingresos_fiscal"
+                                               widget="float"/>
+                                        <field name="mercancia_disponible_fiscal"
+                                               widget="float"/>
+                                        <field name="total_costo_venta_fiscal"
+                                               widget="float"/>
+                                        <field name="renta_bruta_fiscal"
+                                               widget="float"/>
+                                        <field name="total_deducciones_fiscal"
+                                               widget="float"/>
+                                        <field name="utilidad_neta_fiscal"
+                                               widget="float"/>
+                                        <field name="monto_a_pagar_calculado"
+                                               widget="float"/>
+                                    </group>
+                                </group>
+                            </page>
+                            <page string="Trazabilidad" name="page_trazabilidad">
+                                <group>
+                                    <group string="Importación">
+                                        <field name="source_file" readonly="1"/>
+                                        <field name="imported_by" readonly="1"/>
+                                        <field name="imported_at" readonly="1"/>
+                                    </group>
+                                    <group string="Última Edición">
+                                        <field name="modified_by" readonly="1"/>
+                                        <field name="modified_at" readonly="1"/>
+                                    </group>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Búsqueda -->
+        <record id="view_l10n_ve_islr_reconciliation_search" model="ir.ui.view">
+            <field name="name">l10n.ve.islr.reconciliation.search</field>
+            <field name="model">l10n.ve.islr.reconciliation</field>
+            <field name="arch" type="xml">
+                <search string="Conciliaciones ISLR">
+                    <field name="name"/>
+                    <field name="client_id"/>
+                    <field name="fiscal_year"/>
+                    <filter name="filter_draft" string="Borrador"
+                            domain="[('state', '=', 'draft')]"/>
+                    <filter name="filter_validated" string="Validadas"
+                            domain="[('state', '=', 'validated')]"/>
+                    <separator/>
+                    <filter name="group_client" string="Agrupar por cliente"
+                            context="{'group_by': 'client_id'}"/>
+                    <filter name="group_year" string="Agrupar por año fiscal"
+                            context="{'group_by': 'fiscal_year'}"/>
+                    <filter name="group_state" string="Agrupar por estado"
+                            context="{'group_by': 'state'}"/>
+                </search>
+            </field>
+        </record>
+    </data>
+</odoo>

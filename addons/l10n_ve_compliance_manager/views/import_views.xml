@@ -19,7 +19,10 @@
                                 invisible="state != 'mapping'"/>
                         <button name="action_validate" string="Validar"
                                 type="object" class="btn-primary"
-                                invisible="state != 'preview'"/>
+                                invisible="state != 'preview' or import_type == 'islr_conciliation'"/>
+                        <button name="action_import" string="Importar Conciliación"
+                                type="object" class="btn-primary"
+                                invisible="state != 'preview' or import_type != 'islr_conciliation'"/>
                         <button name="action_import" string="Importar"
                                 type="object" class="btn-primary"
                                 invisible="state != 'validating'"/>
@@ -105,9 +108,32 @@
                             <!-- PASO 3: Preview -->
                             <page string="3. Vista Previa" name="page_preview"
                                   invisible="state != 'preview'">
-                                <div class="alert alert-info" role="status">
+                                <div class="alert alert-info" role="status"
+                                     invisible="import_type == 'islr_conciliation'">
                                     <strong>Vista previa limitada a
                                     <field name="preview_limit" class="oe_inline"/> filas.</strong>
+                                </div>
+                                <group string="Conciliación Detectada"
+                                       invisible="import_type != 'islr_conciliation'">
+                                    <group>
+                                        <field name="conciliacion_client_id" readonly="1"/>
+                                        <field name="conciliacion_fiscal_year" readonly="1"/>
+                                    </group>
+                                    <group>
+                                        <field name="conciliacion_summary" readonly="1"/>
+                                        <field name="conciliacion_existing_id" readonly="1"
+                                               invisible="not conciliacion_existing_id"/>
+                                    </group>
+                                </group>
+                                <div class="alert alert-warning" role="alert"
+                                     invisible="import_type != 'islr_conciliation' or not conciliacion_existing_id">
+                                    <i class="fa fa-exclamation-triangle"/>
+                                    Ya existe una conciliación para este cliente y año.
+                                    Para reemplazarla marque la casilla y pulse
+                                    <strong>Importar Conciliación</strong>.
+                                    <div class="mt-2">
+                                        <field name="replace_confirmed"/>
+                                    </div>
                                 </div>
                                 <div class="alert alert-warning mt-2" role="alert"
                                      invisible="not cartelera_unmatched_headers">
@@ -117,11 +143,12 @@
                                     <br/>
                                     <small>Se ignoraron <span class="text-danger">N</span> columnas que no coinciden con tipos de documento. Verifique el Excel.</small>
                                 </div>
-                                <div class="mb-3">
+                                <div class="mb-3" invisible="import_type == 'islr_conciliation'">
                                     <button name="action_validate_syntax" string="Validar Sintaxis"
                                             type="object" class="btn-primary"/>
                                 </div>
                                 <field name="line_ids" nolabel="1"
+                                       invisible="import_type == 'islr_conciliation'"
                                        domain="[('state', 'in', ['draft', 'validated', 'error'])]">
                                     <list readonly="1" decoration-danger="state == 'error'"
                                           decoration-muted="state == 'skipped'">
@@ -137,7 +164,7 @@
                                     </list>
                                 </field>
 <div class="alert alert-warning mt-3" role="alert"
-                                      invisible="not preview_exceeded">
+                                      invisible="not preview_exceeded or import_type == 'islr_conciliation'">
                                      <i class="fa fa-exclamation-triangle"/>
                                      El archivo tiene más filas que el límite de vista previa.
                                      Solo se muestran las primeras
