@@ -242,6 +242,8 @@ class VeObligation(models.Model):
         for obligation in self:
             if obligation.due_date_override:
                 continue
+            if obligation.state == 'paid' and obligation.due_date:
+                continue
             obligation.due_date = obligation._get_computed_due_date(today)
 
     def _inverse_due_date(self):
