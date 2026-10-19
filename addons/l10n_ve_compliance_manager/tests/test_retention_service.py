@@ -1,9 +1,11 @@
 from odoo import fields
 from odoo.tests import TransactionCase, tagged
 
+from .common import TaxGroupMixin
+
 
 @tagged('post_install', '-at_install')
-class TestRetentionService(TransactionCase):
+class TestRetentionService(TaxGroupMixin, TransactionCase):
 
     def setUp(self):
         super().setUp()
@@ -36,21 +38,6 @@ class TestRetentionService(TransactionCase):
             'default_account_id': self.expense_account.id,
         })
         self.partner.property_account_payable_id = self.payable_account
-
-    def _get_or_create_tax_group(self):
-        group = self.env['account.tax.group'].search([
-            ('company_id', '=', self.env.company.id)
-        ], limit=1)
-        if not group:
-            group = self.env['account.tax.group'].create({
-                'name': 'Test Tax Group',
-                'country_id': self.country.id,
-            })
-        else:
-            # Ensure existing tax group has the correct country_id
-            if group.country_id and group.country_id.id != self.country.id:
-                group.write({'country_id': self.country.id})
-        return group
 
     def _get_sale_account(self):
         """Obtiene o crea una cuenta de ingresos (income) para ventas."""

@@ -1,8 +1,10 @@
 from odoo.tests import TransactionCase, tagged
 
+from .common import TaxGroupMixin
+
 
 @tagged('post_install', '-at_install')
-class TestVatBookLineSync(TransactionCase):
+class TestVatBookLineSync(TaxGroupMixin, TransactionCase):
 
     def setUp(self):
         super().setUp()
@@ -70,21 +72,6 @@ class TestVatBookLineSync(TransactionCase):
                 'tax_group_id': self.tax_group.id,
                 'country_id': self.country.id,
             })
-
-    def _get_or_create_tax_group(self):
-        group = self.env['account.tax.group'].search([
-            ('company_id', '=', self.company.id)
-        ], limit=1)
-        if not group:
-            group = self.env['account.tax.group'].create({
-                'name': 'IVA', 'country_id': self.country.id,
-            })
-        else:
-            if group.country_id and group.country_id.id != self.country.id:
-                group.write({'country_id': self.country.id})
-            if 'IVA' not in (group.name or '').upper():
-                group.write({'name': 'IVA'})
-        return group
 
     def test_account_move_control_number_field(self):
         """Verifica que account.move tiene campo l10n_ve_control_number (Char, copy=False)."""

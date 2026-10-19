@@ -5,9 +5,11 @@ import openpyxl
 from odoo import fields
 from odoo.tests import TransactionCase, tagged
 
+from .common import TaxGroupMixin
+
 
 @tagged('post_install', '-at_install')
-class TestVatReturn(TransactionCase):
+class TestVatReturn(TaxGroupMixin, TransactionCase):
 
     def setUp(self):
         super().setUp()
@@ -65,21 +67,6 @@ class TestVatReturn(TransactionCase):
             'name': 'IVA 16% Venta', 'amount': 16.0, 'type_tax_use': 'sale',
             'amount_type': 'percent', 'tax_group_id': self.tax_group.id, 'country_id': self.country.id,
         })
-
-    def _get_or_create_tax_group(self):
-        group = self.env['account.tax.group'].search([
-            ('company_id', '=', self.company.id)
-        ], limit=1)
-        if not group:
-            group = self.env['account.tax.group'].create({
-                'name': 'IVA', 'country_id': self.country.id,
-            })
-        else:
-            if group.country_id and group.country_id.id != self.country.id:
-                group.write({'country_id': self.country.id})
-            if 'IVA' not in (group.name or '').upper():
-                group.write({'name': 'IVA'})
-        return group
 
     def _create_in_invoice(self, amount=1000.0, tax_ids=None, date='2026-08-15'):
         vals = {

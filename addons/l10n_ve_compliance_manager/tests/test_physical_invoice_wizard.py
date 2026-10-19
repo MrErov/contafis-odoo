@@ -1,9 +1,11 @@
 from odoo.exceptions import ValidationError
 from odoo.tests import TransactionCase, tagged
 
+from .common import TaxGroupMixin
+
 
 @tagged('post_install', '-at_install')
-class TestPhysicalInvoiceWizard(TransactionCase):
+class TestPhysicalInvoiceWizard(TaxGroupMixin, TransactionCase):
 
     def setUp(self):
         super().setUp()
@@ -251,21 +253,6 @@ class TestPhysicalInvoiceWizard(TransactionCase):
             ('account_type', '=', 'income'),
             ('company_ids', 'in', [self.company_id]),
         ], limit=1)
-
-    def _get_or_create_tax_group(self):
-        group = self.env['account.tax.group'].search([
-            ('company_id', '=', self.company.id)
-        ], limit=1)
-        if not group:
-            group = self.env['account.tax.group'].create({
-                'name': 'IVA', 'country_id': self.country.id,
-            })
-        else:
-            if group.country_id and group.country_id.id != self.country.id:
-                group.write({'country_id': self.country.id})
-            if 'IVA' not in (group.name or '').upper():
-                group.write({'name': 'IVA'})
-        return group
 
     def test_wizard_create_purchase_invoice(self):
         """Crear factura de compra vía wizard y verificar asiento + vat.book.line."""
