@@ -260,7 +260,8 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Precargar tablas ISLR (est_islr/ret_islr) del calendario SENIAT 2026 — HECHO (spec 004)
 - ✅ Fase H: E2E con Playwright — 7/7 sub-fases completadas (0-7); Fases 5-6 cerradas junto con las reglas de aislamiento multi-compañía
 - ✅ Fixture real de cartelera versionado (`Control_Cartelera_Fiscal_Prueba.xlsx`) + test de parseo de la hoja enero (`test_parse_real_cartelera_fixture_enero`); la detección amplía el bloque de documentos al mínimo esperado porque en el archivo real el label "Total" cae sobre la columna de C36
-- ⬜ Cartelera: detección de columna RIF en meses ≠ enero — el archivo real solo trae "RIF" en B2 (enero); febrero/diciembre tienen una fila-ejemplo en A/B y los datos en C, pero el fallback los busca en A (ver docs/memory.md 2026-10-19)
+- ✅ Cartelera: detección de columna RIF en meses ≠ enero — HECHO (sniffing del patrón RIF V/E/J/P/G sobre las filas de datos; feb/dic reales parsean 10 empresas × 36 estatus; tests unitarios sintéticos + `test_parse_real_cartelera_fixture_febrero`)
+- ⬜ Cartelera: la hoja diciembre del fixture real trae 43 columnas y un header extra "Registro y elemento publicitario" (queda en `unmatched_headers`, benigno) — decidir si ignorarlo silenciosamente
 - ⬜ Test de integración con fixture de conciliación fiscal — `CONCILIACION_FINANCIERA_Y_FISCAL_DEMO_2026.xlsx` sigue sin versionar (spec 11 pendiente)
 - ✅ post_init_hook: cerrado como descartado — no-op defensivo por diseño (`source` nace con `default='manual'`, nunca hay NULLs); hacerlo efectivo requeriría esquema nullable y sobrescribiría datos legítimos. Limitación documentada en el docstring
 - ✅ Migrar `_sql_constraints` a `models.Constraint` — HECHO (último: `vat_return.py` → `_unique_return`)

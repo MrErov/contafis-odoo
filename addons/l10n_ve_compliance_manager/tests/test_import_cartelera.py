@@ -82,6 +82,54 @@ class TestImportCartelera(TransactionCase):
         wb.save(output)
         return output.getvalue()
 
+    def _create_nonjanuary_cartelera_excel(self, rows_data, sheet_name='febrero'):
+        """
+        Genera un Excel con la estructura real de feb/dic.
+
+        Diferencias con enero (archivo real verificado):
+        - No hay celda "RIF" en la fila de encabezados (fuerza el sniffing).
+        - La fila-ejemplo trae un RIF ficticio en A/B ("J000000001") y los
+          datos reales viven en C (RIF) y D (nombre).
+        - Los labels de documentos empiezan en la columna C, dos columnas
+          a la izquierda de los datos (E..AN).
+        """
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = sheet_name
+
+        ws.merge_cells('A1:AN1')
+        ws['A1'] = 'CARTELERA FISCAL - SENIAT, IVSS, INCES, BANAVIH, MINTRA, ALCALDÍA'
+        ws['A2'] = 'RIF'
+        ws['B2'] = 'Empresas/ Firmas Personales'
+
+        doc_types = self.DocType.search([
+            ('required_for', '=', 'company')
+        ], order='code')
+        codes = [dt.code for dt in doc_types]
+        names = [dt.name for dt in doc_types]
+
+        # Labels desplazados: C01 en C(3), C02 en D(4), ... datos en E(5)+
+        for i, name in enumerate(names):
+            ws.cell(row=3, column=3 + i, value=name)
+        ws.cell(row=3, column=41, value='Total')
+        ws.cell(row=3, column=42, value='Porcentaje')
+
+        # Fila-ejemplo del archivo real (A/B), ignorada por el parser
+        ws.cell(row=4, column=1, value='J000000001')
+        ws.cell(row=4, column=2, value='Empresa, c.a.')
+
+        for row_idx, row_data in enumerate(rows_data, 4):
+            ws.cell(row=row_idx, column=3, value=row_data['rif'])  # Col C
+            ws.cell(row=row_idx, column=4, value=row_data['name'])  # Col D
+
+            statuses = row_data.get('statuses', {})
+            for i, code in enumerate(codes):
+                ws.cell(row=row_idx, column=5 + i, value=statuses.get(code, False))
+
+        output = BytesIO()
+        wb.save(output)
+        return output.getvalue()
+
     def _create_wizard(self, import_type='cartelera', year=2026, month='1'):
         """Helper para crear wizard con datos por defecto."""
         return self.Wizard.create({
@@ -181,17 +229,59 @@ class TestImportCartelera(TransactionCase):
         self.assertEqual(line2.data['name'], 'Empresa Test 2')
         self.assertTrue(all(line2.data['statuses'].values()))
 
-    def test_parse_real_cartelera_fixture_enero(self):
-        """Parser contra el fixture real de cartelera (hoja enero).
+    def test_parse_nonjanuary_structure_sniffs_rif_column(self):
+        """feb/dic: el sniffing elige la columna C y descarta el dummy A/B.
 
-        Verifica estructura detectada, 10 empresas y los 36 estatus
-        exactos de cada una, incluido C36 (regresión: en el archivo real
-        el label "Total" cae sobre la columna de C36).
+        Simula la hoja real (sin celda "RIF" en los headers, fila-ejemplo
+        con "J000000001" en A/B y datos reales en C/D/E..): antes se
+        generaba una línea basura con el RIF de ejemplo y el parseo se
+        cortaba en la segunda fila.
         """
-        expected_rows = self._compute_expected_rows_from_fixture('enero')
+        rows_data = [
+            {
+                'rif': 'J-44444444-4',
+                'name': 'Empresa Febrero 1',
+                'statuses': {f'C{i:02d}': (i <= 3) for i in range(1, 37)},
+            },
+            {
+                'rif': 'V-12345678-5',
+                'name': 'Empresa Febrero 2',
+                'statuses': {f'C{i:02d}': True for i in range(1, 37)},
+            },
+        ]
+
+        for sheet_name, month in (('febrero', '2'), ('diciembre', '12')):
+            with self.subTest(sheet=sheet_name):
+                excel_content = self._create_nonjanuary_cartelera_excel(
+                    rows_data, sheet_name)
+
+                wizard = self._create_wizard(year=2026, month=month)
+                wizard.write({
+                    'file': base64.b64encode(excel_content),
+                    'filename': f'cartelera_{sheet_name}.xlsx',
+                })
+                wizard.action_load_file()
+
+                self.assertEqual(len(wizard.line_ids), 2)
+                self.assertFalse(wizard.cartelera_unmatched_headers)
+
+                lines = wizard.line_ids.sorted('row_index')
+                self.assertEqual(lines[0].data['rif'], 'J-44444444-4')
+                self.assertEqual(lines[0].data['name'], 'Empresa Febrero 1')
+                self.assertEqual(lines[1].data['rif'], 'V-12345678-5')
+                self.assertEqual(lines[1].data['name'], 'Empresa Febrero 2')
+                for line in lines:
+                    self.assertNotEqual(line.data['rif'], 'J000000001')
+                    self.assertEqual(len(line.data['statuses']), 36)
+                self.assertTrue(lines[0].data['statuses']['C03'])
+                self.assertFalse(lines[0].data['statuses']['C04'])
+
+    def _assert_real_cartelera_fixture(self, sheet_name, month):
+        """Parsea el fixture real en una hoja y compara con los esperados."""
+        expected_rows = self._compute_expected_rows_from_fixture(sheet_name)
         self.assertEqual(len(expected_rows), 10)
 
-        wizard = self._create_wizard(year=2026, month='1')
+        wizard = self._create_wizard(year=2026, month=month)
         wizard.write({
             'file': base64.b64encode(
                 self._fixture_path('Control_Cartelera_Fiscal_Prueba.xlsx').read_bytes()
@@ -209,6 +299,24 @@ class TestImportCartelera(TransactionCase):
             self.assertEqual(line.data['name'], expected['name'])
             self.assertEqual(len(line.data['statuses']), 36)
             self.assertEqual(line.data['statuses'], expected['statuses'])
+
+    def test_parse_real_cartelera_fixture_enero(self):
+        """Parser contra el fixture real de cartelera (hoja enero).
+
+        Verifica estructura detectada, 10 empresas y los 36 estatus
+        exactos de cada una, incluido C36 (regresión: en el archivo real
+        el label "Total" cae sobre la columna de C36).
+        """
+        self._assert_real_cartelera_fixture('enero', '1')
+
+    def test_parse_real_cartelera_fixture_febrero(self):
+        """Parser contra el fixture real (hoja febrero).
+
+        Regresión del sniffing: la hoja real trae la fila-ejemplo con RIF
+        ficticio en A/B y los datos reales en C/D; sin sniffing se generaba
+        una línea basura ("J000000001") y el parseo se cortaba en la fila 5.
+        """
+        self._assert_real_cartelera_fixture('febrero', '2')
 
     def test_import_cartelera_creates_client(self):
         """La primera empresa no existe → se crea res.partner + compliance.client."""
