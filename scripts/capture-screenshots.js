@@ -44,22 +44,141 @@ async function login(page) {
   await page.waitForSelector('.o_main_navbar, .o_user_menu, header', { timeout: 30000 });
 }
 
+async function logout(page) {
+  await page.goto(`${ODOO_URL}/web/session/logout`, { waitUntil: 'domcontentloaded' });
+}
+
+// JSON-RPC desde Node: comparte cookies con el navegador y es inmune al
+// reload del webclient que disparan las escrituras de companias/usuarios.
+async function rpc(page, model, method, args, kwargs = {}) {
+  const response = await page.request.post(`${ODOO_URL}/web/dataset/call_kw`, {
+    data: {
+      jsonrpc: '2.0',
+      method: 'call',
+      params: { model, method, args, kwargs },
+      id: Date.now(),
+    },
+  });
+  if (!response.ok()) {
+    throw new Error(`RPC HTTP ${response.status()}: ${await response.text()}`);
+  }
+  const json = await response.json();
+  if (json.error) {
+    const msg = (json.error.data && json.error.data.message) || JSON.stringify(json.error);
+    throw new Error(`RPC ${model}.${method}: ${msg}`);
+  }
+  return json.result;
+}
+
+// Habilita TODAS las companias del usuario en la sesion. La seleccion
+// multi-compania activa vive en la cookie `cids` (ids ordenados unidos
+// por "-"): sin ella, una sesion fresca solo permite company_id y los
+// RPCs/vistas ocultan clientes y documentos de las demas companias.
+async function enableAllCompanies(page) {
+  const admins = await rpc(page, 'res.users', 'search_read',
+    [[['login', '=', 'admin']], ['id', 'company_ids']], { limit: 1 });
+  if (!admins.length) return;
+  const ids = admins[0].company_ids.slice().sort((a, b) => a - b);
+  if (!ids.length) return;
+  await page.context().addCookies([{
+    name: 'cids',
+    value: ids.join('-'),
+    url: ODOO_URL,
+  }]);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.o_main_navbar, .o_user_menu, header', { timeout: 30000 });
+  console.log(`\u2713 companias activas via cids=${ids.join('-')}`);
+}
+
+// Seed multi-compania (idempotente): cada cliente vive en su propia
+// compania, el admin las ve todas y existe un usuario contador demo.
+// Va por JSON-RPC porque crear companias / escribir en el propio usuario
+// admin dispara un reload del webclient que destruiria un page.evaluate.
+async function seedMultiCompany(page) {
+  const stats = { companies: 0, users: 0 };
+
+  const ensureCompany = async (name) => {
+    const found = await rpc(page, 'res.company', 'search_read',
+      [[['name', '=', name]], ['id']], { limit: 1 });
+    if (found.length) return found[0].id;
+    stats.companies += 1;
+    return rpc(page, 'res.company', 'create', [{ name }]);
+  };
+  const companyB = await ensureCompany('Servicios Andinos, S.A.');
+  const companyC = await ensureCompany('Inversiones Maracaibo, C.A.');
+
+  const setClientCompany = async (name, companyId) => {
+    const found = await rpc(page, 'l10n.ve.compliance.client', 'search_read',
+      [[['name', '=', name]], ['id']], { limit: 1 });
+    if (found.length) {
+      await rpc(page, 'l10n.ve.compliance.client', 'write',
+        [[found[0].id], { company_id: companyId }]);
+    }
+  };
+  await setClientCompany('Servicios Andinos, S.A.', companyB);
+  await setClientCompany('Inversiones Maracaibo, C.A.', companyC);
+
+  const admins = await rpc(page, 'res.users', 'search_read',
+    [[['login', '=', 'admin']], ['id', 'company_id']], { limit: 1 });
+  if (admins.length) {
+    await rpc(page, 'res.users', 'write',
+      [[admins[0].id], { company_ids: [[4, companyB], [4, companyC]] }]);
+  }
+  const companyId = admins.length ? admins[0].company_id[0] : null;
+
+  const xmlidResId = async (xmlid) => {
+    const [module, name] = xmlid.split('.');
+    const recs = await rpc(page, 'ir.model.data', 'search_read',
+      [[['module', '=', module], ['name', '=', name]], ['res_id']], { limit: 1 });
+    return recs.length ? recs[0].res_id : null;
+  };
+  const groups = [];
+  for (const xmlid of [
+    'base.group_user',
+    'base.group_multi_company',
+    'l10n_ve_compliance_manager.l10n_ve_compliance_accountant',
+    'account.group_account_manager',
+  ]) {
+    const gid = await xmlidResId(xmlid);
+    if (gid) groups.push(gid);
+  }
+
+  const users = await rpc(page, 'res.users', 'search_read',
+    [[['login', '=', 'contador.demo']], ['id']], { limit: 1 });
+  if (!users.length) {
+    stats.users += 1;
+    await rpc(page, 'res.users', 'create', [{
+      name: 'María Rodríguez',
+      login: 'contador.demo',
+      password: 'demo',
+      company_id: companyId,
+      company_ids: [[6, 0, [companyId, companyB, companyC].filter(Boolean)]],
+      group_ids: [[6, 0, groups]],
+    }]);
+  }
+
+  console.log(
+    `\u2713 seed multi-compania: ${stats.companies} companias nuevas, `
+    + `${stats.users} usuarios nuevos (RPC)`,
+  );
+}
+
 // Siembra data demo reproducible (idempotente) para que los screenshots de
 // listas/formularios no salgan vacA-os. No borra nada: busca por nombre y
 // crea solo lo que falta. Desactivar con SKIP_SEED=1.
 async function seedDemoData(page) {
-  const result = await page.evaluate(async () => {
+  const admins = await rpc(page, 'res.users', 'search_read',
+    [[['login', '=', 'admin']], ['id', 'company_id']], { limit: 1 });
+  const adminCompanyId = admins.length ? admins[0].company_id[0] : null;
+  const result = await page.evaluate(async ({ adminCompanyId }) => {
     const env = window.odoo.__WOWL_DEBUG__.root.env;
     const orm = env.services.orm;
     const call = (model, method, args = [], kwargs = {}) => orm.call(model, method, args, kwargs);
     const stats = { partners: 0, clients: 0, documents: 0, statuses: 0, returns: 0, alerts: 0, obligations: 0 };
 
-    let companyId = env.services.company && env.services.company.currentCompany
-      ? env.services.company.currentCompany.id
-      : null;
-    if (!companyId) {
-      const comps = await orm.search('res.company', [], { limit: 1 });
-      companyId = comps[0];
+    let companyId = adminCompanyId;
+    if (!companyId && env.services.company && env.services.company.currentCompany) {
+      companyId = env.services.company.currentCompany.id;
     }
 
     const seedPartner = async (name, rif, phone) => {
@@ -201,13 +320,14 @@ async function seedDemoData(page) {
     }
 
     return stats;
-  });
+  }, { adminCompanyId });
   console.log(
     `\u2713 seed demo: ${result.partners} partners, ${result.clients} clients, `
     + `${result.documents} docs, ${result.statuses} snapshots, `
     + `${result.returns} planillas, ${result.alerts} alertas, `
     + `${result.obligations} obligaciones`,
   );
+  await seedMultiCompany(page);
 }
 
 async function injectAnnotations(page, annotations) {
@@ -362,6 +482,29 @@ const specs = [
     annotations: [],
   },
   {
+    name: '02-06-companies-list',
+    url: '/odoo/action-base.action_res_company_form?view_type=list',
+    waitFor: '.o_list_view',
+    annotations: [],
+  },
+  {
+    name: '02-07-user-access',
+    beforeGoto: async (page) => {
+      const users = await rpc(page, 'res.users', 'search_read',
+        [[['login', '=', 'contador.demo']], ['id']], { limit: 1 });
+      if (!users.length) return false;
+      await page.goto(`${ODOO_URL}/odoo/action-base.action_res_users/${users[0].id}`, {
+        waitUntil: 'domcontentloaded',
+      });
+      return true;
+    },
+    waitFor: '.o_form_view',
+    annotations: [
+      { selector: '.o_field_widget[name="company_ids"]', label: '1' },
+      { selector: '.o_field_widget[name="group_ids"]', label: '2' },
+    ],
+  },
+  {
     name: '03-01-client-form',
     url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_compliance_client',
     waitFor: '.o_list_view, .o_kanban_view',
@@ -387,6 +530,20 @@ const specs = [
     name: '03-03-client-kanban',
     url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_compliance_client?view_type=kanban',
     waitFor: '.o_kanban_view',
+    annotations: [],
+  },
+  {
+    name: '03-04-company-switcher',
+    url: APP_URL,
+    waitFor: '.o_kanban_view',
+    beforeCapture: async (page) => {
+      await page
+        .locator('.o_switch_company_menu .dropdown-toggle, .o_switch_company_menu button')
+        .first()
+        .click();
+      await page.waitForSelector('.o_switch_company_item', { timeout: 10000 });
+      await page.waitForTimeout(400);
+    },
     annotations: [],
   },
   {
@@ -584,7 +741,35 @@ const specs = [
     waitFor: '.o_list_view',
     annotations: [],
   },
-
+  {
+    name: '11-05-recalcular-vencimiento',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_obligation_due_soon',
+    waitFor: '.o_list_view',
+    beforeCapture: async (page) => {
+      await page.locator('.o_list_view .o_data_row').first().locator('td.o_data_cell').first().click();
+      await page.waitForSelector('.o_form_view', { timeout: 15000 });
+    },
+    annotations: [
+      { selector: 'button[name="action_recalculate_due_dates"]', label: '1' },
+    ],
+  },
+  {
+    name: '11-06-acciones-masivas',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_obligation_due_soon',
+    waitFor: '.o_list_view',
+    beforeCapture: async (page) => {
+      const rows = page.locator('.o_list_view .o_data_row');
+      const total = Math.min(await rows.count(), 2);
+      for (let i = 0; i < total; i += 1) {
+        await rows.nth(i).locator('td.o_list_record_selector').click();
+      }
+      await page.waitForTimeout(400);
+      await page.locator('.o_cp_action_menus .dropdown-toggle').first().click();
+      await page.waitForSelector('.o-dropdown--menu .dropdown-item', { state: 'visible', timeout: 10000 });
+      await page.waitForTimeout(400);
+    },
+    annotations: [],
+  },
 ];
 
 // === MAIN ===
@@ -604,8 +789,14 @@ const specs = [
   try {
     await login(page);
     console.log('✓ login OK');
+    await enableAllCompanies(page);
     if (!process.env.SKIP_SEED) {
       await seedDemoData(page);
+      await page.waitForTimeout(1500);
+      await logout(page);
+      await login(page);
+      await enableAllCompanies(page);
+      console.log('✓ re-login post-seed (refresca compañías permitidas)');
     }
     for (const spec of specs) {
       try {
