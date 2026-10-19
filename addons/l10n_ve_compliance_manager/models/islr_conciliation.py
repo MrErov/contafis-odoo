@@ -3,7 +3,33 @@ import unicodedata
 from io import BytesIO
 
 import openpyxl
+from markupsafe import Markup, escape
 from odoo import api, fields, models
+
+TOTAL_TAX_RATE = 0.34
+
+SIDE_LABELS = {
+    'accounting': 'contabilidad',
+    'fiscal': 'fiscal',
+}
+
+WARNING_TOTAL_LABELS = {
+    'total_ingresos': 'Total ingresos',
+    'mercancia_disponible': 'Mercancía disponible',
+    'total_costo_venta': 'Total costo de venta',
+    'renta_bruta': 'Renta bruta',
+    'total_deducciones': 'Total deducciones',
+    'utilidad_neta': 'Utilidad neta',
+}
+
+TOTAL_FIELDS = {
+    'total_ingresos': ('total_ingresos_accounting', 'total_ingresos_fiscal'),
+    'mercancia_disponible': ('mercancia_disponible_accounting', 'mercancia_disponible_fiscal'),
+    'total_costo_venta': ('total_costo_venta_accounting', 'total_costo_venta_fiscal'),
+    'renta_bruta': ('renta_bruta_accounting', 'renta_bruta_fiscal'),
+    'total_deducciones': ('total_deducciones_accounting', 'total_deducciones_fiscal'),
+    'utilidad_neta': ('utilidad_neta_accounting', 'utilidad_neta_fiscal'),
+}
 
 
 class IslrParseError(Exception):
@@ -289,6 +315,74 @@ class IslrReconciliation(models.Model):
         string='Rubros',
     )
 
+    total_ingresos_accounting = fields.Float(
+        string='Total Ingresos (Contabilidad)',
+        compute='_compute_totals', store=True, digits='Account',
+    )
+    total_ingresos_fiscal = fields.Float(
+        string='Total Ingresos (Fiscal)',
+        compute='_compute_totals', store=True, digits='Account',
+    )
+    mercancia_disponible_accounting = fields.Float(
+        string='Mercancía Disponible (Contabilidad)',
+        compute='_compute_totals', store=True, digits='Account',
+    )
+    mercancia_disponible_fiscal = fields.Float(
+        string='Mercancía Disponible (Fiscal)',
+        compute='_compute_totals', store=True, digits='Account',
+    )
+    total_costo_venta_accounting = fields.Float(
+        string='Total Costo de Venta (Contabilidad)',
+        compute='_compute_totals', store=True, digits='Account',
+    )
+    total_costo_venta_fiscal = fields.Float(
+        string='Total Costo de Venta (Fiscal)',
+        compute='_compute_totals', store=True, digits='Account',
+    )
+    renta_bruta_accounting = fields.Float(
+        string='Renta Bruta (Contabilidad)',
+        compute='_compute_totals', store=True, digits='Account',
+    )
+    renta_bruta_fiscal = fields.Float(
+        string='Renta Bruta (Fiscal)',
+        compute='_compute_totals', store=True, digits='Account',
+    )
+    total_deducciones_accounting = fields.Float(
+        string='Total Deducciones (Contabilidad)',
+        compute='_compute_totals', store=True, digits='Account',
+    )
+    total_deducciones_fiscal = fields.Float(
+        string='Total Deducciones (Fiscal)',
+        compute='_compute_totals', store=True, digits='Account',
+    )
+    utilidad_neta_accounting = fields.Float(
+        string='Utilidad Neta (Contabilidad)',
+        compute='_compute_totals', store=True, digits='Account',
+    )
+    utilidad_neta_fiscal = fields.Float(
+        string='Utilidad Neta (Fiscal)',
+        compute='_compute_totals', store=True, digits='Account',
+    )
+    monto_a_pagar_calculado = fields.Float(
+        string='Monto a Pagar Calculado',
+        compute='_compute_totals', store=True, digits='Account',
+        help='Utilidad neta fiscal multiplicada por la tarifa del 34% '
+             '(personas jurídicas, Art. 52 LISLR).',
+    )
+
+    import_meta = fields.Json(
+        string='Metadatos de Importación',
+        help='Rubros duplicados y celdas con texto detectados al importar '
+             '(alimentan las advertencias).',
+    )
+
+    warning_html = fields.Html(
+        string='Advertencias',
+        compute='_compute_warning_html',
+        store=True,
+        sanitize=False,
+    )
+
     modified_by = fields.Many2one(
         'res.users',
         string='Modificado por',
@@ -305,6 +399,135 @@ class IslrReconciliation(models.Model):
             identificacion = record.client_id.rif or record.client_id.name or ''
             anio = record.fiscal_year or ''
             record.name = f'{identificacion} - {anio}'.strip(' -')
+
+    @api.depends(
+        'line_ids.category',
+        'line_ids.code',
+        'line_ids.amount_accounting',
+        'line_ids.amount_fiscal',
+    )
+    def _compute_totals(self):
+        for record in self:
+            lines = record.line_ids
+            income = lines.filtered(lambda line: line.category == 'income')
+            inv_inicial = lines.filtered(lambda line: line.code == 'inventario_inicial')
+            compras = lines.filtered(lambda line: line.code == 'compras_mercancia')
+            inv_final = lines.filtered(lambda line: line.code == 'inventario_final')
+            deductions = lines.filtered(lambda line: line.category == 'deduction')
+            for suffix in ('accounting', 'fiscal'):
+                amount_field = f'amount_{suffix}'
+                ingresos = sum(income.mapped(amount_field))
+                mercancia = sum(inv_inicial.mapped(amount_field)) + sum(compras.mapped(amount_field))
+                costo_venta = mercancia - sum(inv_final.mapped(amount_field))
+                renta_bruta = ingresos - costo_venta
+                deducciones = sum(deductions.mapped(amount_field))
+                utilidad = renta_bruta - deducciones
+                setattr(record, f'total_ingresos_{suffix}', ingresos)
+                setattr(record, f'mercancia_disponible_{suffix}', mercancia)
+                setattr(record, f'total_costo_venta_{suffix}', costo_venta)
+                setattr(record, f'renta_bruta_{suffix}', renta_bruta)
+                setattr(record, f'total_deducciones_{suffix}', deducciones)
+                setattr(record, f'utilidad_neta_{suffix}', utilidad)
+            record.monto_a_pagar_calculado = TOTAL_TAX_RATE * record.utilidad_neta_fiscal
+
+    @api.depends(
+        'total_ingresos_accounting',
+        'total_ingresos_fiscal',
+        'mercancia_disponible_accounting',
+        'mercancia_disponible_fiscal',
+        'total_costo_venta_accounting',
+        'total_costo_venta_fiscal',
+        'renta_bruta_accounting',
+        'renta_bruta_fiscal',
+        'total_deducciones_accounting',
+        'total_deducciones_fiscal',
+        'utilidad_neta_accounting',
+        'utilidad_neta_fiscal',
+        'monto_a_pagar_calculado',
+        'totals_xlsx',
+        'monto_a_pagar_xlsx',
+        'import_meta',
+        'line_ids.label',
+        'line_ids.code',
+        'line_ids.amount_accounting',
+        'line_ids.amount_fiscal',
+        'line_ids.amount_not_deductible',
+    )
+    def _compute_warning_html(self):
+        for record in self:
+            warnings = record._collect_warnings()
+            if not warnings:
+                record.warning_html = False
+                continue
+            items = Markup('').join(
+                Markup('<li>%s</li>') % escape(warning) for warning in warnings
+            )
+            record.warning_html = Markup('<ul>%s</ul>') % items
+
+    def _collect_warnings(self):
+        """Retorna la lista de advertencias (mensajes) del registro."""
+        self.ensure_one()
+        warnings = []
+        totals_xlsx = self.totals_xlsx or {}
+        for key, field_names in TOTAL_FIELDS.items():
+            reference = totals_xlsx.get(key) or {}
+            for suffix, field_name in zip(('accounting', 'fiscal'), field_names):
+                xlsx_value = reference.get(suffix)
+                if xlsx_value is None:
+                    continue
+                recalculated = self[field_name]
+                if abs(recalculated - xlsx_value) > 0.01:
+                    warnings.append(
+                        f'Descuadre en "{WARNING_TOTAL_LABELS[key]}" ({SIDE_LABELS[suffix]}): '
+                        f'el sistema recalcula Bs {recalculated:,.2f} '
+                        f'y el Excel informa Bs {xlsx_value:,.2f}'
+                    )
+
+        for line in self.line_ids:
+            expected = line.amount_fiscal + line.amount_not_deductible
+            if abs(line.amount_accounting - expected) > 0.01:
+                warnings.append(
+                    f'La línea "{line.label}" no cumple la identidad '
+                    f'contabilidad = fiscal + no deducible '
+                    f'(Bs {line.amount_accounting:,.2f} ≠ Bs {expected:,.2f})'
+                )
+
+        sueldos_fiscal = sum(
+            self.line_ids.filtered(lambda line: line.code == 'sueldos_directivos')
+            .mapped('amount_fiscal')
+        )
+        if sueldos_fiscal > 0.01:
+            tope = self.total_ingresos_fiscal * 0.10
+            if self.total_ingresos_fiscal <= 0:
+                warnings.append(
+                    'No hay ingresos fiscales: no se pudo validar el tope del 10% '
+                    'de sueldos directivos'
+                )
+            elif sueldos_fiscal > tope + 0.01:
+                warnings.append(
+                    f'Los sueldos directivos (Bs {sueldos_fiscal:,.2f}) superan '
+                    f'el tope del 10% de los ingresos brutos (Bs {tope:,.2f})'
+                )
+
+        monto_informado = self.monto_a_pagar_xlsx or 0.0
+        if abs(self.monto_a_pagar_calculado - monto_informado) > 0.01:
+            warnings.append(
+                f'Monto a pagar calculado (Bs {self.monto_a_pagar_calculado:,.2f}) '
+                f'no coincide con el informado en el Excel (Bs {monto_informado:,.2f})'
+            )
+
+        for line in self.line_ids.filtered(lambda line: line.code == 'otro'):
+            warnings.append(f'Rubro sin mapeo: "{line.label}" se importó como "Otro"')
+
+        meta = self.import_meta or {}
+        for duplicate in meta.get('duplicates') or []:
+            warnings.append(f'Rubro duplicado en el Excel: "{duplicate}" (importes sumados)')
+        text_cells = meta.get('text_cells') or []
+        if text_cells:
+            warnings.append(
+                f'Celdas con texto en columnas numéricas: {", ".join(text_cells)} (se usó 0.00)'
+            )
+        return warnings
 
     def write(self, vals):
         """Actualiza campos de auditoría al editar manualmente."""

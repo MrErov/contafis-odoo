@@ -8,7 +8,7 @@ Plan: `specs/011-conciliacion-islr/plan.md`. Spec: `specs/011-conciliacion-islr/
 - [x] **T2. Versionar fixture y crear parser puro** (`sanitize_rif`, `normalize_label`, `to_amount`, `RUBRO_MAP`, `parse_conciliacion_xlsx` en `models/islr_conciliation.py`; quitar fixture de `.gitignore` línea 45 y del `exclude` de `.pre-commit-config.yaml`). RF-1, RF-3, RF-4, RF-5, RF-15, RF-16.
   Hecho cuando: test del parser sobre el fixture real pasa (hoja case-insensitive, año 2025, RIF `J-99999999-0`, rubros del bloque principal, F45=47863.69, bloques laterales ignorados) y `git status` muestra el fixture listo para commit.
 
-- [ ] **T3. Computes de totales + advertencias + `warning_html`** (RF-7 a RF-11, RF-17). RF-7, RF-8, RF-9, RF-10, RF-11, RF-17.
+- [x] **T3. Computes de totales + advertencias + `warning_html`** (RF-7 a RF-11, RF-17). RF-7, RF-8, RF-9, RF-10, RF-11, RF-17.
   Hecho cuando: tests verdes — totales del fixture (mercancía 1982288.76, costo venta 1383802.26, renta bruta 607476.54 contabilidad), warning `descuadre` (deducciones recalc ≠ 184979.44), warning `monto` (34% × utilidad fiscal ≠ 47863.69), sintéticos de identidad/tope/base cero, y `warning_html` persistido y recalculado al editar.
 
 - [ ] **T4. Wizard: tipo "Conciliación ISLR" + carga con detección estricta** (`IMPORT_TYPES`, campos detectados, `_load_islr_conciliation_file`, preview con cliente/año/rubros; errores: RIF inexistente, RIF en dos compañías). RF-1, RF-3.
