@@ -822,6 +822,99 @@ class ImportWizard(models.TransientModel):
 
         return candidates
 
+    def _import_islr_conciliation(self):
+        """Crea o reemplaza la conciliación ISLR cargada en el preview."""
+        self.ensure_one()
+        from odoo.addons.l10n_ve_compliance_manager.models.islr_conciliation import (
+            sanitize_rif,
+        )
+
+        data = self.conciliacion_data
+        if not data or not self.conciliacion_client_id:
+            raise UserError(_('Cargue primero un archivo de conciliación ISLR.'))
+
+        client = self.conciliacion_client_id
+        existing = self.conciliacion_existing_id.exists()
+        if not existing:
+            existing = self.env['l10n.ve.islr.reconciliation'].search([
+                ('client_id', '=', client.id),
+                ('company_id', '=', client.company_id.id),
+                ('fiscal_year', '=', data['fiscal_year']),
+            ], limit=1)
+
+        rif_mismatch = False
+        if (
+            data['rif'] != client.rif
+            and sanitize_rif(data['rif']) == sanitize_rif(client.rif)
+        ):
+            rif_mismatch = {'sheet': data['rif'], 'client': client.rif}
+
+        if existing and not self.replace_confirmed:
+            message = _(
+                'Ya existe una conciliación para %(client)s (año %(year)s). '
+                'Marque "Confirmar Reemplazo" para sobrescribirla.'
+            ) % {'client': client.display_name, 'year': data['fiscal_year']}
+            if rif_mismatch:
+                message += '\n' + _(
+                    'Atención: el RIF del archivo (%(sheet)s) no coincide con '
+                    'el registrado en el cliente (%(client_rif)s).'
+                ) % {'sheet': data['rif'], 'client_rif': client.rif}
+            raise UserError(message)
+
+        meta = {
+            'duplicates': data.get('duplicates') or [],
+            'text_cells': data.get('text_cells') or [],
+            'source_file': self.filename or '',
+            'imported_by': self.env.user.login,
+            'imported_at': fields.Datetime.now().isoformat(timespec='seconds'),
+        }
+        if rif_mismatch:
+            meta['rif_mismatch'] = rif_mismatch
+
+        vals = {
+            'client_id': client.id,
+            'company_id': client.company_id.id,
+            'fiscal_year': data['fiscal_year'],
+            'state': 'draft',
+            'totals_xlsx': data['totals'],
+            'monto_a_pagar_xlsx': data['monto_a_pagar_xlsx'],
+            'import_meta': meta,
+            'pdf_attachment_id': False,
+        }
+
+        if existing:
+            if existing.pdf_attachment_id:
+                existing.pdf_attachment_id.unlink()
+            existing.line_ids.unlink()
+            existing.write(vals)
+            record = existing
+        else:
+            record = self.env['l10n.ve.islr.reconciliation'].create(vals)
+
+        self.env['l10n.ve.islr.reconciliation.line'].create([
+            {
+                'reconciliation_id': record.id,
+                'sequence': rubro['sequence'],
+                'code': rubro['code'],
+                'category': rubro['category'],
+                'label': rubro['label'],
+                'amount_accounting': rubro['accounting'],
+                'amount_fiscal': rubro['fiscal'],
+                'amount_not_deductible': rubro['not_deductible'],
+                'legal_basis': rubro['legal_basis'] or False,
+            }
+            for rubro in data['rubros']
+        ])
+
+        self.write({'state': 'done', 'conciliacion_existing_id': record.id})
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'l10n.ve.islr.reconciliation',
+            'res_id': record.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
     # --- VAT Book parser methods ---
 
     def _detect_vat_book_sheet(self, workbook, book_type):
@@ -1682,6 +1775,9 @@ class ImportWizard(models.TransientModel):
         Modo lax: continúa procesando, reporta errores por fila.
         """
         self.ensure_one()
+        if self.import_type == 'islr_conciliation':
+            return self._import_islr_conciliation()
+
         if self.mode == 'strict':
             lines_with_errors = self.line_ids.filtered(
                 lambda line: line.state == 'error'
