@@ -40,4 +40,4 @@ Abra la alerta y cambie el estado a **Hecha** usando el statusbar superior.
 
 ## Siguiente paso
 
-> Continúa con [Exportar y respaldar datos](./11-exportar-respaldos.md).
+> Continúa con [Bandeja y análisis](./11-bandeja-acciones-analisis.md).

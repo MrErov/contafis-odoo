@@ -48,10 +48,10 @@ Sí, en facturas de proveedor con el botón [Generar Retención]: IVA 75% e ISLR
 Sí. El vencimiento se calcula con las tablas del calendario según el último dígito del RIF. Ver [Calendario SENIAT](./08-calendario-seniat.md).
 
 **¿Puedo exportar los datos a otro sistema?**
-Sí. El libro y la planilla se exportan a Excel. Ver sección 11.
+Sí. El libro y la planilla se exportan a Excel. Ver sección 12.
 
 **¿Dónde se guardan los adjuntos?**
-En el filestore de Odoo. Ver sección 11.
+En el filestore de Odoo. Ver sección 12.
 
 ## Cómo pedir soporte
 

@@ -4,31 +4,45 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   color: #2d2d2d;
-  line-height: 1.6;
+  font-size: 10.5pt;
+  line-height: 1.55;
   max-width: 18cm;
   margin: 0 auto;
   padding: 0;
+  counter-reset: chapter;
+}
+
+p {
+  margin: 0.55em 0;
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
 }
 
 h1 {
-  font-size: 2em;
+  font-size: 1.9em;
   color: #7c4a2d;
   border-bottom: 3px solid #7c4a2d;
   padding-bottom: 0.3em;
   margin-top: 0;
   page-break-before: always;
+  counter-increment: chapter;
 }
+
+h1::before { content: counter(chapter, decimal-leading-zero) ". "; }
 
 h1:first-of-type { page-break-before: avoid; }
 
 h2 {
-  font-size: 1.5em;
+  font-size: 1.35em;
   color: #7c4a2d;
-  margin-top: 1.8em;
+  border-bottom: 1px solid #eadfd6;
+  padding-bottom: 0.15em;
+  margin-top: 1.7em;
 }
 
 h3 {
-  font-size: 1.2em;
+  font-size: 1.12em;
   color: #a05a3a;
 }
 
@@ -68,6 +82,8 @@ th {
 }
 
 td { border: 1px solid #d4c5b9; padding: 8px; }
+
+tbody tr:nth-child(even) td { background: #faf7f4; }
 
 blockquote {
   border-left: 4px solid #7c4a2d;
@@ -165,14 +181,26 @@ li { margin-bottom: 0.3em; }
 /* Portada */
 .cover {
   text-align: center;
-  padding-top: 5.5cm;
+  padding-top: 4cm;
   page-break-after: always;
   break-after: page;
 }
 
+.cover-logo {
+  width: 110px;
+  height: 110px;
+  border: none;
+  border-radius: 24px;
+  margin: 0 auto 1.2em auto;
+  box-shadow: 0 6px 18px rgba(124, 74, 45, 0.25);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
 .cover-title {
-  font-size: 2.6em;
-  font-weight: 700;
+  font-size: 3em;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: #7c4a2d;
   border: none;
   margin: 0;
@@ -181,16 +209,37 @@ li { margin-bottom: 0.3em; }
 }
 
 .cover-sub {
-  font-size: 1.15em;
+  font-size: 1.45em;
+  font-weight: 600;
+  color: #2d2d2d;
+  margin-top: 0.15em;
+}
+
+.cover-desc {
+  font-size: 1.02em;
   color: #a05a3a;
-  margin-top: 0.6em;
+  margin-top: 0.5em;
+}
+
+.cover-rule {
+  width: 4.5cm;
+  height: 3px;
+  background: #7c4a2d;
+  border-radius: 2px;
+  margin: 1.7em auto;
 }
 
 .cover-meta {
-  margin-top: 3em;
-  color: #666;
+  color: #555;
   font-size: 0.95em;
   line-height: 1.9;
+}
+
+.cover-foot {
+  margin-top: 3.2em;
+  color: #9a8b80;
+  font-size: 0.82em;
+  letter-spacing: 0.03em;
 }
 
 /* Índice */
@@ -207,8 +256,21 @@ li { margin-bottom: 0.3em; }
   margin: 0 0 0.7em 0;
 }
 
-.toc-list { list-style: none; padding-left: 0; margin: 0; }
-.toc-list > li { font-weight: 600; margin-bottom: 0.3em; }
+.toc-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  counter-reset: tocchapter;
+}
+
+.toc-list > li {
+  font-weight: 600;
+  margin-bottom: 0.3em;
+  counter-increment: tocchapter;
+}
+
+.toc-list > li > a::before { content: counter(tocchapter, decimal-leading-zero) ". "; }
+
 .toc-list > li > ul { list-style: none; padding-left: 1.1em; margin: 0.2em 0 0.6em; }
 .toc-list > li > ul > li { font-weight: 400; font-size: 0.94em; margin-bottom: 0.15em; }
 .toc-list a { color: #2d2d2d; text-decoration: none; }

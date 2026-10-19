@@ -41,4 +41,4 @@ Los archivos adjuntos (evidencias, facturas escaneadas) se almacenan en el files
 
 ## Siguiente paso
 
-> Continúa con [Solución de problemas y FAQ](./12-solucion-problemas-faq.md).
+> Continúa con [Solución de problemas y FAQ](./13-solucion-problemas-faq.md).

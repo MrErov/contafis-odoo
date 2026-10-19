@@ -88,6 +88,8 @@ Ruta: *Cumplimiento VE → Próximos vencimientos*
 
 Es la bandeja de trabajo diario del contador: obligaciones **pendientes o vencidas** ordenadas por fecha, con el filtro *Próximos 30 días* aplicado por defecto. Use los filtros laterales para ver solo sus clientes, lo pagado o lo vencido, y agrúpelas por período, cliente o tipo.
 
+Cada fila trae los botones **[Registrar pago]** y **[Crear alerta]**, y la selección múltiple habilita las acciones masivas. Ver [Bandeja y análisis](./11-bandeja-acciones-analisis.md).
+
 Las alertas de vencimiento (*Vence pronto*, *Vencida*) se generan solas según los días de anticipación configurados en cada tipo de obligación. Ver [Alertas](./10-alertas.md).
 
 ## Años siguientes

@@ -103,9 +103,13 @@ async function build() {
   const dateStr = new Date().toISOString().slice(0, 10);
   const coverHtml = `
 <div class="cover">
-  <div class="cover-title">Guía de usuario</div>
-  <div class="cover-sub">ContaFis · Cumplimiento fiscal, parafiscal y documental (Venezuela)</div>
-  <div class="cover-meta">Módulo <code>l10n_ve_compliance_manager</code> · Odoo 19.0<br>Versión 1.0 · ${dateStr}</div>
+  <img class="cover-logo" src="../../addons/l10n_ve_compliance_manager/static/description/icon.png" alt="ContaFis">
+  <div class="cover-title">ContaFis</div>
+  <div class="cover-sub">Guía de usuario</div>
+  <div class="cover-desc">Cumplimiento fiscal, parafiscal y documental para Venezuela</div>
+  <div class="cover-rule"></div>
+  <div class="cover-meta">Módulo <code>l10n_ve_compliance_manager</code> · Odoo 19.0<br>Versión 1.2 · ${dateStr}</div>
+  <div class="cover-foot">github.com/MrErov/contafis-odoo-19.0v</div>
 </div>`;
 
   const tocHtml = `

@@ -15,8 +15,9 @@ clientes en Venezuela con Odoo 19 Community.
 8. [Calendario SENIAT e ISLR](./08-calendario-seniat.md)
 9. [Cartelera fiscal](./09-cartelera-fiscal.md)
 10. [Alertas](./10-alertas.md)
-11. [Exportar y respaldar datos](./11-exportar-respaldos.md)
-12. [Solución de problemas y FAQ](./12-solucion-problemas-faq.md)
+11. [Bandeja y análisis](./11-bandeja-acciones-analisis.md)
+12. [Exportar y respaldar datos](./12-exportar-respaldos.md)
+13. [Solución de problemas y FAQ](./13-solucion-problemas-faq.md)
 
 ## Anexos
 
