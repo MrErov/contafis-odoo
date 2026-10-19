@@ -55,4 +55,34 @@ action = {
 }
         </field>
     </record>
+
+    <record id="action_server_obligation_recalculate_due_dates" model="ir.actions.server">
+        <field name="name">Recalcular vencimientos</field>
+        <field name="model_id" ref="model_l10n_ve_obligation"/>
+        <field name="binding_model_id" ref="model_l10n_ve_obligation"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">
+records = model.browse(env.context.get('active_ids', []))
+eligible = records.filtered(
+    lambda obligation: not obligation.due_date_override
+    and obligation.state != 'paid'
+)
+eligible.action_recalculate_due_dates()
+skipped = len(records) - len(eligible)
+message = 'Se recalcularon %s vencimiento(s).' % len(eligible)
+if skipped:
+    message += ' %s quedaron fuera (vencimiento manual o pagadas).' % skipped
+action = {
+    'type': 'ir.actions.client',
+    'tag': 'display_notification',
+    'params': {
+        'type': 'success' if eligible else 'warning',
+        'message': message,
+        'sticky': False,
+        'next': {'type': 'ir.actions.client', 'tag': 'soft_reload'},
+    },
+}
+        </field>
+    </record>
 </odoo>
