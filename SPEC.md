@@ -266,10 +266,10 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ⬜ Importación de asientos contables (account.move)
 - ✅ Fix RIF None en export XLSX cuando company.vat está vacío — HECHO (`vat_return.py` y `vat_book_export_wizard.py` ya usan `vat or ''`)
 - ⬜ DevOps.1b: ruff-format (opcional, reformatearía 30+ archivos)
-- ⬜ DevOps.2: GitHub Actions CI (lint + test jobs) — **HECHO (B3-e2e-ci)**
+- ✅ DevOps.2: GitHub Actions CI (lint + test jobs) — HECHO (B3-e2e-ci)
 
-### Deuda Técnica (nueva)
-- Helper `_get_or_create_tax_group()` duplicado en 7 test files (`test_account_tax`, `test_export_regression`, `test_physical_invoice_wizard`, `test_retention_service`, `test_vat_book_generate`, `test_vat_book_line_sync`, `test_vat_return`). Extraer a `tests/common.py` para evitar duplicación.
+### Deuda Técnica
+- ✅ Helper `_get_or_create_tax_group()` duplicado en 7 test files — extraído a `tests/common.py` (mixin `TaxGroupMixin`)
 
 ## Estado del Portafolio
 
