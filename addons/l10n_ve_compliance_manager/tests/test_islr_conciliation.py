@@ -897,6 +897,14 @@ class TestIslrConciliacionLifecycle(IslrWizardTestMixin, TransactionCase):
         self.assertEqual(report.report_type, 'qweb-pdf')
 
     def test_validar_genera_pdf_adjunto(self):
+        """Render real con wkhtmltopdf (exit 1 controlado, PDF igualmente generado).
+
+        Odoo en modo test hace fallback a HTML salvo ``force_report_rendering``.
+        Además ``report.url`` debe apuntar a un puerto cerrado: si apunta a la
+        propia instancia Odoo (web.base.url por defecto), wkhtmltopdf intenta
+        descargar los assets y se cuelga al coincidir con el mismo proceso.
+        """
+        self.env['ir.config_parameter'].sudo().set_param('report.url', 'http://127.0.0.1:1')
         record = self._import_fixture()
         record.with_context(force_report_rendering=True).action_validate()
         self.assertEqual(record.state, 'validated')
