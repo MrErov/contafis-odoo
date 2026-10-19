@@ -1,0 +1,50 @@
+name: Reporte de bug
+description: Reportar un comportamiento incorrecto del módulo
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por tomarte el tiempo de reportar. Completá la información para poder reproducirlo.
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción
+      description: ¿Qué ocurrió y qué esperabas que ocurriera?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para reproducirlo
+      placeholder: |
+        1. Ir a Facturación → ...
+        2. Hacer clic en ...
+        3. Error ...
+    validations:
+      required: true
+  - type: input
+    id: module-version
+    attributes:
+      label: Versión del módulo
+      placeholder: 19.0.1.2.0
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Entorno
+      options:
+        - Docker Compose local
+        - Servidor propio
+        - Otro
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs o traceback
+      render: shell
+    validations:
+      required: false

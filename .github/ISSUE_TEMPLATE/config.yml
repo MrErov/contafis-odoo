@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Guía de usuario
+    url: https://github.com/MrErov/contafis-odoo-19.0v/tree/main/docs/guia-usuario
+    about: Manual de uso paso a paso con capturas
+  - name: Documentación de capacidades
+    url: https://github.com/MrErov/contafis-odoo-19.0v/tree/main/docs/capacidades
+    about: Especificaciones funcionales por capacidad

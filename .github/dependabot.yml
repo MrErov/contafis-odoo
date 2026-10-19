@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
+    groups:
+      playwright:
+        patterns:
+          - "@playwright/*"
+          - "playwright*"
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
