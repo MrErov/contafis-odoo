@@ -22,8 +22,6 @@ El modelo `l10n.retention` guarda las retenciones (creadas automáticamente desd
 - **Factura:** account.move asociada (opcional)
 - **Estado:** Borrador / Publicado / Cancelado
 
-<!-- VERIFICAR: no existe action ni menú dedicado para l10n.retention en views/ -->
-
 ## Ver retenciones registradas
 
 Las retenciones se consultan en la pestaña *Retenciones* de la factura de proveedor. El módulo no tiene un menú propio de retenciones.
