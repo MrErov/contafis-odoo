@@ -278,7 +278,7 @@ reportes): ver [`docs/guia-usuario/guia-usuario.pdf`](docs/guia-usuario/).
 - ☑ Spec 004: tablas de ISLR 2026 (estimadas jun/sep/dic y retenciones
   mensuales, sin gate SPE)
 - □ Spec 11: conciliación ISLR (montos y tasas de retención)
-- □ E2E Fases 5-6: planilla IVA y multi-company
+- ☑ E2E Fases 5-6: planilla IVA y multi-company
 - □ Portal del cliente (solo lectura)
 - □ Integración opcional con WhatsApp Business API
 

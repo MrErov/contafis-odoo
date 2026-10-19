@@ -155,14 +155,14 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Ruff limpio en E/W/F/I/UP sobre todo el repo
 - ✅ 107 tests pasando
 
-### Fase H: E2E con Playwright (COMPLETADA — 5/7 sub-fases; 5-6 diferidos)
+### Fase H: E2E con Playwright (COMPLETADA — 7/7 sub-fases)
 - ✅ Fase 0: Menú wizard + vista heredada
 - ✅ Fase 1: Setup Playwright (package.json, playwright.config.js)
 - ✅ Fase 2: Smoke test (login + navbar + console limpia) — 3 tests
 - ✅ Fase 3: Wizard factura física (abrir, validar RIF, submit) — 3 tests
 - ✅ Fase 4: Regenerar libro (botón + click sin error) — 1 test
-- ⬜ Fase 5: Planilla IVA + líneas del libro E2E (futuro)
-- ⬜ Fase 6: Multi-company E2E (futuro)
+- ✅ Fase 5: Planilla IVA + líneas del libro E2E — 1 test (crear desde libro, calcular, exportar XLSX)
+- ✅ Fase 6: Multi-company E2E — 1 test (aislamiento de clientes/obligaciones al cambiar de compañía; reglas `ir.rule` globales por compañía + 6 tests backend)
 - ✅ Fase 7: CI integration (GitHub Actions) — job e2e-tests en .github/workflows/ci.yml
 
 ### Fixes descubiertos por E2E
@@ -172,9 +172,9 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - Tests wizard: menús en español + waitForSelector navbar (commit e57748a)
 
 ### Estado actual
-- 7/7 tests E2E pasando
-- 121/121 tests backend pasando
-- Total: 128 tests
+- 9/9 tests E2E pasando
+- 255/255 tests backend pasando
+- Total: 264 tests
 - CI: 3/3 jobs verdes (lint + backend-tests + e2e-tests)
 
 ### UX-1: Rediseño vistas vat.return (COMPLETADA)
@@ -258,7 +258,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Hardening 004.1 — Minor 1: recalcular `due_date` al cambiar el tipo o el cliente salvo en obligaciones pagadas — HECHO (decisión: recalc si no está pagada; incluye la acción manual "Recalcular vencimientos" en el formulario y como acción masiva de la lista, respetando `due_date_override`)
 - ⬜ Spec 11: Conciliación ISLR
 - ✅ Precargar tablas ISLR (est_islr/ret_islr) del calendario SENIAT 2026 — HECHO (spec 004)
-- ⬜ Fase H: E2E con Playwright — 5/7 sub-fases completadas (0-4 + 7 CI); Fases 5-6 diferidas
+- ✅ Fase H: E2E con Playwright — 7/7 sub-fases completadas (0-7); Fases 5-6 cerradas junto con las reglas de aislamiento multi-compañía
 - ⬜ Tests de integración con fixtures de cartelera y conciliación fiscal — `Control_Cartelera_Fiscal_Prueba.xlsx` y `CONCILIACION_FINANCIERA_Y_FISCAL_DEMO_2026.xlsx` están en `.gitignore` (solo `Libro_COMPRAS_VENTAS_Ficticio.xlsx` está versionado); versionarlos si se escriben los tests
 - ✅ post_init_hook: cerrado como descartado — no-op defensivo por diseño (`source` nace con `default='manual'`, nunca hay NULLs); hacerlo efectivo requeriría esquema nullable y sobrescribiría datos legítimos. Limitación documentada en el docstring
 - ✅ Migrar `_sql_constraints` a `models.Constraint` — HECHO (último: `vat_return.py` → `_unique_return`)
@@ -277,7 +277,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
-- ✅ 249 tests backend + 7 tests E2E = 256 tests pasando
+- ✅ 255 tests backend + 9 tests E2E = 264 tests pasando
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`
