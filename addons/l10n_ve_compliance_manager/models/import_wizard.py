@@ -23,6 +23,7 @@ class ImportWizard(models.TransientModel):
         ('vat_book_purchase', 'Libro de Compras (IVA)'),
         ('vat_book_sale', 'Libro de Ventas (IVA)'),
         ('vat_book_both', 'Libro de Compras y Ventas (IVA)'),
+        ('islr_conciliation', 'Conciliación ISLR'),
     ]
 
     import_type = fields.Selection(
@@ -94,6 +95,24 @@ class ImportWizard(models.TransientModel):
         readonly=True,
         help='Hoja del Excel detectada automáticamente (COMPRAS/VENTAS)',
     )
+
+    # Campos para importación de Conciliación ISLR
+    conciliacion_client_id = fields.Many2one(
+        'l10n.ve.compliance.client', string='Cliente Detectado', readonly=True
+    )
+    conciliacion_fiscal_year = fields.Integer(
+        string='Año Fiscal Detectado', readonly=True
+    )
+    conciliacion_existing_id = fields.Many2one(
+        'l10n.ve.islr.reconciliation', string='Registro Existente',
+        readonly=True,
+        help='Conciliación ya registrada para el cliente y año detectados',
+    )
+    conciliacion_data = fields.Json(string='Datos de Conciliación', readonly=True)
+    conciliacion_summary = fields.Char(
+        string='Resumen de Conciliación', readonly=True
+    )
+    replace_confirmed = fields.Boolean(string='Confirmar Reemplazo')
 
     # Datos para plantillas por tipo de importación
     @api.model
@@ -648,6 +667,9 @@ class ImportWizard(models.TransientModel):
         if self.import_type in ('vat_book_purchase', 'vat_book_sale', 'vat_book_both'):
             return self._load_vat_book_file()
 
+        if self.import_type == 'islr_conciliation':
+            return self._load_islr_conciliation_file()
+
         import base64
 
         import openpyxl
@@ -714,6 +736,91 @@ class ImportWizard(models.TransientModel):
             'view_mode': 'form',
             'target': 'new',
         }
+
+    # --- ISLR Conciliation loader ---
+
+    def _load_islr_conciliation_file(self):
+        """Carga la conciliación ISLR: parsea, resuelve cliente y va a preview."""
+        self.ensure_one()
+        import base64
+
+        from odoo.addons.l10n_ve_compliance_manager.models.islr_conciliation import (
+            IslrParseError,
+            parse_conciliacion_xlsx,
+        )
+
+        try:
+            data = parse_conciliacion_xlsx(base64.b64decode(self.file))
+        except IslrParseError as error:
+            raise UserError(str(error)) from error
+
+        client = self._find_islr_client_by_rif(data['rif'])
+        existing = self.env['l10n.ve.islr.reconciliation'].search([
+            ('client_id', '=', client.id),
+            ('company_id', '=', client.company_id.id),
+            ('fiscal_year', '=', data['fiscal_year']),
+        ], limit=1)
+
+        utilidad_fiscal = data['totals'].get('utilidad_neta', {}).get('fiscal', 0.0)
+        summary = _(
+            '%(rubros)s rubros detectados · Utilidad neta fiscal: Bs %(utilidad)s'
+        ) % {
+            'rubros': len(data['rubros']),
+            'utilidad': f'{utilidad_fiscal:,.2f}',
+        }
+
+        self.write({
+            'conciliacion_client_id': client.id,
+            'conciliacion_fiscal_year': data['fiscal_year'],
+            'conciliacion_existing_id': existing.id,
+            'conciliacion_data': data,
+            'conciliacion_summary': summary,
+            'replace_confirmed': False,
+            'state': 'preview',
+        })
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'l10n.ve.import.wizard',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+        }
+
+    def _find_islr_client_by_rif(self, rif):
+        """Busca el cliente por RIF sanitizado; aborta si falta o es ambiguo."""
+        from odoo.addons.l10n_ve_compliance_manager.models.islr_conciliation import (
+            sanitize_rif,
+        )
+
+        sanitized = sanitize_rif(rif)
+        candidates = self.env['l10n.ve.compliance.client'].search([]).filtered(
+            lambda client: sanitize_rif(client.rif) == sanitized
+        )
+        if not candidates:
+            raise UserError(_(
+                'El RIF %s no está registrado en Odoo. '
+                'Cree el cliente antes de importar la conciliación.'
+            ) % rif)
+
+        if len(candidates.mapped('company_id')) > 1:
+            in_company = candidates.filtered(
+                lambda client: client.company_id == self.company_id
+            )
+            if len(in_company) != 1:
+                names = ', '.join(candidates.mapped('company_id.name'))
+                raise UserError(_(
+                    'El RIF %s existe en varias compañías (%s). '
+                    'Seleccione la compañía correcta en el asistente e intente de nuevo.'
+                ) % (rif, names))
+            candidates = in_company
+
+        if len(candidates) != 1:
+            raise UserError(_(
+                'Se encontraron varios clientes con el RIF %s. '
+                'Depure los datos antes de importar la conciliación.'
+            ) % rif)
+
+        return candidates
 
     # --- VAT Book parser methods ---
 
