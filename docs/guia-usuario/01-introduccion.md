@@ -40,8 +40,6 @@ El ciclo mensual sigue estos pasos:
 └─────────────────────────────────────────┘
 ```
 
-<!-- VERIFICAR: diagrama ASCII puede perder box-drawing si el font no lo soporta -->
-
 ## Requisitos previos
 
 - Odoo 19 Community instalado y funcionando
