@@ -424,6 +424,15 @@ class ImportWizard(models.TransientModel):
         if doc_end_col is None:
             doc_end_col = len(headers)
 
+        # El bloque de documentos tiene siempre len(expected_codes) columnas.
+        # En los archivos reales la fila de encabezados puede estar desplazada
+        # una columna a la izquierda de los datos (ej. "Total" cae sobre la
+        # columna de C36 y el último código se pierde). Ampliar hasta el
+        # mínimo esperado.
+        min_end = doc_start_col + len(expected_codes)
+        if doc_end_col < min_end:
+            doc_end_col = min(min_end, len(headers))
+
         # Asignar códigos por posición: C01, C02, ... en orden
         # Mapeo POSICIONAL C01..C36 (no por nombre).
         # Justificación: hay nombres duplicados entre document_type

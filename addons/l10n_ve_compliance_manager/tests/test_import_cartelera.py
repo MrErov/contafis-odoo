@@ -1,5 +1,6 @@
 import base64
 from io import BytesIO
+from pathlib import Path
 
 import openpyxl
 from odoo.exceptions import UserError
@@ -89,6 +90,49 @@ class TestImportCartelera(TransactionCase):
             'cartelera_month': month,
         })
 
+    def _fixture_path(self, filename):
+        return Path(__file__).parent / 'fixtures' / filename
+
+    def _compute_expected_rows_from_fixture(self, sheet_name='enero'):
+        """Computa los esperados del parser leyendo el fixture real.
+
+        Geometría de Control_Cartelera_Fiscal_Prueba.xlsx (verificada):
+        - Datos desde la fila 4; RIF en C, nombre en D.
+        - 36 estatus C01..C36 posicionales en E..AN (columnas 5..40).
+        - La fila de encabezados (3) está desplazada una columna a la
+          izquierda de los datos (ej. "Total" cae sobre la columna de C36).
+        """
+        wb = openpyxl.load_workbook(
+            self._fixture_path('Control_Cartelera_Fiscal_Prueba.xlsx'),
+            data_only=True,
+        )
+        ws = wb[sheet_name]
+        expected_rows = []
+        row_idx = 4
+        while True:
+            rif = ws.cell(row=row_idx, column=3).value
+            name = ws.cell(row=row_idx, column=4).value
+            if not rif and not name:
+                break
+            statuses = {}
+            for i in range(36):
+                code = f'C{i + 1:02d}'
+                value = ws.cell(row=row_idx, column=5 + i).value
+                if isinstance(value, bool):
+                    statuses[code] = value
+                elif value is None:
+                    statuses[code] = False
+                else:
+                    statuses[code] = str(value).strip().lower() in (
+                        '1', 'true', 'verdadero', 'si', 'sí', 'yes', 'x')
+            expected_rows.append({
+                'rif': str(rif).strip().upper(),
+                'name': str(name).strip(),
+                'statuses': statuses,
+            })
+            row_idx += 1
+        return expected_rows
+
     def test_parse_cartelera_sheet(self):
         """Generar wizard, cargar Excel, verificar que se crean 2 import.line."""
         # Preparar datos: 2 empresas
@@ -136,6 +180,35 @@ class TestImportCartelera(TransactionCase):
         self.assertEqual(line2.data['rif'], 'V-12345678-5')
         self.assertEqual(line2.data['name'], 'Empresa Test 2')
         self.assertTrue(all(line2.data['statuses'].values()))
+
+    def test_parse_real_cartelera_fixture_enero(self):
+        """Parser contra el fixture real de cartelera (hoja enero).
+
+        Verifica estructura detectada, 10 empresas y los 36 estatus
+        exactos de cada una, incluido C36 (regresión: en el archivo real
+        el label "Total" cae sobre la columna de C36).
+        """
+        expected_rows = self._compute_expected_rows_from_fixture('enero')
+        self.assertEqual(len(expected_rows), 10)
+
+        wizard = self._create_wizard(year=2026, month='1')
+        wizard.write({
+            'file': base64.b64encode(
+                self._fixture_path('Control_Cartelera_Fiscal_Prueba.xlsx').read_bytes()
+            ),
+            'filename': 'Control_Cartelera_Fiscal_Prueba.xlsx',
+        })
+        wizard.action_load_file()
+
+        self.assertEqual(len(wizard.line_ids), len(expected_rows))
+        self.assertFalse(wizard.cartelera_unmatched_headers)
+
+        lines = wizard.line_ids.sorted('row_index')
+        for line, expected in zip(lines, expected_rows):
+            self.assertEqual(line.data['rif'], expected['rif'])
+            self.assertEqual(line.data['name'], expected['name'])
+            self.assertEqual(len(line.data['statuses']), 36)
+            self.assertEqual(line.data['statuses'], expected['statuses'])
 
     def test_import_cartelera_creates_client(self):
         """La primera empresa no existe → se crea res.partner + compliance.client."""

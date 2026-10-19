@@ -10,7 +10,7 @@ repos:
       - id: check-yaml
       - id: check-xml
       - id: check-added-large-files
-        exclude: ^docs/guia-usuario/guia-usuario\.pdf$
+        exclude: ^(docs/guia-usuario/guia-usuario\.pdf|addons/l10n_ve_compliance_manager/tests/fixtures/Control_Cartelera_Fiscal_Prueba\.xlsx)$
         args: ["--maxkb=500"]
       - id: mixed-line-ending
         args: ["--fix=lf"]

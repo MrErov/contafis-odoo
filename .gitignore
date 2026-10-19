@@ -43,7 +43,6 @@ docs/memory.md
 *.pid
 # Fixtures sin test asociado (agregar cuando se implementen)
 addons/l10n_ve_compliance_manager/tests/fixtures/CONCILIACION_FINANCIERA_Y_FISCAL_DEMO_2026.xlsx
-addons/l10n_ve_compliance_manager/tests/fixtures/Control_Cartelera_Fiscal_Prueba.xlsx
 
 # === Playwright E2E ===
 node_modules/
