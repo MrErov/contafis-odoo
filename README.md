@@ -212,7 +212,7 @@ contafis-odoo-19.0v/
 │   │   ├── 08-evidencias.md
 │   │   ├── 09-libro-compras-ventas.md
 │   │   └── 10-importacion-libro-compras-ventas.md
-│   └── guia-usuario/          # fuente + PDF de la guía (62 págs.)
+│   └── guia-usuario/          # fuente + PDF de la guía (68 págs.)
 ├── specs/                     # SDD: 001-backend-odoo-first … 005-bandeja-acciones-kpis
 ├── tests/
 │   └── e2e/                   # Playwright (smoke, wizard, regenerar libro)
@@ -270,7 +270,7 @@ reportes): ver [`docs/guia-usuario/guia-usuario.pdf`](docs/guia-usuario/).
 - ☑ Spec 001: backend Odoo-first (wizard factura física, sync
   `account.move` → libro de compras/ventas)
 - ☑ Fase H: E2E Playwright + CI en GitHub Actions (lint + backend + e2e)
-- ☑ Fase I: guía de usuario (portada, TOC, capturas reales, PDF 62 págs.)
+- ☑ Fase I: guía de usuario (portada, TOC, capturas reales, PDF 68 págs.)
 - ☑ Spec 002: integración MCP de Odoo para OpenCode Desktop
 - ☑ Spec 003: calendario SENIAT 2026 (tablas a.1/a.2, feriados,
   corrimiento a día hábil, generación automática, seguridad por contador,

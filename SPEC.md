@@ -196,8 +196,8 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
   sobre la app Cumplimiento VE, no sobre la app por defecto)
 - ✅ `seedDemoData()` idempotente: 3 clientes, documentos, 108 snapshots de
   cartelera, 2 planillas, 4 alertas (desactivable con `SKIP_SEED=1`)
-- ✅ PDF final `docs/guia-usuario/guia-usuario.pdf` (62 páginas, ~5.4 MB)
-- ✅ Rediseño 2026-10: portada con logo y versión, numeración de capítulos (01-13),
+- ✅ PDF final `docs/guia-usuario/guia-usuario.pdf` (68 páginas, ~5.4 MB)
+- ✅ Rediseño 2026-10: portada con logo y versión, numeración de capítulos (01-13 + anexos 14-15),
   tipografía de impresión y capítulo "Bandeja y análisis" (spec 005)
 - ✅ Fix bug de producción: `mail.template` mezclaba sintaxis QWeb e
   inline_template y rompía `-u` al existir ≥1 alerta (Odoo 19 valida los
@@ -285,5 +285,5 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`
 - ✅ Integración MCP Odoo (FGRibreau/mcp-odoo v0.2.1) para operar `contea` desde OpenCode Desktop
-- ✅ Guía de usuario en `docs/guia-usuario/`: portada, TOC, capturas reales y PDF (62 páginas)
+- ✅ Guía de usuario en `docs/guia-usuario/`: portada, TOC, capturas reales y PDF (68 páginas)
 - ⬜ Topics GitHub

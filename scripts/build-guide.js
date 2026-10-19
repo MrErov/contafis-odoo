@@ -83,20 +83,43 @@ function buildToc(html) {
   return out;
 }
 
+// Los links entre capítulos apuntan a archivos .md (útiles al navegar en
+// GitHub). En el PDF se reescriben como anclas internas del propio documento;
+// si el destino no forma parte del PDF (p. ej. README.md), el link se degrada
+// a texto plano para no dejar referencias a archivos inaccesibles.
+function resolveMdLinks(html, anchorByFile) {
+  return html.replace(
+    /<a\s+[^>]*href="(?:\.\/)?([^"#]+\.md)(?:#[^"]*)?"[^>]*>([\s\S]*?)<\/a>/gi,
+    (_m, fname, inner) => {
+      const anchor = anchorByFile.get(fname.split('/').pop());
+      return anchor ? `<a href="#${anchor}">${inner}</a>` : inner;
+    },
+  );
+}
+
 async function build() {
   const guideDir = path.join(__dirname, '..', 'docs', 'guia-usuario');
   const mdFiles = fs.readdirSync(guideDir)
-    .filter(f => f.match(/^\d+-.*\.md$/))
+    .filter(f => f.match(/^(\d+-.*|anexo-.*)\.md$/))
     .sort();
 
   const md = new MarkdownIt({ html: true, linkify: true });
   md.use(mdAnchor);
   md.use(stepDivPlugin);
 
-  let htmlContent = '';
-  for (const file of mdFiles) {
+  const rendered = mdFiles.map(file => {
     const raw = fs.readFileSync(path.join(guideDir, file), 'utf-8').replace(/^\uFEFF/, '');
-    htmlContent += md.render(raw);
+    const html = md.render(raw);
+    const h1 = html.match(/<h1[^>]*\sid="([^"]+)"/i);
+    return { file, html, anchor: h1 ? h1[1] : null };
+  });
+  const anchorByFile = new Map(
+    rendered.filter(r => r.anchor).map(r => [r.file, r.anchor]),
+  );
+
+  let htmlContent = '';
+  for (const r of rendered) {
+    htmlContent += resolveMdLinks(r.html, anchorByFile);
     htmlContent += '\n<div class="page-break"></div>\n';
   }
 
