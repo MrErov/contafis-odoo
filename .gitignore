@@ -56,3 +56,32 @@ test-results/
 
 # Build temporal de la guía de usuario
 docs/guia-usuario/_build.html
+
+# === Python / Pytest (cobertura y entornos virtuales) ===
+*.bak
+*.orig
+*.tmp
+htmlcov/
+coverage.xml
+.coverage
+.tox/
+.hypothesis/
+venv/
+env/
+
+# === Docker / Odoo (artefactos locales de base de datos) ===
+*.db
+*.sqlite3
+postgresql/
+_build/
+
+# === Node.js (logs de depuración) ===
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# === Sistema / IDE (complementarios) ===
+*~
+.history/
+*.code-workspace
