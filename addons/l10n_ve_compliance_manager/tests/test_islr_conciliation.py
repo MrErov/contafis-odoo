@@ -1,3 +1,4 @@
+import base64
 from io import BytesIO
 from pathlib import Path
 
@@ -8,11 +9,23 @@ from odoo.addons.l10n_ve_compliance_manager.models.islr_conciliation import (
     sanitize_rif,
     to_amount,
 )
+from odoo.exceptions import UserError
 from odoo.tests import TransactionCase, tagged
 from openpyxl import Workbook
 from psycopg2 import IntegrityError
 
 FIXTURE_PATH = Path(__file__).parent / 'fixtures' / 'CONCILIACION_FINANCIERA_Y_FISCAL_DEMO_2026.xlsx'
+
+
+def build_synthetic_workbook(cells, sheet_name='Conciliación Fiscal'):
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = sheet_name
+    for coord, value in cells.items():
+        sheet[coord] = value
+    buffer = BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
 
 
 @tagged('post_install', '-at_install')
@@ -212,14 +225,7 @@ class TestParseConciliacionSynthetic(TransactionCase):
     """Casos límite del parser con archivos sintéticos (Spec 011 — T2)."""
 
     def _build_bytes(self, cells, sheet_name='Conciliación Fiscal'):
-        workbook = Workbook()
-        sheet = workbook.active
-        sheet.title = sheet_name
-        for coord, value in cells.items():
-            sheet[coord] = value
-        buffer = BytesIO()
-        workbook.save(buffer)
-        return buffer.getvalue()
+        return build_synthetic_workbook(cells, sheet_name)
 
     def _base_cells(self):
         return {
@@ -454,3 +460,150 @@ class TestIslrConciliacionTotals(TransactionCase):
         self.assertNotIn('tope del 10%', html)
         self.assertNotIn('identidad', html)
         self.assertNotIn('Rubro sin mapeo', html)
+
+
+@tagged('post_install', '-at_install')
+class TestIslrConciliacionWizardLoad(TransactionCase):
+    """Wizard de importación: carga de conciliación ISLR (Spec 011 — T4)."""
+
+    def setUp(self):
+        super().setUp()
+        self.env['l10n.ve.islr.reconciliation.line'].search([]).unlink()
+        self.env['l10n.ve.islr.reconciliation'].search([]).unlink()
+        self.env['l10n.ve.import.wizard'].search([]).unlink()
+        self.partner = self.env['res.partner'].create({
+            'name': 'Cliente Wizard ISLR',
+            'vat': 'J-99999999-0',
+        })
+        self.client = self.env['l10n.ve.compliance.client'].create({
+            'name': 'Cliente Wizard ISLR',
+            'partner_id': self.partner.id,
+            'company_id': self.env.company.id,
+            'rif': 'J-99999999-0',
+        })
+
+    def _create_wizard(self, **vals):
+        base = {
+            'import_type': 'islr_conciliation',
+            'company_id': self.env.company.id,
+        }
+        base.update(vals)
+        return self.env['l10n.ve.import.wizard'].create(base)
+
+    def _load_bytes(self, wizard, content, filename='conciliacion.xlsx'):
+        wizard.write({
+            'file': base64.b64encode(content),
+            'filename': filename,
+        })
+        return wizard.action_load_file()
+
+    def test_tipo_disponible(self):
+        selection = self.env['l10n.ve.import.wizard']._fields['import_type'].selection
+        values = [value for value, _label in selection]
+        self.assertIn('islr_conciliation', values)
+
+    def test_carga_fixture_detecta_cliente_anio_y_rubros(self):
+        wizard = self._create_wizard()
+        self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
+        self.assertEqual(wizard.state, 'preview')
+        self.assertEqual(wizard.conciliacion_client_id, self.client)
+        self.assertEqual(wizard.conciliacion_fiscal_year, 2025)
+        self.assertFalse(wizard.conciliacion_existing_id)
+        self.assertFalse(wizard.replace_confirmed)
+        self.assertIn('10 rubros', wizard.conciliacion_summary)
+        self.assertEqual(len(wizard.conciliacion_data['rubros']), 10)
+
+    def test_resumen_incluye_utilidad_fiscal(self):
+        wizard = self._create_wizard()
+        self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
+        self.assertIn('211,916.32', wizard.conciliacion_summary)
+
+    def test_rif_normalizado_sin_guiones(self):
+        self.client.rif = 'j.99999999-0'
+        wizard = self._create_wizard()
+        self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
+        self.assertEqual(wizard.conciliacion_client_id, self.client)
+
+    def test_existente_detectado_requiere_confirmacion(self):
+        existing = self.env['l10n.ve.islr.reconciliation'].create({
+            'client_id': self.client.id,
+            'company_id': self.env.company.id,
+            'fiscal_year': 2025,
+        })
+        wizard = self._create_wizard()
+        self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
+        self.assertEqual(wizard.conciliacion_existing_id, existing)
+        self.assertEqual(wizard.state, 'preview')
+        self.assertFalse(wizard.replace_confirmed)
+
+    def test_rif_inexistente_aborta(self):
+        cells = {
+            'B5': 'Empresa Demo',
+            'B6': 'Período Fiscal del 01/01/2025 al 31/12/2025',
+            'E11': 'RIF J-00000000-1',
+            'B13': 'INGRESOS',
+            'B14': 'Ventas',
+            'C14': 10.0,
+            'D14': 10.0,
+        }
+        wizard = self._create_wizard()
+        with self.assertRaises(UserError) as caught:
+            self._load_bytes(wizard, build_synthetic_workbook(cells))
+        self.assertIn('no está registrado', str(caught.exception))
+        self.assertEqual(wizard.state, 'draft')
+        self.assertFalse(wizard.conciliacion_client_id)
+
+    def _create_second_company_client(self):
+        company_b = self.env['res.company'].create({'name': 'Compañía ISLR B'})
+        self.env.user.write({'company_ids': [(4, company_b.id)]})
+        partner_b = self.env['res.partner'].create({
+            'name': 'Cliente Wizard ISLR B',
+            'vat': 'J-99999999-0',
+        })
+        client_b = self.env['l10n.ve.compliance.client'].create({
+            'name': 'Cliente Wizard ISLR B',
+            'partner_id': partner_b.id,
+            'company_id': company_b.id,
+            'rif': 'J-99999999-0',
+        })
+        return company_b, client_b
+
+    def test_compania_ambigua_se_resuelve_con_la_del_wizard(self):
+        company_b, client_b = self._create_second_company_client()
+        wizard = self._create_wizard()
+        self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
+        self.assertEqual(wizard.conciliacion_client_id, self.client)
+        wizard.write({'company_id': company_b.id})
+        self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
+        self.assertEqual(wizard.conciliacion_client_id, client_b)
+
+    def test_compania_ambigua_sin_match_aborta(self):
+        _company_b, _client_b = self._create_second_company_client()
+        company_c = self.env['res.company'].create({'name': 'Compañía ISLR C'})
+        self.env.user.write({'company_ids': [(4, company_c.id)]})
+        wizard = self._create_wizard(company_id=company_c.id)
+        with self.assertRaises(UserError) as caught:
+            self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
+        self.assertIn('varias compañías', str(caught.exception))
+        self.assertEqual(wizard.state, 'draft')
+        self.assertFalse(wizard.conciliacion_client_id)
+
+    def test_hoja_ausente_user_error(self):
+        wizard = self._create_wizard()
+        with self.assertRaises(UserError) as caught:
+            self._load_bytes(
+                wizard,
+                build_synthetic_workbook({'B5': 'X'}, sheet_name='Otra Hoja'),
+            )
+        self.assertIn('Conciliación Fiscal', str(caught.exception))
+
+    def test_archivo_corrupto_user_error(self):
+        wizard = self._create_wizard()
+        with self.assertRaises(UserError) as caught:
+            self._load_bytes(wizard, b'no es un xlsx')
+        self.assertIn('No se pudo abrir', str(caught.exception))
+
+    def test_falta_archivo_user_error(self):
+        wizard = self._create_wizard()
+        with self.assertRaises(UserError):
+            wizard.action_load_file()
