@@ -2,6 +2,7 @@ import base64
 from io import BytesIO
 from pathlib import Path
 
+from odoo import fields
 from odoo.addons.l10n_ve_compliance_manager.models.islr_conciliation import (
     IslrParseError,
     normalize_label,
@@ -732,4 +733,133 @@ class TestIslrConciliacionWizardImport(IslrWizardTestMixin, TransactionCase):
         )
         self.assertEqual(
             record.import_meta['rif_mismatch']['client'], 'J999999990'
+        )
+
+
+@tagged('post_install', '-at_install')
+class TestIslrConciliacionViews(IslrWizardTestMixin, TransactionCase):
+    """Vistas, acción, menú y trazabilidad visible (Spec 011 — T6)."""
+
+    def setUp(self):
+        super().setUp()
+        self._islr_wizard_setup()
+        self.Reconciliacion = self.env['l10n.ve.islr.reconciliation']
+
+    def test_accion_principal(self):
+        action = self.env.ref(
+            'l10n_ve_compliance_manager.action_l10n_ve_islr_conciliation'
+        )
+        self.assertEqual(action.res_model, 'l10n.ve.islr.reconciliation')
+        self.assertIn('list', action.view_mode)
+        self.assertIn('form', action.view_mode)
+
+    def test_accion_wizard_incluye_tipo_islr(self):
+        action = self.env.ref(
+            'l10n_ve_compliance_manager.action_l10n_ve_islr_conciliation_import'
+        )
+        self.assertEqual(action.res_model, 'l10n.ve.import.wizard')
+        self.assertEqual(action.target, 'new')
+        self.assertIn('islr_conciliation', action.context)
+
+    def test_menu_conciliacion_islr(self):
+        menu = self.env.ref(
+            'l10n_ve_compliance_manager.menu_l10n_ve_islr_conciliation'
+        )
+        root = self.env.ref(
+            'l10n_ve_compliance_manager.menu_l10n_ve_compliance_root'
+        )
+        self.assertEqual(menu.parent_id, root)
+        self.assertEqual(menu.sequence, 42)
+        self.assertEqual(
+            menu.action.id,
+            self.env.ref(
+                'l10n_ve_compliance_manager.action_l10n_ve_islr_conciliation'
+            ).id,
+        )
+        self.assertEqual(menu.action.res_model, 'l10n.ve.islr.reconciliation')
+
+    def test_load_menus_incluye_conciliacion(self):
+        menus = self.env['ir.ui.menu'].with_user(
+            self.env.ref('base.user_admin')
+        ).load_menus(False)
+
+        def _find(nodes):
+            for node in nodes.values():
+                if not isinstance(node, dict):
+                    continue
+                if node.get('name') == 'Conciliación ISLR':
+                    return node
+                for child in node.get('children') or []:
+                    if isinstance(child, dict):
+                        if child.get('name') == 'Conciliación ISLR':
+                            return child
+                    else:
+                        child_node = nodes.get(child)
+                        if (
+                            child_node
+                            and child_node.get('name') == 'Conciliación ISLR'
+                        ):
+                            return child_node
+            return None
+
+        self.assertTrue(_find(menus))
+
+    def test_vistas_list_y_form_cargan(self):
+        result = self.Reconciliacion.get_views([(False, 'list'), (False, 'form')])
+        self.assertIn('list', result['views'])
+        self.assertIn('form', result['views'])
+        form_arch = result['views']['form']['arch']
+        for field_name in (
+            'warning_html',
+            'line_ids',
+            'total_ingresos_accounting',
+            'total_ingresos_fiscal',
+            'monto_a_pagar_calculado',
+            'source_file',
+            'imported_by',
+            'imported_at',
+        ):
+            self.assertIn(field_name, form_arch)
+        list_arch = result['views']['list']['arch']
+        for field_name in (
+            'client_id',
+            'fiscal_year',
+            'state',
+            'utilidad_neta_fiscal',
+        ):
+            self.assertIn(field_name, list_arch)
+
+    def test_vista_busqueda_carga(self):
+        result = self.Reconciliacion.get_views([(False, 'search')])
+        arch = result['views']['search']['arch']
+        self.assertIn('fiscal_year', arch)
+        self.assertIn('group_by', arch)
+
+    def test_wizard_form_incluye_seccion_islr(self):
+        result = self.env['l10n.ve.import.wizard'].get_views([(False, 'form')])
+        arch = result['views']['form']['arch']
+        for field_name in (
+            'conciliacion_client_id',
+            'conciliacion_fiscal_year',
+            'conciliacion_existing_id',
+            'replace_confirmed',
+        ):
+            self.assertIn(field_name, arch)
+
+    def test_campos_trazabilidad_calculados(self):
+        record = self.Reconciliacion.create({
+            'client_id': self.client.id,
+            'company_id': self.env.company.id,
+            'fiscal_year': 2025,
+            'import_meta': {
+                'source_file': 'conciliacion-demo.xlsx',
+                'imported_by': 'admin',
+                'imported_at': '2026-10-19T20:00:00',
+            },
+        })
+        self.assertEqual(record.source_file, 'conciliacion-demo.xlsx')
+        self.assertEqual(record.imported_by, 'admin')
+        self.assertEqual(
+            record.imported_at,
+            fields.Datetime.to_datetime('2026-10-19 20:00:00'),
         )

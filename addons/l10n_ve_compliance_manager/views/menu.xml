@@ -34,6 +34,13 @@
               action="action_l10n_ve_alert"
               sequence="40"/>
 
+    <menuitem id="menu_l10n_ve_islr_conciliation"
+              name="Conciliación ISLR"
+              parent="menu_l10n_ve_compliance_root"
+              action="action_l10n_ve_islr_conciliation"
+              sequence="42"
+              groups="account.group_account_manager,l10n_ve_compliance_accountant"/>
+
     <menuitem id="menu_l10n_ve_physical_invoice"
               name="Factura Física Rápida"
               parent="menu_l10n_ve_compliance_root"

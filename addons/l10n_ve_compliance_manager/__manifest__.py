@@ -51,6 +51,7 @@ Incluye:
         'views/bank_holiday_views.xml',
         'views/account_move_views.xml',
         'views/physical_invoice_wizard_views.xml',
+        'views/islr_conciliation_views.xml',
         'views/menu.xml',
         'views/obligation_analysis_views.xml',
         'views/import_views.xml',
