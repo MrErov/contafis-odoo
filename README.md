@@ -212,8 +212,8 @@ contafis-odoo-19.0v/
 │   │   ├── 08-evidencias.md
 │   │   ├── 09-libro-compras-ventas.md
 │   │   └── 10-importacion-libro-compras-ventas.md
-│   └── guia-usuario/          # fuente + PDF de la guía (58 págs.)
-├── specs/                     # SDD: 001-backend-odoo-first … 004-tablas-islr
+│   └── guia-usuario/          # fuente + PDF de la guía (62 págs.)
+├── specs/                     # SDD: 001-backend-odoo-first … 005-bandeja-acciones-kpis
 ├── tests/
 │   └── e2e/                   # Playwright (smoke, wizard, regenerar libro)
 └── addons/
@@ -270,13 +270,15 @@ reportes): ver [`docs/guia-usuario/guia-usuario.pdf`](docs/guia-usuario/).
 - ☑ Spec 001: backend Odoo-first (wizard factura física, sync
   `account.move` → libro de compras/ventas)
 - ☑ Fase H: E2E Playwright + CI en GitHub Actions (lint + backend + e2e)
-- ☑ Fase I: guía de usuario (portada, TOC, capturas reales, PDF 58 págs.)
+- ☑ Fase I: guía de usuario (portada, TOC, capturas reales, PDF 62 págs.)
 - ☑ Spec 002: integración MCP de Odoo para OpenCode Desktop
 - ☑ Spec 003: calendario SENIAT 2026 (tablas a.1/a.2, feriados,
   corrimiento a día hábil, generación automática, seguridad por contador,
   bandeja de vencimientos y wizard de copia)
 - ☑ Spec 004: tablas de ISLR 2026 (estimadas jun/sep/dic y retenciones
   mensuales, sin gate SPE)
+- ☑ Spec 005: bandeja de vencimientos accionable (marcar pagadas/reabrir,
+  registrar pago, alerta manual, KPIs con graph + pivot)
 - □ Spec 11: conciliación ISLR (montos y tasas de retención)
 - ☑ E2E Fases 5-6: planilla IVA y multi-company
 - □ Portal del cliente (solo lectura)

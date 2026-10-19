@@ -173,8 +173,8 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 ### Estado actual
 - 9/9 tests E2E pasando
-- 255/255 tests backend pasando
-- Total: 264 tests
+- 258/258 tests backend pasando
+- Total: 267 tests
 - CI: 3/3 jobs verdes (lint + backend-tests + e2e-tests)
 
 ### UX-1: Rediseño vistas vat.return (COMPLETADA)
@@ -196,7 +196,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
   sobre la app Cumplimiento VE, no sobre la app por defecto)
 - ✅ `seedDemoData()` idempotente: 3 clientes, documentos, 108 snapshots de
   cartelera, 2 planillas, 4 alertas (desactivable con `SKIP_SEED=1`)
-- ✅ PDF final `docs/guia-usuario/guia-usuario.pdf` (58 páginas, ~4.7 MB)
+- ✅ PDF final `docs/guia-usuario/guia-usuario.pdf` (62 páginas, ~5.4 MB)
 - ✅ Rediseño 2026-10: portada con logo y versión, numeración de capítulos (01-13),
   tipografía de impresión y capítulo "Bandeja y análisis" (spec 005)
 - ✅ Fix bug de producción: `mail.template` mezclaba sintaxis QWeb e
@@ -280,10 +280,10 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
-- ✅ 255 tests backend + 9 tests E2E = 264 tests pasando
+- ✅ 258 tests backend + 9 tests E2E = 267 tests pasando
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`
 - ✅ Integración MCP Odoo (FGRibreau/mcp-odoo v0.2.1) para operar `contea` desde OpenCode Desktop
-- ✅ Guía de usuario en `docs/guia-usuario/`: portada, TOC, capturas reales y PDF (58 páginas)
+- ✅ Guía de usuario en `docs/guia-usuario/`: portada, TOC, capturas reales y PDF (62 páginas)
 - ⬜ Topics GitHub
