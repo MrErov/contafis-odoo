@@ -54,6 +54,10 @@
                         <button name="action_revert_draft" string="Volver a Borrador"
                                 type="object"
                                 invisible="state != 'validated'"/>
+                        <button name="%(action_report_islr_conciliation)d"
+                                string="Imprimir"
+                                type="action"
+                                invisible="state != 'validated'"/>
                         <button name="%(action_l10n_ve_islr_conciliation_import)d"
                                 string="Importar desde Excel"
                                 type="action" class="btn-secondary"

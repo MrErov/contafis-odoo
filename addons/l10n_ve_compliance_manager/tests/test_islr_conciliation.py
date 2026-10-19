@@ -2,7 +2,8 @@ import base64
 from io import BytesIO
 from pathlib import Path
 
-from odoo import fields
+from lxml import etree
+from odoo import Command, fields
 from odoo.addons.l10n_ve_compliance_manager.models.islr_conciliation import (
     IslrParseError,
     normalize_label,
@@ -862,4 +863,127 @@ class TestIslrConciliacionViews(IslrWizardTestMixin, TransactionCase):
         self.assertEqual(
             record.imported_at,
             fields.Datetime.to_datetime('2026-10-19 20:00:00'),
+        )
+
+
+@tagged('post_install', '-at_install')
+class TestIslrConciliacionLifecycle(IslrWizardTestMixin, TransactionCase):
+    """Validar/revertir: PDF adjunto, edición y botón Imprimir (Spec 011 — T7)."""
+
+    REPORT_REF = 'l10n_ve_compliance_manager.action_report_islr_conciliation'
+
+    def setUp(self):
+        super().setUp()
+        self._islr_wizard_setup()
+        self.Reconciliacion = self.env['l10n.ve.islr.reconciliation']
+
+    def _import_fixture(self):
+        wizard = self._create_wizard()
+        self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
+        wizard.action_import()
+        return self.Reconciliacion.search([
+            ('client_id', '=', self.client.id),
+            ('fiscal_year', '=', 2025),
+        ])
+
+    def _validate(self):
+        record = self._import_fixture()
+        record.action_validate()
+        return record
+
+    def test_accion_reporte_registrada(self):
+        report = self.env.ref(self.REPORT_REF)
+        self.assertEqual(report.model, 'l10n.ve.islr.reconciliation')
+        self.assertEqual(report.report_type, 'qweb-pdf')
+
+    def test_validar_genera_pdf_adjunto(self):
+        record = self._import_fixture()
+        record.with_context(force_report_rendering=True).action_validate()
+        self.assertEqual(record.state, 'validated')
+        attachment = record.pdf_attachment_id
+        self.assertTrue(attachment)
+        self.assertTrue(attachment.name.endswith('.pdf'))
+        self.assertEqual(attachment.mimetype, 'application/pdf')
+        self.assertEqual(attachment.res_model, record._name)
+        self.assertEqual(attachment.res_id, record.id)
+        content = base64.b64decode(attachment.datas)
+        self.assertTrue(content.startswith(b'%PDF'), content[:60])
+
+    def test_pdf_incluye_datos_clave_y_advertencias(self):
+        record = self._validate()
+        self.assertAlmostEqual(record.sueldos_directivos_fiscal, 60747.65, delta=0.01)
+        report = self.env['ir.actions.report']
+        html, _report_type = report._render_qweb_html(self.REPORT_REF, record.ids)
+        if isinstance(html, bytes):
+            html = html.decode()
+        normalized = html.replace('.', '').replace(',', '')
+        for expected in (
+            'Cliente Wizard ISLR',
+            'J-99999999-0',
+            '2025',
+            'Sueldos y Salarios del Personal Directivo y Gerencial',
+            'Art. 5 LISLR',
+            'Tope',
+            'Monto a Pagar',
+            'Advertencias',
+            'Descuadre',
+        ):
+            self.assertIn(expected, html)
+        for value in (
+            record.utilidad_neta_fiscal,
+            record.total_ingresos_fiscal * 0.10,
+            record.sueldos_directivos_fiscal,
+        ):
+            self.assertIn(f'{value:.2f}'.replace('.', ''), normalized)
+
+    def test_revertir_a_borrador_elimina_pdf(self):
+        record = self._validate()
+        attachment = record.pdf_attachment_id
+        record.action_revert_draft()
+        self.assertEqual(record.state, 'draft')
+        self.assertFalse(record.pdf_attachment_id)
+        self.assertFalse(attachment.exists())
+
+    def test_editar_cabecera_validada_revierte_y_borra_pdf(self):
+        record = self._validate()
+        attachment = record.pdf_attachment_id
+        record.write({'monto_a_pagar_xlsx': 1.0})
+        self.assertEqual(record.state, 'draft')
+        self.assertFalse(record.pdf_attachment_id)
+        self.assertFalse(attachment.exists())
+
+    def test_editar_linea_validada_revierte_y_borra_pdf(self):
+        record = self._validate()
+        attachment = record.pdf_attachment_id
+        record.line_ids[0].write({'amount_fiscal': 5.0})
+        self.assertEqual(record.state, 'draft')
+        self.assertFalse(record.pdf_attachment_id)
+        self.assertFalse(attachment.exists())
+
+    def test_agregar_linea_validada_revierte(self):
+        record = self._validate()
+        attachment = record.pdf_attachment_id
+        record.write({'line_ids': [Command.create({
+            'sequence': 99,
+            'category': 'deduction',
+            'code': 'otros_gastos',
+            'label': 'Línea nueva',
+            'amount_accounting': 1.0,
+            'amount_fiscal': 1.0,
+        })]})
+        self.assertEqual(record.state, 'draft')
+        self.assertEqual(len(record.line_ids), 11)
+        self.assertFalse(attachment.exists())
+
+    def test_boton_imprimir_solo_en_validadas(self):
+        result = self.Reconciliacion.get_views([(False, 'form')])
+        arch = etree.fromstring(result['views']['form']['arch'])
+        buttons = arch.xpath("//button[@string='Imprimir']")
+        self.assertEqual(len(buttons), 1)
+        button = buttons[0]
+        self.assertEqual(button.get('type'), 'action')
+        self.assertEqual(button.get('invisible'), "state != 'validated'")
+        self.assertEqual(
+            int(button.get('name')),
+            self.env.ref(self.REPORT_REF).id,
         )

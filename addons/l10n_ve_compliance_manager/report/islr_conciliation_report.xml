@@ -1,0 +1,141 @@
+<odoo>
+    <record id="action_report_islr_conciliation" model="ir.actions.report">
+        <field name="name">Conciliación ISLR</field>
+        <field name="model">l10n.ve.islr.reconciliation</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">l10n_ve_compliance_manager.report_islr_conciliation_document</field>
+        <field name="report_file">l10n_ve_compliance_manager.report_islr_conciliation_document</field>
+        <field name="print_report_name">'Conciliación ISLR - %s' % (object.name)</field>
+    </record>
+
+    <template id="report_islr_conciliation_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="company" t-value="doc.company_id"/>
+                <t t-set="tope_sueldos_directivos" t-value="doc.total_ingresos_fiscal * 0.10"/>
+                <t t-set="money_options" t-value="{'widget': 'monetary', 'display_currency': company.currency_id}"/>
+                <div class="page">
+                    <style>
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+                        table th, table td { border: 1px solid #ddd; padding: 4px 6px; }
+                        table th { background-color: #f2f2f2; }
+                        .text-end { text-align: right; }
+                        h3 { margin-bottom: 4px; }
+                    </style>
+                    <h1>Conciliación ISLR</h1>
+                    <table>
+                        <tr>
+                            <td><b>Cliente:</b></td>
+                            <td t-esc="doc.client_id.name"/>
+                            <td><b>RIF:</b></td>
+                            <td t-esc="doc.client_id.rif"/>
+                        </tr>
+                        <tr>
+                            <td><b>Año Fiscal:</b></td>
+                            <td t-esc="doc.fiscal_year"/>
+                            <td><b>Compañía:</b></td>
+                            <td t-esc="company.name"/>
+                        </tr>
+                        <tr>
+                            <td><b>Referencia:</b></td>
+                            <td t-esc="doc.name"/>
+                            <td><b>Generado el:</b></td>
+                            <td t-esc="time.strftime('%d/%m/%Y')"/>
+                        </tr>
+                    </table>
+
+                    <div class="alert alert-warning" t-if="doc.warning_html"
+                         style="border: 1px solid #faebcc; background-color: #fcf8e3; padding: 8px;">
+                        <h3 style="margin-top: 0;">Advertencias</h3>
+                        <t t-out="doc.warning_html"/>
+                    </div>
+
+                    <h3>Rubros</h3>
+                    <table>
+                        <tr>
+                            <th>Rubro</th>
+                            <th class="text-end">Datos Contabilidad</th>
+                            <th class="text-end">Datos Fiscales</th>
+                            <th class="text-end">No Deducible</th>
+                            <th>Preceptos Legales</th>
+                        </tr>
+                        <t t-foreach="doc.line_ids" t-as="line">
+                            <tr>
+                                <td t-esc="line.label"/>
+                                <td class="text-end" t-out="line.amount_accounting" t-options="money_options"/>
+                                <td class="text-end" t-out="line.amount_fiscal" t-options="money_options"/>
+                                <td class="text-end" t-out="line.amount_not_deductible" t-options="money_options"/>
+                                <td t-esc="line.legal_basis"/>
+                            </tr>
+                        </t>
+                    </table>
+
+                    <h3>Resumen de Totales</h3>
+                    <table>
+                        <tr>
+                            <th>Concepto</th>
+                            <th class="text-end">Contabilidad</th>
+                            <th class="text-end">Fiscal</th>
+                        </tr>
+                        <tr>
+                            <td>Total Ingresos</td>
+                            <td class="text-end" t-out="doc.total_ingresos_accounting" t-options="money_options"/>
+                            <td class="text-end" t-out="doc.total_ingresos_fiscal" t-options="money_options"/>
+                        </tr>
+                        <tr>
+                            <td>Mercancía Disponible</td>
+                            <td class="text-end" t-out="doc.mercancia_disponible_accounting" t-options="money_options"/>
+                            <td class="text-end" t-out="doc.mercancia_disponible_fiscal" t-options="money_options"/>
+                        </tr>
+                        <tr>
+                            <td>Total Costo de Venta</td>
+                            <td class="text-end" t-out="doc.total_costo_venta_accounting" t-options="money_options"/>
+                            <td class="text-end" t-out="doc.total_costo_venta_fiscal" t-options="money_options"/>
+                        </tr>
+                        <tr>
+                            <td>Renta Bruta</td>
+                            <td class="text-end" t-out="doc.renta_bruta_accounting" t-options="money_options"/>
+                            <td class="text-end" t-out="doc.renta_bruta_fiscal" t-options="money_options"/>
+                        </tr>
+                        <tr>
+                            <td>Total Deducciones</td>
+                            <td class="text-end" t-out="doc.total_deducciones_accounting" t-options="money_options"/>
+                            <td class="text-end" t-out="doc.total_deducciones_fiscal" t-options="money_options"/>
+                        </tr>
+                        <tr>
+                            <td><b>Utilidad Neta</b></td>
+                            <td class="text-end">
+                                <b t-out="doc.utilidad_neta_accounting" t-options="money_options"/>
+                            </td>
+                            <td class="text-end">
+                                <b t-out="doc.utilidad_neta_fiscal" t-options="money_options"/>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <h3>Monto a Pagar</h3>
+                    <table>
+                        <tr>
+                            <td>Sueldos y Salarios del Personal Directivo y Gerencial (fiscal)</td>
+                            <td class="text-end" t-out="doc.sueldos_directivos_fiscal" t-options="money_options"/>
+                        </tr>
+                        <tr>
+                            <td>Tope 10% de los Ingresos Brutos (fiscal)</td>
+                            <td class="text-end" t-out="tope_sueldos_directivos" t-options="money_options"/>
+                        </tr>
+                        <tr>
+                            <td><b>Monto a Pagar Calculado (34% Art. 52 LISLR)</b></td>
+                            <td class="text-end">
+                                <b t-out="doc.monto_a_pagar_calculado" t-options="money_options"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Monto a Pagar Informado en Excel (F45)</td>
+                            <td class="text-end" t-out="doc.monto_a_pagar_xlsx" t-options="money_options"/>
+                        </tr>
+                    </table>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>
