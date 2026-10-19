@@ -254,15 +254,24 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Menú "Análisis" con vistas graph + pivot de obligaciones y alertas
 - ✅ 245 tests pasando; tareas T1–T5 `[x]` en `specs/005-bandeja-acciones-kpis/tasks.md`
 
+### Fase 011: Conciliación ISLR (spec 011) — COMPLETADA
+- ✅ Modelos `l10n.ve.islr.reconciliation` y `l10n.ve.islr.reconciliation.line`: 10 rubros (ingresos/costos/deducciones), identidad contab = fiscal + no deducible (tolerancia 0.01) y constraint único cliente + compañía + año
+- ✅ Wizard "Importar desde Excel": parser de la hoja CONCILIACIÓN (case-insensitive, bloque B12:F46), RIF sanitizado con desambiguación por compañía, duplicados y celdas de texto reportadas, totales y monto a pagar recalculados del lado del sistema
+- ✅ Advertencias de descuadre (contabilidad/fiscal) y regla del 10% sobre sueldos directivos; monto calculado = 34% × utilidad neta fiscal (vs. monto informado en el Excel)
+- ✅ Ciclo de vida: Validar (borrador → validada + PDF adjunto "Conciliación ISLR - {name}.pdf"), Revertir a borrador (desvincula el PDF) y escritura bloqueada en validadas
+- ✅ Reporte QWeb `islr_conciliation_report` con sección de advertencias y columna "Preceptos Legales"; botón Imprimir visible solo en validadas
+- ✅ Demo data: cliente "Comercial La Conciliación, C.A." (RIF J-30512345-6) + conciliación 2025 réplica del fixture real, con advertencias intencionales (totales y monto no cuadran por diseño)
+- ✅ 330 tests backend + 9 E2E = 339 tests pasando; tareas T1–T8 `[x]` en `specs/011-conciliacion-islr/tasks.md`
+
 ### Trabajo Futuro
 - ✅ Hardening 004.1 — Minor 1: recalcular `due_date` al cambiar el tipo o el cliente salvo en obligaciones pagadas — HECHO (decisión: recalc si no está pagada; incluye la acción manual "Recalcular vencimientos" en el formulario y como acción masiva de la lista, respetando `due_date_override`)
-- ⬜ Spec 11: Conciliación ISLR
+- ✅ Spec 11: Conciliación ISLR — HECHO (Fase 011: modelos + wizard + ciclo de vida + reporte QWeb + demo)
 - ✅ Precargar tablas ISLR (est_islr/ret_islr) del calendario SENIAT 2026 — HECHO (spec 004)
 - ✅ Fase H: E2E con Playwright — 7/7 sub-fases completadas (0-7); Fases 5-6 cerradas junto con las reglas de aislamiento multi-compañía
 - ✅ Fixture real de cartelera versionado (`Control_Cartelera_Fiscal_Prueba.xlsx`) + test de parseo de la hoja enero (`test_parse_real_cartelera_fixture_enero`); la detección amplía el bloque de documentos al mínimo esperado porque en el archivo real el label "Total" cae sobre la columna de C36
 - ✅ Cartelera: detección de columna RIF en meses ≠ enero — HECHO (sniffing del patrón RIF V/E/J/P/G sobre las filas de datos; feb/dic reales parsean 10 empresas × 36 estatus; tests unitarios sintéticos + `test_parse_real_cartelera_fixture_febrero`)
 - ⬜ Cartelera: la hoja diciembre del fixture real trae 43 columnas y un header extra "Registro y elemento publicitario" (queda en `unmatched_headers`, benigno) — decidir si ignorarlo silenciosamente
-- ⬜ Test de integración con fixture de conciliación fiscal — `CONCILIACION_FINANCIERA_Y_FISCAL_DEMO_2026.xlsx` sigue sin versionar (spec 11 pendiente)
+- ✅ Test de integración con fixture de conciliación fiscal — HECHO: `CONCILIACION_FINANCIERA_Y_FISCAL_DEMO_2026.xlsx` versionado en `tests/fixtures/` (spec 011)
 - ✅ post_init_hook: cerrado como descartado — no-op defensivo por diseño (`source` nace con `default='manual'`, nunca hay NULLs); hacerlo efectivo requeriría esquema nullable y sobrescribiría datos legítimos. Limitación documentada en el docstring
 - ✅ Migrar `_sql_constraints` a `models.Constraint` — HECHO (último: `vat_return.py` → `_unique_return`)
 - ✅ Warning cartelera_status_current_ids no searchable — HECHO (`search='_search_cartelera_status_current_ids'`)
@@ -280,7 +289,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
-- ✅ 258 tests backend + 9 tests E2E = 267 tests pasando
+- ✅ 330 tests backend + 9 tests E2E = 339 tests pasando
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`
