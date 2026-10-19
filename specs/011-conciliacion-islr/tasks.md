@@ -5,7 +5,7 @@ Plan: `specs/011-conciliacion-islr/plan.md`. Spec: `specs/011-conciliacion-islr/
 - [x] **T1. Crear modelos `l10n.ve.islr.reconciliation` y `.line`** (campos base, categorías, trazabilidad, estado, campos xlsx de referencia, PDF adjunto; import en `models/__init__.py`; ACL y reglas de compañía/cartera). RF-6, RF-13.
   Hecho cuando: `-u l10n_ve_compliance_manager` pasa sin errores, los modelos existen en shell, los 258 tests existentes siguen verdes.
 
-- [ ] **T2. Versionar fixture y crear parser puro** (`sanitize_rif`, `normalize_label`, `to_amount`, `RUBRO_MAP`, `parse_conciliacion_xlsx` en `models/islr_conciliation.py`; quitar fixture de `.gitignore` línea 45 y del `exclude` de `.pre-commit-config.yaml`). RF-1, RF-3, RF-4, RF-5, RF-15, RF-16.
+- [x] **T2. Versionar fixture y crear parser puro** (`sanitize_rif`, `normalize_label`, `to_amount`, `RUBRO_MAP`, `parse_conciliacion_xlsx` en `models/islr_conciliation.py`; quitar fixture de `.gitignore` línea 45 y del `exclude` de `.pre-commit-config.yaml`). RF-1, RF-3, RF-4, RF-5, RF-15, RF-16.
   Hecho cuando: test del parser sobre el fixture real pasa (hoja case-insensitive, año 2025, RIF `J-99999999-0`, rubros del bloque principal, F45=47863.69, bloques laterales ignorados) y `git status` muestra el fixture listo para commit.
 
 - [ ] **T3. Computes de totales + advertencias + `warning_html`** (RF-7 a RF-11, RF-17). RF-7, RF-8, RF-9, RF-10, RF-11, RF-17.

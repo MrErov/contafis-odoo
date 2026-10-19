@@ -1,5 +1,18 @@
+from io import BytesIO
+from pathlib import Path
+
+from odoo.addons.l10n_ve_compliance_manager.models.islr_conciliation import (
+    IslrParseError,
+    normalize_label,
+    parse_conciliacion_xlsx,
+    sanitize_rif,
+    to_amount,
+)
 from odoo.tests import TransactionCase, tagged
+from openpyxl import Workbook
 from psycopg2 import IntegrityError
+
+FIXTURE_PATH = Path(__file__).parent / 'fixtures' / 'CONCILIACION_FINANCIERA_Y_FISCAL_DEMO_2026.xlsx'
 
 
 @tagged('post_install', '-at_install')
@@ -90,3 +103,184 @@ class TestIslrConciliacionModel(TransactionCase):
         self._create_reconciliation()
         with self.assertRaises(IntegrityError):
             self._create_reconciliation()
+
+
+@tagged('post_install', '-at_install')
+class TestIslrParserHelpers(TransactionCase):
+    """Funciones puras del parser (Spec 011 — T2)."""
+
+    def test_sanitize_rif(self):
+        self.assertEqual(sanitize_rif('J-99999999-0'), 'J999999990')
+        self.assertEqual(sanitize_rif('j.99999999.0'), 'J999999990')
+        self.assertEqual(sanitize_rif(' V-12 345 678-1 '), 'V123456781')
+        self.assertEqual(sanitize_rif(''), '')
+        self.assertEqual(sanitize_rif(None), '')
+
+    def test_normalize_label(self):
+        self.assertEqual(normalize_label('  Período   FISCAL '), 'periodo fiscal')
+        self.assertEqual(normalize_label('Gastos de Depreciación'), 'gastos de depreciacion')
+        self.assertEqual(normalize_label('otros gastos '), 'otros gastos')
+        self.assertEqual(normalize_label(None), '')
+
+    def test_to_amount(self):
+        self.assertEqual(to_amount(123.45), (123.45, False))
+        self.assertEqual(to_amount(None), (0.0, False))
+        self.assertEqual(to_amount(''), (0.0, False))
+        self.assertEqual(to_amount('1234.5'), (1234.5, False))
+        self.assertEqual(to_amount('SIN ACTIVIDAD'), (0.0, True))
+
+
+@tagged('post_install', '-at_install')
+class TestParseConciliacionFixture(TransactionCase):
+    """Parser sobre el fixture real (Spec 011 — T2, RF-1/3/4/5/15/16)."""
+
+    def setUp(self):
+        super().setUp()
+        self.data = parse_conciliacion_xlsx(FIXTURE_PATH.read_bytes())
+
+    def test_periodo_y_rif(self):
+        self.assertEqual(self.data['fiscal_year'], 2025)
+        self.assertEqual(self.data['rif'], 'J-99999999-0')
+        self.assertEqual(sanitize_rif(self.data['rif']), 'J999999990')
+
+    def test_rubros_del_bloque_principal(self):
+        labels = [r['label'] for r in self.data['rubros']]
+        self.assertEqual(len(labels), 10)
+        self.assertEqual(labels[0], 'Ventas')
+        self.assertEqual(labels[-1], 'gastos de transporte')
+        self.assertEqual(self.data['rubros'][0]['sequence'], 14)
+
+    def test_ventas(self):
+        ventas = self.data['rubros'][0]
+        self.assertEqual(ventas['code'], 'ventas')
+        self.assertEqual(ventas['category'], 'income')
+        self.assertEqual(ventas['accounting'], 1991278.8)
+        self.assertEqual(ventas['fiscal'], 1991278.8)
+        self.assertEqual(ventas['not_deductible'], 0)
+        self.assertEqual(ventas['legal_basis'], 'Art. 5 LISLR')
+
+    def test_costos(self):
+        by_label = {r['label']: r for r in self.data['rubros']}
+        inv_ini = by_label['Inventario Inicial de Mercancía']
+        self.assertEqual(inv_ini['code'], 'inventario_inicial')
+        self.assertEqual(inv_ini['category'], 'cost')
+        self.assertEqual(inv_ini['accounting'], 193704.75)
+        self.assertEqual(by_label['Compras de Mercancías']['accounting'], 1788584.01)
+        self.assertEqual(by_label['Inventario Final']['fiscal'], 598486.5)
+
+    def test_deducciones(self):
+        by_code = {r['code']: r for r in self.data['rubros']}
+        self.assertEqual(by_code['sueldos_directivos']['fiscal'], 60747.65)
+        self.assertEqual(by_code['sueldos_directivos']['not_deductible'], 17082.1)
+        self.assertEqual(by_code['tributos_pagados']['accounting'], 51096.57)
+        self.assertEqual(by_code['arrendamientos']['accounting'], 0)
+        self.assertEqual(by_code['otros_gastos']['accounting'], 56053.12)
+        self.assertEqual(by_code['gastos_representacion']['accounting'], 58708.12)
+        self.assertEqual(by_code['gastos_transporte']['fiscal'], 168954.75)
+
+    def test_totales_de_referencia(self):
+        totals = self.data['totals']
+        self.assertEqual(totals['total_ingresos']['accounting'], 1991278.8)
+        self.assertEqual(totals['mercancia_disponible']['fiscal'], 1982288.76)
+        self.assertEqual(totals['total_costo_venta']['accounting'], 1383802.26)
+        self.assertEqual(totals['renta_bruta']['accounting'], 607476.54)
+        self.assertEqual(totals['total_deducciones']['accounting'], 184979.44)
+        self.assertEqual(totals['total_deducciones']['fiscal'], 395560.22)
+        self.assertEqual(totals['utilidad_neta']['accounting'], 422497.1)
+        self.assertEqual(totals['utilidad_neta']['fiscal'], 211916.32)
+
+    def test_monto_a_pagar(self):
+        self.assertEqual(self.data['monto_a_pagar_xlsx'], 47863.69)
+
+    def test_totales_no_son_rubros(self):
+        labels = ' | '.join(r['label'] for r in self.data['rubros']).upper()
+        for token in ('TOTAL', 'MERCANCIA DISPONIBLE', 'RENTA BRUTA', 'UTILIDAD NETA'):
+            self.assertNotIn(token, labels)
+
+    def test_bloques_laterales_ignorados(self):
+        labels = ' | '.join(r['label'] for r in self.data['rubros']).upper()
+        for token in ('SIN ACTIVIDAD', 'ENERO', 'DECLARACION'):
+            self.assertNotIn(token, labels)
+
+    def test_sin_textos_ni_duplicados(self):
+        self.assertEqual(self.data['text_cells'], [])
+        self.assertEqual(self.data['duplicates'], [])
+
+
+@tagged('post_install', '-at_install')
+class TestParseConciliacionSynthetic(TransactionCase):
+    """Casos límite del parser con archivos sintéticos (Spec 011 — T2)."""
+
+    def _build_bytes(self, cells, sheet_name='Conciliación Fiscal'):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = sheet_name
+        for coord, value in cells.items():
+            sheet[coord] = value
+        buffer = BytesIO()
+        workbook.save(buffer)
+        return buffer.getvalue()
+
+    def _base_cells(self):
+        return {
+            'B5': 'Empresa Demo',
+            'B6': 'Período Fiscal del 01/01/2025 al 31/12/2025',
+            'E11': 'RIF J-99999999-0',
+            'B12': 'Descripción',
+            'B13': 'INGRESOS',
+            'B14': 'Ventas',
+            'C14': 1000.0,
+            'D14': 900.0,
+            'E14': 100.0,
+        }
+
+    def test_hoja_case_insensitive(self):
+        content = self._build_bytes(self._base_cells(), sheet_name='CONCILIACIÓN FISCAL')
+        data = parse_conciliacion_xlsx(content)
+        self.assertEqual(len(data['rubros']), 1)
+
+    def test_hoja_ausente(self):
+        content = self._build_bytes(self._base_cells(), sheet_name='Otra Hoja')
+        with self.assertRaises(IslrParseError):
+            parse_conciliacion_xlsx(content)
+
+    def test_archivo_corrupto(self):
+        with self.assertRaises(IslrParseError):
+            parse_conciliacion_xlsx(b'esto no es un xlsx')
+
+    def test_anio_ausente(self):
+        cells = self._base_cells()
+        del cells['B6']
+        with self.assertRaises(IslrParseError):
+            parse_conciliacion_xlsx(self._build_bytes(cells))
+
+    def test_rif_ausente(self):
+        cells = self._base_cells()
+        del cells['E11']
+        with self.assertRaises(IslrParseError):
+            parse_conciliacion_xlsx(self._build_bytes(cells))
+
+    def test_texto_en_celda_numerica(self):
+        cells = self._base_cells()
+        cells['C14'] = 'SIN ACTIVIDAD'
+        data = parse_conciliacion_xlsx(self._build_bytes(cells))
+        self.assertEqual(data['rubros'][0]['accounting'], 0.0)
+        self.assertIn('C14', data['text_cells'])
+
+    def test_duplicados_se_suman(self):
+        cells = self._base_cells()
+        cells['B15'] = 'VENTAS '
+        cells['C15'] = 500.0
+        cells['D15'] = 100.0
+        data = parse_conciliacion_xlsx(self._build_bytes(cells))
+        self.assertEqual(len(data['rubros']), 1)
+        self.assertEqual(data['rubros'][0]['accounting'], 1500.0)
+        self.assertEqual(data['rubros'][0]['fiscal'], 1000.0)
+        self.assertTrue(data['duplicates'])
+
+    def test_rubro_desconocido(self):
+        cells = self._base_cells()
+        cells['B14'] = 'Rubro Raro'
+        data = parse_conciliacion_xlsx(self._build_bytes(cells))
+        self.assertEqual(data['rubros'][0]['code'], 'otro')
+        self.assertEqual(data['rubros'][0]['category'], 'income')
