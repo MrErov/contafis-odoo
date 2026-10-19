@@ -10,7 +10,12 @@ class ComplianceClient(models.Model):
 
     name = fields.Char(string='Nombre', required=True)
     partner_id = fields.Many2one('res.partner', string='Contacto', required=True)
-    company_id = fields.Many2one('res.company', string='Compañía', required=True)
+    company_id = fields.Many2one(
+        'res.company',
+        string='Compañía',
+        required=True,
+        default=lambda self: self.env.company,
+    )
     accountant_id = fields.Many2one('res.users', string='Contador')
     rif = fields.Char(string='RIF')
     rif_last_digit = fields.Integer(string='Último dígito RIF', compute='_compute_rif_last_digit')
