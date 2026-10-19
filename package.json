@@ -12,7 +12,7 @@
     "capture:screenshots": "node scripts/capture-screenshots.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.0",
+    "@playwright/test": "^1.64.1",
     "markdown-it": "^14.1.0",
     "markdown-it-anchor": "^9.2.0"
   }
