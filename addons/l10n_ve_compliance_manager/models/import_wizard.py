@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 from io import BytesIO
 
 from odoo import api, fields, models
@@ -391,7 +392,29 @@ class ImportWizard(models.TransientModel):
                 break
 
         if rif_col is None:
-            # Fallback por mes: enero=Rif en C(2), otros=A(0)
+            # Sniffing sobre las filas de datos: el RIF puede estar en
+            # cualquier columna (A, B, C...). En los archivos reales de
+            # feb/dic la fila-ejemplo trae un RIF ficticio en A/B y los
+            # datos reales viven en C, por lo que un fallback fijo a la
+            # columna A generaría una línea basura con el RIF de ejemplo.
+            rif_pattern = re.compile(r'^[VEJPG]-?\d{8,9}-?\d?$')
+            data_start = header_row + 1
+            col_hits = {}
+            for row in ws.iter_rows(
+                min_row=data_start, max_row=data_start + 9,
+                values_only=True,
+            ):
+                for idx, cell in enumerate(row):
+                    if cell is None or isinstance(cell, bool):
+                        continue
+                    if rif_pattern.match(str(cell).strip().upper()):
+                        col_hits[idx] = col_hits.get(idx, 0) + 1
+            if col_hits:
+                # Columna con más coincidencias; empate → la más a la izquierda
+                rif_col = max(col_hits, key=lambda idx: (col_hits[idx], -idx))
+
+        if rif_col is None:
+            # Último recurso: archivos sin ningún valor con formato RIF
             month_int = int(self.cartelera_month)
             rif_col = 2 if month_int == 1 else 0
 
@@ -490,7 +513,8 @@ class ImportWizard(models.TransientModel):
         Detecta dinámicamente:
         - Hoja según mes (enero..diciembre)
         - Fila de headers (busca fila con más coincidencias document_type.name)
-        - Columna RIF (busca header "RIF", "R.I.F.", "R.I.F")
+        - Columna RIF: header "RIF"/"R.I.F." o sniffing del patrón RIF
+          (V/E/J/P/G) sobre las filas de datos cuando no hay header
         - Columna Nombre (RIF + 1)
         - Rango docs (desde primera columna reconocida hasta antes de "Total"/"Porcentaje")
         - Mapeo header → code via document_type (normalizado)
