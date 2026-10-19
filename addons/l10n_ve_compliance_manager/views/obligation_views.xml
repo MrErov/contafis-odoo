@@ -28,6 +28,7 @@
                     <button name="action_open_payment_wizard" type="object" string="Registrar pago" class="oe_highlight" invisible="state not in ('pending', 'overdue')"/>
                     <button name="action_reopen" type="object" string="Reabrir" invisible="state != 'paid'"/>
                     <button name="action_create_manual_alert_and_refresh" type="object" string="Crear alerta" invisible="state in ('paid', 'cancelled')"/>
+                    <button name="action_recalculate_due_dates" type="object" string="Recalcular vencimiento" invisible="due_date_override or state == 'paid'"/>
                     <field name="state" widget="statusbar" statusbar_visible="pending,paid,overdue,cancelled"/>
                 </header>
                 <sheet>

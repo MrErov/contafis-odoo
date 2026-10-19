@@ -225,6 +225,20 @@ class VeObligation(models.Model):
             })
         return True
 
+    def action_recalculate_due_dates(self):
+        """Recalcula los vencimientos con el calendario vigente.
+
+        Aplica a las obligaciones pendientes o vencidas sin vencimiento
+        manual (`due_date_override`); las pagadas conservan su fecha
+        histórica.
+        """
+        eligible = self.filtered(
+            lambda obligation: not obligation.due_date_override
+            and obligation.state != 'paid'
+        )
+        self.env.add_to_compute(self._fields['due_date'], eligible)
+        return True
+
     @api.depends(
         'due_date_override',
         'period',

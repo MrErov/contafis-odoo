@@ -95,6 +95,50 @@ class TestObligationBulkActions(TransactionCase):
             'Se reabrieron 1 obligación(es). 1 quedaron fuera por su estado.',
         )
 
+    def test_recalculate_due_dates_server_action(self):
+        obligation_type = self._create_obligation_type()
+
+        normal = self._create_obligation(obligation_type, period='03/2026')
+        normal.due_date_override = False
+        normal_initial = normal.due_date
+
+        overridden = self._create_obligation(obligation_type, period='03/2026')
+        override_value = overridden.due_date
+
+        paid = self._create_obligation(obligation_type, period='03/2026')
+        paid.due_date_override = False
+        paid_value = paid.due_date
+        paid.state = 'paid'
+
+        calendar_day = self.env['l10n.ve.seniat.calendar'].search([
+            ('year', '=', 2026),
+            ('table_id.code', '=', 'a1'),
+            ('month', '=', 3),
+            ('rif_digit', '=', 4),
+        ], limit=1)
+        self.assertTrue(calendar_day, 'Debe existir el día a1 03/2026 dígito 4')
+        calendar_day.day = 10
+
+        result = self._run_server_action(
+            'l10n_ve_compliance_manager.action_server_obligation_recalculate_due_dates',
+            normal | overridden | paid,
+        )
+
+        self.assertEqual(normal.due_date, fields.Date.to_date('2026-03-10'))
+        self.assertNotEqual(normal.due_date, normal_initial)
+        self.assertEqual(overridden.due_date, override_value)
+        self.assertEqual(paid.due_date, paid_value)
+        self.assertEqual(paid.state, 'paid')
+        self.assertEqual(result['tag'], 'display_notification')
+        self.assertEqual(
+            result['params']['message'],
+            'Se recalcularon 1 vencimiento(s). 2 quedaron fuera (vencimiento manual o pagadas).',
+        )
+        self.assertEqual(
+            result['params']['next'],
+            {'type': 'ir.actions.client', 'tag': 'soft_reload'},
+        )
+
     def test_analysis_views_load(self):
         obligation_graph = self.env.ref(
             'l10n_ve_compliance_manager.view_l10n_ve_obligation_graph'
