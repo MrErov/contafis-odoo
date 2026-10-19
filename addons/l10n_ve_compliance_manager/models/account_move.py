@@ -147,7 +147,10 @@ class AccountMove(models.Model):
 
     def _post(self, soft=True):
         res = super()._post(soft)
-        for move in self.filtered(lambda m: m.move_type in ('in_invoice', 'out_invoice')):
+        for move in self.filtered(
+            lambda m: m.move_type in ('in_invoice', 'out_invoice')
+            and m.company_id.account_fiscal_country_id.code == 'VE'
+        ):
             move._generate_vat_book_line()
         return res
 

@@ -164,6 +164,52 @@ class TestVatBookLineSync(TaxGroupMixin, TransactionCase):
         self.assertEqual(vbl.book_type, 'purchase')
         self.assertEqual(vbl.operation_code, '33')
 
+    def test_post_outside_ve_does_not_generate_vat_book_line(self):
+        """Postear en una compañía fuera de Venezuela no genera líneas del libro."""
+        other_country = self.env['res.country'].search([('code', '=', 'US')], limit=1)
+        if not other_country:
+            other_country = self.env['res.country'].create({'name': 'Estados Unidos', 'code': 'US'})
+        self.company.account_fiscal_country_id = other_country
+
+        other_group = self.env['account.tax.group'].create({
+            'name': 'IVA US Test',
+            'country_id': other_country.id,
+        })
+        tax_foreign = self.env['account.tax'].create({
+            'name': 'IVA 16% (EEUU)',
+            'amount_type': 'percent',
+            'amount': 16.0,
+            'l10n_ve_tax_type': 'general',
+            'type_tax_use': 'purchase',
+            'company_id': self.company.id,
+            'tax_group_id': other_group.id,
+            'country_id': other_country.id,
+        })
+        move = self.env['account.move'].create({
+            'move_type': 'in_invoice',
+            'partner_id': self.partner.id,
+            'invoice_date': '2026-08-15',
+            'journal_id': self.journal.id,
+            'l10n_ve_control_number': 'CTRL-099',
+            'line_ids': [
+                (0, 0, {
+                    'name': 'Producto Test',
+                    'account_id': self.account_expense.id,
+                    'price_unit': 1000.0,
+                    'quantity': 1.0,
+                    'tax_ids': [(6, 0, [tax_foreign.id])],
+                }),
+            ],
+        })
+        move.action_post()
+
+        self.assertEqual(move.state, 'posted', "Factura debe estar posteada")
+        vbl = self.env['l10n.ve.vat.book.line'].search([
+            ('account_move_id', '=', move.id),
+            ('source', '=', 'odoo_invoice'),
+        ])
+        self.assertFalse(vbl, "No debe generarse vat.book.line fuera de Venezuela")
+
     def test_button_draft_deletes_odoo_lines(self):
         """Verifica que button_draft() borra solo source='odoo_invoice'."""
         move = self.env['account.move'].create({
