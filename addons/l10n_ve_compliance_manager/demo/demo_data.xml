@@ -257,6 +257,131 @@
                    eval="[(6, 0, [ref('obligation_type_demo_iva_no_spe'), ref('obligation_type_islr_estimadas'), ref('obligation_type_islr_retenciones')])]"/>
         </record>
 
+        <record id="demo_partner_islr_conciliation" model="res.partner">
+            <field name="name">Comercial La Conciliación, C.A.</field>
+            <field name="email">contacto@comercialaconciliacion.example.com</field>
+        </record>
+
+        <record id="demo_compliance_client_islr_conciliation" model="l10n.ve.compliance.client">
+            <field name="name">Comercial La Conciliación, C.A.</field>
+            <field name="partner_id" ref="demo_partner_islr_conciliation"/>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="rif">J-30512345-6</field>
+            <field name="is_spe" eval="False"/>
+            <field name="accountant_id" ref="base.user_admin"/>
+        </record>
+
+        <record id="demo_islr_reconciliation_2025" model="l10n.ve.islr.reconciliation">
+            <field name="client_id" ref="demo_compliance_client_islr_conciliation"/>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="fiscal_year">2025</field>
+            <field name="monto_a_pagar_xlsx">47863.69</field>
+            <field name="totals_xlsx" eval="{'total_ingresos': {'accounting': 1991278.8, 'fiscal': 1991278.8}, 'mercancia_disponible': {'accounting': 1982288.76, 'fiscal': 1982288.76}, 'total_costo_venta': {'accounting': 1383802.26, 'fiscal': 1383802.26}, 'renta_bruta': {'accounting': 607476.54, 'fiscal': 607476.54}, 'total_deducciones': {'accounting': 184979.44, 'fiscal': 395560.22}, 'utilidad_neta': {'accounting': 422497.1, 'fiscal': 211916.32}}"/>
+            <field name="import_meta" eval="{'duplicates': [], 'text_cells': [], 'source_file': 'CONCILIACION_FINANCIERA_Y_FISCAL_DEMO_2026.xlsx', 'imported_by': 'admin', 'imported_at': '2026-10-01T09:30:00'}"/>
+            <field name="line_ids">
+                <record id="demo_islr_line_ventas" model="l10n.ve.islr.reconciliation.line">
+                    <field name="sequence">14</field>
+                    <field name="label">Ventas</field>
+                    <field name="code">ventas</field>
+                    <field name="category">income</field>
+                    <field name="amount_accounting">1991278.8</field>
+                    <field name="amount_fiscal">1991278.8</field>
+                    <field name="amount_not_deductible">0.0</field>
+                    <field name="legal_basis">Art. 5 LISLR</field>
+                </record>
+                <record id="demo_islr_line_inventario_inicial" model="l10n.ve.islr.reconciliation.line">
+                    <field name="sequence">17</field>
+                    <field name="label">Inventario Inicial de Mercancía</field>
+                    <field name="code">inventario_inicial</field>
+                    <field name="category">cost</field>
+                    <field name="amount_accounting">193704.75</field>
+                    <field name="amount_fiscal">193704.75</field>
+                    <field name="amount_not_deductible">0.0</field>
+                    <field name="legal_basis">Art. 23 LISLR</field>
+                </record>
+                <record id="demo_islr_line_compras_mercancia" model="l10n.ve.islr.reconciliation.line">
+                    <field name="sequence">18</field>
+                    <field name="label">Compras de Mercancías</field>
+                    <field name="code">compras_mercancia</field>
+                    <field name="category">cost</field>
+                    <field name="amount_accounting">1788584.01</field>
+                    <field name="amount_fiscal">1788584.01</field>
+                    <field name="amount_not_deductible">0.0</field>
+                    <field name="legal_basis">Art. 23 LISLR</field>
+                </record>
+                <record id="demo_islr_line_inventario_final" model="l10n.ve.islr.reconciliation.line">
+                    <field name="sequence">24</field>
+                    <field name="label">Inventario Final</field>
+                    <field name="code">inventario_final</field>
+                    <field name="category">cost</field>
+                    <field name="amount_accounting">598486.5</field>
+                    <field name="amount_fiscal">598486.5</field>
+                    <field name="amount_not_deductible">0.0</field>
+                    <field name="legal_basis">Art. 23 LISLR</field>
+                </record>
+                <record id="demo_islr_line_sueldos_directivos" model="l10n.ve.islr.reconciliation.line">
+                    <field name="sequence">28</field>
+                    <field name="label">Sueldos directivos</field>
+                    <field name="code">sueldos_directivos</field>
+                    <field name="category">deduction</field>
+                    <field name="amount_accounting">77829.75</field>
+                    <field name="amount_fiscal">60747.65</field>
+                    <field name="amount_not_deductible">17082.1</field>
+                    <field name="legal_basis">solamente se puede deducir hasta un 10% de los ingresos brutos</field>
+                </record>
+                <record id="demo_islr_line_tributos_pagados" model="l10n.ve.islr.reconciliation.line">
+                    <field name="sequence">29</field>
+                    <field name="label">Tributos pagados al semat</field>
+                    <field name="code">tributos_pagados</field>
+                    <field name="category">deduction</field>
+                    <field name="amount_accounting">51096.57</field>
+                    <field name="amount_fiscal">51096.57</field>
+                    <field name="amount_not_deductible">0.0</field>
+                    <field name="legal_basis" eval="False"/>
+                </record>
+                <record id="demo_islr_line_arrendamientos" model="l10n.ve.islr.reconciliation.line">
+                    <field name="sequence">31</field>
+                    <field name="label">ARRENDAMENTOS BIENES INMUEBLES</field>
+                    <field name="code">arrendamientos</field>
+                    <field name="category">deduction</field>
+                    <field name="amount_accounting">0.0</field>
+                    <field name="amount_fiscal">0.0</field>
+                    <field name="amount_not_deductible">0.0</field>
+                    <field name="legal_basis">Art. 27 Num. 1 LISLR</field>
+                </record>
+                <record id="demo_islr_line_otros_gastos" model="l10n.ve.islr.reconciliation.line">
+                    <field name="sequence">32</field>
+                    <field name="label">otros gastos</field>
+                    <field name="code">otros_gastos</field>
+                    <field name="category">deduction</field>
+                    <field name="amount_accounting">56053.12</field>
+                    <field name="amount_fiscal">56053.12</field>
+                    <field name="amount_not_deductible">0.0</field>
+                    <field name="legal_basis" eval="False"/>
+                </record>
+                <record id="demo_islr_line_gastos_representacion" model="l10n.ve.islr.reconciliation.line">
+                    <field name="sequence">35</field>
+                    <field name="label">gastos representacion</field>
+                    <field name="code">gastos_representacion</field>
+                    <field name="category">deduction</field>
+                    <field name="amount_accounting">58708.12</field>
+                    <field name="amount_fiscal">58708.12</field>
+                    <field name="amount_not_deductible">0.0</field>
+                    <field name="legal_basis" eval="False"/>
+                </record>
+                <record id="demo_islr_line_gastos_transporte" model="l10n.ve.islr.reconciliation.line">
+                    <field name="sequence">37</field>
+                    <field name="label">gastos de transporte</field>
+                    <field name="code">gastos_transporte</field>
+                    <field name="category">deduction</field>
+                    <field name="amount_accounting">168954.75</field>
+                    <field name="amount_fiscal">168954.75</field>
+                    <field name="amount_not_deductible">0.0</field>
+                    <field name="legal_basis" eval="False"/>
+                </record>
+            </field>
+        </record>
+
         <function model="l10n.ve.obligation" name="_cron_generate_obligations"/>
 
     </data>

@@ -23,5 +23,5 @@ Plan: `specs/011-conciliacion-islr/plan.md`. Spec: `specs/011-conciliacion-islr/
 - [x] **T7. Reporte QWeb + ciclo de vida validar/revertir** (`report/islr_conciliation_report.xml` réplica del bloque principal; `action_validate` genera y adjunta PDF; editar un registro validado lo devuelve a `draft` y elimina el PDF; botón Imprimir). RF-12, RF-14.
   Hecho cuando: al validar existe el attachment PDF con páginas > 0; editar una línea validada deja `state='draft'` y sin attachment; los 258 tests previos siguen verdes.
 
-- [ ] **T8. Cerrar spec: regresión completa, SPEC.md y commit** (correr suite completa; marcar HECHO `SPEC.md` líneas 259/265; actualizar `docs/memory.md`; commit + push + CI). Todas.
+- [x] **T8. Cerrar spec: regresión completa, SPEC.md y commit** (correr suite completa; marcar HECHO `SPEC.md` líneas 259/265; actualizar `docs/memory.md`; commit + push + CI). Todas.
   Hecho cuando: Odoo reporta `0 failed, 0 error(s) of N tests` con N = 258 + nuevos ≥ 259, `SPEC.md` refleja la spec 011 como HECHA, commit convencional pusheado y CI 3/3 verde.
