@@ -18,6 +18,11 @@
 - Verificar que el addons path incluya la carpeta del módulo
 - Contactar al administrador del servidor
 
+### No veo un cliente en las listas
+
+- Verifique las empresas activas en el **selector de la barra superior**: si la empresa del cliente está desmarcada, sus datos no aparecen. Vuelva a marcarla y pulse [Confirmar] (sección 03).
+- Si es un **contador** (no administrador), el cliente debe tener su usuario en el campo **Contador**. Un cliente sin contador asignado solo lo ve el administrador.
+
 ### El botón "Regenerar Libro" no aparece
 
 - Solo aparece en facturas posteadas
@@ -30,13 +35,13 @@
 
 ### No se envían las alertas por email
 
-- Verificar que el servidor SMTP esté configurado (sección 02, punto 5)
+- Verificar que el servidor SMTP esté configurado (sección 02, punto 6)
 - Probar con el botón [Probar conexión]
 
 ## Preguntas frecuentes
 
 **¿Puedo usar el sistema con varios clientes a la vez?**
-Sí. Es el escenario principal del módulo. Ver sección 03.
+Sí. Cada cliente se registra como una **empresa** y usted decide cuáles están activas con el selector de la barra superior: puede ver varios clientes juntos o uno solo a la vez. Ver secciones 02 y 03.
 
 **¿Qué pasa si cargo una factura con datos incorrectos?**
 Se puede revertir el asiento desde Contabilidad y volver a cargar. Ver sección 04.

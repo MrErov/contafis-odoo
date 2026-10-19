@@ -14,13 +14,19 @@ Complete los campos del formulario:
 
 - **Nombre:** nombre comercial del cliente (ej. *Distribuidora Los Andes, C.A.*)
 - **Contacto:** seleccione el partner existente o cree uno nuevo
-- **Compañía:** seleccione la compañía de Odoo asociada
+- **Compañía:** empresa (compañía de Odoo) a la que pertenece el cliente. Viene preseleccionada con la **compañía activa** en la barra superior; verifique que sea la correcta
 - **Contador:** usuario responsable (opcional)
 - **RIF:** ingrese el valor con formato J-XXXXXXXX-X
 - **Tipo de actividad:** Comercio, Servicios, Industria o Mixto
 - **Municipio:** municipio de la dirección fiscal
 
 Los campos **Estado de cumplimiento**, **Puntuación de cumplimiento** y **Última alerta** se calculan automáticamente y no se editan manualmente.
+
+<div class="note">
+
+El campo **Contador** controla quién más puede ver al cliente: un contador solo accede a los clientes que tenga asignados. Si deja el campo vacío, el cliente queda visible únicamente para el administrador.
+
+</div>
 
 ## Validación del RIF
 
@@ -38,6 +44,8 @@ Ruta: *Cumplimiento VE → Clientes*
 ![Lista de clientes con columnas principales](./assets/screenshots/03-02-client-list.png)
 
 La lista muestra las columnas: **Nombre**, **RIF**, **Último dígito**, **Contacto**, **Compañía**, **Tipo de actividad**, **Municipio**, **Estado de cumplimiento** y **Puntuación**.
+
+La columna **Compañía** indica a qué empresa pertenece cada cliente. Si ve varios clientes juntos en la lista, es porque tiene varias empresas activas en el selector de la barra superior (ver más abajo).
 
 Puede filtrar por **RIF**, **Nombre**, **Contacto**, **Contador**, **Tipo de actividad** o **Municipio** usando el campo de búsqueda.
 
@@ -61,7 +69,19 @@ Para archivar: abra el cliente → menú [Acción] → [Archivar].
 
 ## Cambiar entre clientes (multi-cliente)
 
-En la barra superior, el selector de compañía permite cambiar entre las empresas configuradas. Las facturas, libros y planillas se filtran por la compañía activa. Para ver datos de un cliente específico, use los filtros de búsqueda o el kanban.
+Cada cliente vive en su propia empresa de Odoo (sección 02). El selector de la barra superior controla **qué empresas ve** en cada momento:
+
+![Selector de empresas con los clientes activos](./assets/screenshots/03-04-company-switcher.png)
+
+- **Ver varios clientes a la vez:** abra el selector, marque con un clic las casillas de las empresas que quiera ver juntas y pulse **[Confirmar]**. Las listas, el kanban y la bandeja mostrarán los datos de todas las marcadas.
+- **Trabajar con un solo cliente:** deje marcada únicamente la empresa correspondiente y pulse **[Confirmar]**.
+- **Volver a ver todo:** reabra el selector y marque de nuevo las empresas que había desmarcado.
+
+<div class="warning">
+
+Si un cliente "desaparece" de las listas, casi siempre es porque su empresa quedó **desmarcada** en el selector. Reábralo y verifique las casillas antes de buscar otra causa (ver también la FAQ, sección 13).
+
+</div>
 
 ## Siguiente paso
 

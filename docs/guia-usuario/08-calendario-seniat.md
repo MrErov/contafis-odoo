@@ -80,6 +80,8 @@ Si corrige una fecha a mano en la obligación, la obligación queda marcada como
 
 </div>
 
+Si corrige las **tablas del calendario** o carga feriados nuevos, puede recalcular las obligaciones afectadas con **[Recalcular vencimiento]** (formulario) o la acción masiva **Recalcular vencimientos**. Ver [Bandeja y análisis](./11-bandeja-acciones-analisis.md).
+
 ## Próximos vencimientos
 
 Ruta: *Cumplimiento VE → Próximos vencimientos*

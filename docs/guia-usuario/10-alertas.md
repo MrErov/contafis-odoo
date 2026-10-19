@@ -8,7 +8,7 @@ El módulo genera alertas cuando un documento de cartelera está próximo a venc
 
 ### Alertas por correo electrónico
 
-Se envían automáticamente usando templates de Odoo. Requisito: SMTP configurado (ver [Primeros pasos](./02-primeros-pasos.md), punto 5).
+Se envían automáticamente usando templates de Odoo. Requisito: SMTP configurado (ver [Primeros pasos](./02-primeros-pasos.md), punto 6).
 
 ### Alertas por WhatsApp
 
