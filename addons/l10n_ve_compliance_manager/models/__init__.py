@@ -14,6 +14,7 @@ from . import (
     import_mapping,
     import_wizard,
     institution,
+    islr_conciliation,
     obligation,
     obligation_payment_wizard,
     obligation_type,

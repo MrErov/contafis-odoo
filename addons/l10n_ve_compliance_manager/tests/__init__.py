@@ -8,6 +8,7 @@ from . import (
     test_import_cartelera,
     test_import_vat_book,
     test_import_wizard,
+    test_islr_conciliation,
     test_multi_company,
     test_obligation,
     test_obligation_actions,
