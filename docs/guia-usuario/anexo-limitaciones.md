@@ -27,6 +27,14 @@ Esta sección lista las funcionalidades que el módulo **todavía no implementa*
 - Reporte/archivo mensual de retenciones al SENIAT
 - Menú dedicado de retenciones (hoy se consultan desde la factura)
 
+## Aislamiento por empresa (multi-cliente)
+
+**Estado:** implementado para clientes, obligaciones, documentos y alertas.
+
+**Lo que funciona:** los datos de cada cliente (obligaciones, documentos, alertas) se aíslan automáticamente por su empresa; un contador solo ve los clientes que tiene asignados en el campo *Contador*.
+
+**Qué falta:** las **Planillas de IVA** y las líneas del **Libro de Compras/Ventas** aún no cuentan con esta regla de aislamiento. Mientras se completa, revise esas pantallas con una sola empresa activa si atiende clientes en paralelo.
+
 ## API de WhatsApp
 
 **Estado:** envío manual mediante `wa.me`.
@@ -50,11 +58,8 @@ Esta sección lista las funcionalidades que el módulo **todavía no implementa*
 
 ## Otros pendientes
 
-- Guard `country_id` en `_post()` para uso multi-país (actual: asume Venezuela)
-- Migración de `_sql_constraints` a `models.Constraint` en modelos antiguos (Odoo 19 deprecó el primero; hecho en los modelos nuevos de spec 003)
 - Extensión de tests para verificar permisos de admin (los tests actuales corren como root)
-- Sub-fase 5 E2E: Planilla IVA + líneas del libro
-- Sub-fase 6 E2E: Multi-company
+- Asignación automática de contador: los clientes nuevos no se asignan solos; defina el campo **Contador** (si no, solo el administrador los ve)
 
 ## Cómo reportar una limitación nueva
 

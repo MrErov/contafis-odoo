@@ -40,7 +40,7 @@ Si olvidó su contraseña, contacte al administrador del sistema. No es posible 
 
 ## 2. Configurar la empresa
 
-Ruta: *Ajustes → Usuarios y Compañías → Compañías*
+Ruta: *Ajustes → Usuarios y empresas → Empresas*
 
 Seleccione la compañía principal y complete los siguientes campos:
 
@@ -60,9 +60,9 @@ El RIF debe ser válido según el algoritmo de módulo 11. Odoo lo valida al gua
 
 ## 3. Configurar el usuario del contador
 
-Ruta: *Ajustes → Usuarios y Compañías → Usuarios → (seleccionar usuario)*
+Ruta: *Ajustes → Usuarios y empresas → Usuarios → (seleccionar usuario)*
 
-En la pestaña de preferencias, configure:
+En la pestaña **Preferencias**, configure:
 
 ![Preferencias del usuario: idioma, zona horaria y firma.](./assets/screenshots/02-03-user-prefs.png)
 
@@ -70,11 +70,42 @@ En la pestaña de preferencias, configure:
 - **Zona horaria:** (GMT-4) Caracas
 - **Firma de correo:** agregue su nombre y RIF
 
-Si maneja múltiples clientes, active la opción **Multi-compañías**
-en la pestaña de Accesos. Esto le permitirá cambiar entre empresas
-sin cerrar sesión.
+En la pestaña **Permisos de acceso** se define qué puede hacer el usuario y sobre qué empresas:
 
-## 4. Verificar que el módulo esté instalado
+![Permisos de acceso del contador: empresas asignadas y derechos](./assets/screenshots/02-07-user-access.png)
+
+- **Función:** deje **Usuario**. La opción *Administrador* da acceso a toda la configuración del sistema y no es necesaria para un contador.
+- **Empresas:** agregue una etiqueta por cada cliente que atenderá ese contador. Sin empresas asignadas, el usuario no verá datos de ningún cliente.
+- **Empresa predeterminada:** la empresa con la que abre sesión; el contador puede cambiarla luego desde la barra superior.
+- **Derechos de acceso:** marque **Contador de Cumplimiento VE** (uso completo del módulo) y, si va a trabajar con el *Libro de Compras y Ventas* y las *Planillas de IVA*, el rol **Contabilidad → Administrador**.
+
+<div class="note">
+
+Un contador solo verá los clientes que tenga asignados en el campo **Contador** del cliente (sección 03), además de las empresas marcadas aquí. El administrador ve todo.
+
+</div>
+
+## 4. Crear una empresa por cliente
+
+Ruta: *Ajustes → Usuarios y empresas → Empresas → [Nuevo]*
+
+En este sistema, **cada cliente que usted atiende se registra como una empresa (compañía) de Odoo**. Esa separación hace que las obligaciones, documentos y alertas de cada cliente queden aislados de los demás.
+
+![Lista de empresas: una por cliente](./assets/screenshots/02-06-companies-list.png)
+
+Repita el proceso por cada cliente:
+
+<div class="step">
+
+1. Pulse **[Nuevo]** y escriba la **razón social** exacta del cliente.
+2. Complete el RIF (campo **VAT**) y la dirección fiscal si los tiene.
+3. Guarde y repita para el siguiente cliente.
+
+</div>
+
+Su propia firma ya quedó como empresa en el punto 2; las empresas de los clientes son adicionales y no se mezclan entre sí. En la sección 03 aprenderá a activar una o varias empresas a la vez para trabajar con todos los clientes desde la misma pantalla.
+
+## 5. Verificar que el módulo esté instalado
 
 Ruta: *Aplicaciones → buscar "l10n_ve_compliance_manager"*
 
@@ -87,9 +118,7 @@ En la lista de resultados:
 - Si no aparece → contacte al administrador (el módulo debe estar
   en el addons path del servidor)
 
-<!-- VERIFICAR: ruta real en Odoo 19 para búsqueda de aplicaciones -->
-
-## 5. Configurar correo saliente (para alertas)
+## 6. Configurar correo saliente (para alertas)
 
 Ruta: *Ajustes → Técnico → Correo saliente*
 
@@ -110,8 +139,6 @@ sea correcta.
 Este paso es requisito para recibir las alertas por correo electrónico de la sección 10.
 
 </div>
-
-<!-- VERIFICAR: ruta real en Odoo 19 para configuración SMTP -->
 
 ## Siguiente paso
 

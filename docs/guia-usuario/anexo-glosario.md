@@ -52,6 +52,22 @@ Cierre diario de una máquina fiscal. Documento obligatorio.
 
 Captura mensual del estado de los 36 documentos legales de un cliente.
 
+## Compañía (empresa)
+
+Registro de Odoo que agrupa los datos de un negocio. En este sistema, cada cliente atendido se registra como una compañía; las empresas activas se controlan desde el selector de la barra superior.
+
+## Cliente de cumplimiento
+
+Empresa (contribuyente) cuyo RIF usted administra como contador. Vincula un contacto (partner) con su compañía, sus obligaciones fiscales, documentos y alertas.
+
+## Contador asignado
+
+Usuario responsable de un cliente. Solo ese usuario (además del administrador) ve al cliente y sus datos. Se define en el campo *Contador* del cliente.
+
+## Vencimiento manual
+
+Fecha de vencimiento corregida a mano en una obligación. Queda marcada como *override*: el sistema no la recalcula sola ni con la acción *Recalcular vencimientos*.
+
 ## Filestore
 
 Directorio donde Odoo guarda los archivos adjuntos.

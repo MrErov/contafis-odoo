@@ -49,11 +49,30 @@ Para operar sobre varias obligaciones a la vez:
 
 1. Seleccione las obligaciones con las casillas de la izquierda.
 2. Abra el menú **⚙ Acciones** de la barra superior.
-3. Elija **Marcar pagadas (hoy)** o **Reabrir seleccionadas**.
+3. Elija una acción: **Marcar pagadas (hoy)**, **Reabrir seleccionadas** o **Recalcular vencimientos** (además de *Exportar*, *Duplicar* y *Eliminar*).
 
 </div>
 
+![Menú de acciones con la selección de varias obligaciones](./assets/screenshots/11-06-acciones-masivas.png)
+
 El sistema aplica la acción solo a las obligaciones **pendientes o vencidas** y reporta cuántas quedaron fuera (por ejemplo, las que ya estaban pagadas).
+
+## Recalcular vencimientos
+
+La fecha de vencimiento se calcula sola con el **Calendario SENIAT** (sección 08). Si corrige una fecha en las tablas del calendario o carga feriados nuevos, puede recalcular las obligaciones afectadas:
+
+- **Desde el formulario de la obligación:** botón **[Recalcular vencimiento]** en la barra de botones.
+
+  ![Botón Recalcular vencimiento en la ficha de la obligación](./assets/screenshots/11-05-recalcular-vencimiento.png)
+
+- **Desde la lista (masivo):** seleccione varias obligaciones → **⚙ Acciones → [Recalcular vencimientos]**. El sistema avisa cuántos vencimientos recalculó y cuántos quedaron fuera.
+
+Dos casos quedan **fuera** del recálculo, a propósito:
+
+- Obligaciones **pagadas**: conservan la fecha con la que se pagaron.
+- Obligaciones con **vencimiento manual** (fecha corregida a mano): su fecha siempre gana.
+
+El botón del formulario no aparece en esos dos casos.
 
 ## Análisis de obligaciones y alertas
 
