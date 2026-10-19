@@ -39,6 +39,7 @@ Incluye:
         'data/ir_config_parameter_data.xml',
         'report/compliance_report.xml',
         'report/vat_return_report.xml',
+        'report/islr_conciliation_report.xml',
         'views/institution_views.xml',
         'views/obligation_type_views.xml',
         'views/document_views.xml',

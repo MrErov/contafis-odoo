@@ -1,3 +1,4 @@
+import base64
 import re
 import unicodedata
 from io import BytesIO
@@ -370,6 +371,13 @@ class IslrReconciliation(models.Model):
              '(personas jurídicas, Art. 52 LISLR).',
     )
 
+    sueldos_directivos_fiscal = fields.Float(
+        string='Sueldos Directivos (Fiscal)',
+        compute='_compute_totals', store=True, digits='Account',
+        help='Sueldos y salarios del personal directivo (fiscal); base para '
+             'comparar contra el tope del 10% de los ingresos brutos.',
+    )
+
     import_meta = fields.Json(
         string='Metadatos de Importación',
         help='Rubros duplicados y celdas con texto detectados al importar '
@@ -444,6 +452,10 @@ class IslrReconciliation(models.Model):
                 setattr(record, f'total_deducciones_{suffix}', deducciones)
                 setattr(record, f'utilidad_neta_{suffix}', utilidad)
             record.monto_a_pagar_calculado = TOTAL_TAX_RATE * record.utilidad_neta_fiscal
+            record.sueldos_directivos_fiscal = sum(
+                lines.filtered(lambda line: line.code == 'sueldos_directivos')
+                .mapped('amount_fiscal')
+            )
 
     @api.depends(
         'total_ingresos_accounting',
@@ -545,7 +557,12 @@ class IslrReconciliation(models.Model):
         return warnings
 
     def write(self, vals):
-        """Actualiza campos de auditoría al editar manualmente."""
+        """Revierte a borrador si se edita una validada y actualiza auditoría."""
+        vals = dict(vals)
+        if not self.env.context.get('skip_revert') and 'state' not in vals:
+            validated = self.filtered(lambda record: record.state == 'validated')
+            if validated:
+                validated._revert_to_draft()
         if 'modified_by' not in vals:
             vals['modified_by'] = self.env.user.id
         vals['modified_at'] = fields.Datetime.now()
@@ -561,12 +578,42 @@ class IslrReconciliation(models.Model):
             record.imported_at = fields.Datetime.to_datetime(raw) or False
 
     def action_validate(self):
-        """Marca la conciliación como validada."""
-        self.write({'state': 'validated'})
+        """Valida la conciliación, genera el PDF y lo adjunta (RF-12)."""
+        report = self.env.ref('l10n_ve_compliance_manager.action_report_islr_conciliation')
+        for record in self:
+            pdf_content, _report_type = self.env['ir.actions.report']._render_qweb_pdf(
+                report, res_ids=record.ids
+            )
+            attachment = self.env['ir.attachment'].create({
+                'name': f'Conciliación ISLR - {record.name}.pdf',
+                'type': 'binary',
+                'datas': base64.b64encode(pdf_content),
+                'mimetype': 'application/pdf',
+                'res_model': record._name,
+                'res_id': record.id,
+            })
+            previous = record.pdf_attachment_id
+            record.with_context(skip_revert=True).write({
+                'state': 'validated',
+                'pdf_attachment_id': attachment.id,
+            })
+            if previous:
+                previous.unlink()
 
     def action_revert_draft(self):
-        """Devuelve la conciliación a borrador."""
-        self.write({'state': 'draft'})
+        """Devuelve la conciliación a borrador y elimina el PDF adjunto (RF-12)."""
+        self._revert_to_draft()
+
+    def _revert_to_draft(self):
+        """Pasa a borrador y desvincula el PDF generado (RF-12)."""
+        for record in self:
+            attachment = record.pdf_attachment_id
+            record.with_context(skip_revert=True).write({
+                'state': 'draft',
+                'pdf_attachment_id': False,
+            })
+            if attachment:
+                attachment.unlink()
 
     _unique_client_year = models.Constraint(
         'UNIQUE(client_id, company_id, fiscal_year)',
@@ -652,7 +699,14 @@ class IslrReconciliationLine(models.Model):
     )
 
     def write(self, vals):
-        """Actualiza campos de auditoría al editar manualmente."""
+        """Revierte la conciliación validada asociada y actualiza auditoría."""
+        vals = dict(vals)
+        if not self.env.context.get('skip_revert'):
+            parents = self.mapped('reconciliation_id').filtered(
+                lambda record: record.state == 'validated'
+            )
+            if parents:
+                parents._revert_to_draft()
         if 'modified_by' not in vals:
             vals['modified_by'] = self.env.user.id
         vals['modified_at'] = fields.Datetime.now()
