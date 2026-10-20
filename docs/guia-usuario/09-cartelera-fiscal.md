@@ -58,7 +58,7 @@ El módulo incluye 36 tipos de documento organizados por institución:
 
 ## Vista de cartelera por cliente
 
-Ruta: *Cumplimiento VE → Snapshots Cartelera*
+Ruta: *Cumplimiento VE → Operaciones → Snapshots Cartelera*
 
 ![Estado de cartelera por cliente](./assets/screenshots/09-01-cartelera-status.png)
 
@@ -74,7 +74,7 @@ Filtros disponibles: por cliente, año, mes, tipo de documento y estado.
 
 ## Catálogo de documentos
 
-Ruta: *Cumplimiento VE → Documentos*
+Ruta: *Cumplimiento VE → Operaciones → Documentos*
 
 ![Catálogo de tipos de documento](./assets/screenshots/09-02-documento-form.png)
 

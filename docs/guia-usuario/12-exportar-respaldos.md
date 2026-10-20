@@ -23,7 +23,7 @@ Incluye: datos del cliente, obligaciones, estado de cumplimiento, puntuación y 
 
 ## Exportar el reporte de cartelera
 
-Ruta: *Cumplimiento VE → Snapshots Cartelera*
+Ruta: *Cumplimiento VE → Operaciones → Snapshots Cartelera*
 
 Muestra el estado de los 36 documentos legales del cliente en el mes seleccionado.
 

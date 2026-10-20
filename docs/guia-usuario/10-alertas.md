@@ -22,7 +22,7 @@ WhatsApp no tiene API oficial gratuita. El módulo usa el esquema `wa.me` que re
 
 ## Ver alertas pendientes
 
-Ruta: *Cumplimiento VE → Alertas*
+Ruta: *Cumplimiento VE → Operaciones → Alertas*
 
 ![Lista de alertas](./assets/screenshots/10-01-alert-list.png)
 

@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/MrErov/contafis-odoo-19.0v/actions/workflows/ci.yml"><img src="https://github.com/MrErov/contafis-odoo-19.0v/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Passing"/></a>
-  <img src="https://img.shields.io/badge/Tests-339%20passing-brightgreen?style=flat-square" alt="339 tests passing"/>
+  <img src="https://img.shields.io/badge/Tests-340%20passing-brightgreen?style=flat-square" alt="340 tests passing"/>
   <img src="https://img.shields.io/badge/Odoo-19.0-875A7B?style=flat-square&logo=odoo&logoColor=white" alt="Odoo 19.0"/>
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+"/>
   <img src="https://img.shields.io/badge/PostgreSQL-15-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL 15"/>
@@ -36,7 +36,7 @@ de cálculo, recordatorios y carpetas compartidas por un único lugar donde el
 contador ve —y resuelve— el estado de cada empresa: SENIAT, IVSS, INCES,
 BANAVIH, municipios y documentos obligatorios.
 
-| 339 | 68 | Multi-company | 3/3 |
+| 340 | 68 | Multi-company | 3/3 |
 |:---:|:---:|:---:|:---:|
 | tests automatizados | páginas de guía | clientes aislados por compañía | jobs de CI en verde |
 
@@ -134,7 +134,7 @@ docker compose run --rm web odoo -d contea \
 
 ## 🧪 Verificación
 
-**339 tests pasando:** 330 backend (`TransactionCase`) + 9 E2E (Playwright).
+**340 tests pasando:** 331 backend (`TransactionCase`) + 9 E2E (Playwright).
 
 ```bash
 # Backend

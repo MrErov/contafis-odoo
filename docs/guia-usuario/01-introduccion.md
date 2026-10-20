@@ -53,7 +53,7 @@ El ciclo mensual sigue estos pasos:
 
 - Los **campos del sistema** aparecen en negrita.
 - Los botones aparecen [entre corchetes] como [Guardar].
-- Las rutas de menú se muestran así: *Cumplimiento VE → Factura Física Rápida*.
+- Las rutas de menú se muestran así: *Cumplimiento VE → Impuestos → Factura Física Rápida*.
 - Los bloques de código o valores van en `monospace`.
 - Las imágenes muestran la pantalla real del sistema con anotaciones en rojo (cuadros y números).
 

@@ -84,7 +84,7 @@ Si corrige las **tablas del calendario** o carga feriados nuevos, puede recalcul
 
 ## Próximos vencimientos
 
-Ruta: *Cumplimiento VE → Próximos vencimientos*
+Ruta: *Cumplimiento VE → Operaciones → Próximos vencimientos*
 
 ![Bandeja de próximos vencimientos de los siguientes 30 días](./assets/screenshots/08-05-proximos-vencimientos.png)
 
