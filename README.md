@@ -36,6 +36,10 @@ de cálculo, recordatorios y carpetas compartidas por un único lugar donde el
 contador ve —y resuelve— el estado de cada empresa: SENIAT, IVSS, INCES,
 BANAVIH, municipios y documentos obligatorios.
 
+<p align="center">
+  <img src="docs/guia-usuario/assets/screenshots/readme-hero.png" alt="Panel multi-cliente de ContaFis" width="100%"/>
+</p>
+
 ## El Problema
 
 Ser contador en Venezuela significa cargar con el cumplimiento de decenas de
@@ -77,17 +81,21 @@ en que se acumula:
 
 ## 📸 Capturas
 
-| Panel multi-cliente con progreso documental | Bandeja de vencimientos accionable |
+| Bandeja de vencimientos accionable | Análisis de obligaciones |
 |:---:|:---:|
-| ![Panel multi-cliente](docs/guia-usuario/assets/screenshots/03-03-client-kanban.png?v=2) | ![Bandeja de vencimientos](docs/guia-usuario/assets/screenshots/11-01-bandeja-acciones.png?v=2) |
+| ![Bandeja de vencimientos](docs/guia-usuario/assets/screenshots/11-01-bandeja-acciones.png?v=2) | ![Análisis de obligaciones](docs/guia-usuario/assets/screenshots/11-04-analisis-pivote.png?v=2) |
 
 | Cartelera fiscal documental |
 |:---:|
 | ![Cartelera fiscal](docs/guia-usuario/assets/screenshots/09-01-cartelera-status.png?v=2) |
 
-> La guía incluye 39 capturas reales del flujo completo: alta de
-> clientes, facturas, libro, planilla IVA, retenciones, calendario, cartelera
-> y alertas.
+| Calendario SENIAT | Factura Física Rápida |
+|:---:|:---:|
+| ![Calendario SENIAT](docs/guia-usuario/assets/screenshots/08-01-calendario-tablas.png?v=2) | ![Factura Física Rápida](docs/guia-usuario/assets/screenshots/04-06-bases-iva.png?v=2) |
+
+> Estas son 6 capturas destacadas. La guía incluye 39 capturas reales del
+> flujo completo: alta de clientes, facturas, libro, planilla IVA,
+> retenciones, calendario, cartelera y alertas.
 
 ---
 
