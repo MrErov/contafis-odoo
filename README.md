@@ -36,6 +36,25 @@ de cálculo, recordatorios y carpetas compartidas por un único lugar donde el
 contador ve —y resuelve— el estado de cada empresa: SENIAT, IVSS, INCES,
 BANAVIH, municipios y documentos obligatorios.
 
+## El Problema
+
+Ser contador en Venezuela significa cargar con el cumplimiento de decenas de
+empresas al mismo tiempo. El problema no es la falta de trabajo, sino la forma
+en que se acumula:
+
+- **El caos de las hojas de cálculo:** cada cliente tiene su archivo, su
+  período y su recordatorio manual. Un cambio de último minuto puede tumbar
+  toda la consolidación.
+- **El riesgo constante de multas:** un vencimiento de IVA, ISLR, IVSS o INCES
+  que se pasa por alto se convierte en sanción, recargo e intereses, y la
+  responsabilidad recae sobre el contador.
+- **La carga de demostrar cumplimiento:** cuando un ente regulador pide la
+  cartelera, solvencias o soportes, encontrarlos entre carpetas, correos y
+  fotos sueltas consume horas y deja al cliente expuesto.
+- **El tiempo que se pierde consolidando:** reunir información de distintas
+  empresas, formatos y períodos resta horas a la asesoría, que es donde el
+  contador realmente aporta valor.
+
 | 340 | 68 | Multi-company | 3/3 |
 |:---:|:---:|:---:|:---:|
 | tests automatizados | páginas de guía | clientes aislados por compañía | jobs de CI en verde |
