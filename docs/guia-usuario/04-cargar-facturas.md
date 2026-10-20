@@ -26,7 +26,7 @@ Facturas PDF. Sin serial ni reporte Z.
 
 ## Cómo abrir el wizard
 
-Ruta: *Cumplimiento VE → Factura Física Rápida*
+Ruta: *Cumplimiento VE → Impuestos → Factura Física Rápida*
 
 ![Wizard de factura física recién abierto](./assets/screenshots/04-01-wizard-open.png)
 

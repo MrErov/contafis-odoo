@@ -2,7 +2,7 @@
 
 ## Registrar el pago de una obligación
 
-Ruta: *Cumplimiento VE → Próximos vencimientos* (o *Obligaciones*)
+Ruta: *Cumplimiento VE → Operaciones → Próximos vencimientos* (o *Operaciones → Obligaciones*)
 
 Cada fila de la bandeja incluye los botones **[Registrar pago]** y **[Crear alerta]**, para actuar sin abrir la obligación.
 

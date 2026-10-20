@@ -55,7 +55,7 @@ Ruta: *Cumplimiento VE → Clientes → [icono Kanban]*
 
 ![Vista kanban de clientes](./assets/screenshots/03-03-client-kanban.png)
 
-Cada tarjeta muestra: logo del partner, nombre del cliente, RIF, estado de cumplimiento (badge de color), puntuación, alertas pendientes y mini-cartelera del mes actual. Las tarjetas se agrupan por **Tipo de actividad** por defecto.
+Cada tarjeta muestra: logo del partner, nombre del cliente, RIF, estado de cumplimiento (color del borde y badge), puntuación y una **barra de progreso de la cartelera documental** del mes actual con los documentos al día sobre el total. Si hay documentos pendientes o alertas sin resolver, aparecen como badges junto a la barra. Las tarjetas se agrupan por **Tipo de actividad** por defecto.
 
 ## Editar un cliente
 

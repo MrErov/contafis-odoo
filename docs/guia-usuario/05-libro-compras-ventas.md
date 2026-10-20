@@ -6,7 +6,7 @@ El libro es el registro mensual de todas las operaciones. Es obligatorio para SE
 
 ## Generar el libro del mes
 
-Ruta: *Cumplimiento VE → Generar Libro IVA*
+Ruta: *Cumplimiento VE → Impuestos → Generar Libro IVA*
 
 ![Wizard de generación del libro](./assets/screenshots/05-01-book-generate.png)
 
@@ -20,7 +20,7 @@ Presione [Cargar Facturas] para detectar las facturas del período. Luego presio
 
 ## Ver las líneas del libro
 
-Ruta: *Cumplimiento VE → Libro de Compras/Ventas*
+Ruta: *Cumplimiento VE → Impuestos → Libro de Compras/Ventas*
 
 ![Lista de líneas del libro](./assets/screenshots/05-02-book-list.png)
 
@@ -40,7 +40,7 @@ Para filtrar por cliente, use el campo de búsqueda por **Proveedor/Cliente** o 
 
 ## Importar desde Excel
 
-Ruta: *Cumplimiento VE → Importar → Libro desde Excel*
+Ruta: *Cumplimiento VE → Operaciones → Importar desde Excel*
 
 ![Wizard de importación desde Excel](./assets/screenshots/05-03-book-import.png)
 
@@ -54,7 +54,7 @@ El archivo debe tener el formato de columnas exacto que espera el sistema. Desca
 
 ## Exportar el libro
 
-Ruta: *Cumplimiento VE → Libro de Compras/Ventas → [Acción] → Exportar Libro IVA a Excel*
+Ruta: *Cumplimiento VE → Impuestos → Libro de Compras/Ventas → [Acción] → Exportar Libro IVA a Excel*
 
 ![Wizard de exportación](./assets/screenshots/05-04-book-export.png)
 

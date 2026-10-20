@@ -742,6 +742,48 @@ const specs = [
     annotations: [],
   },
   {
+    name: '11-01-bandeja-acciones',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_obligation_due_soon',
+    waitFor: '.o_list_view',
+    annotations: [],
+  },
+  {
+    name: '11-02-registrar-pago',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_obligation_due_soon',
+    waitFor: '.o_list_view',
+    beforeCapture: async (page) => {
+      await page.locator('.o_list_view .o_data_row button[name="action_open_payment_wizard"]').first().click();
+      await page.waitForSelector('.o_dialog .modal-content, .o_dialog .modal-dialog', { timeout: 15000 });
+    },
+    annotations: [],
+  },
+  {
+    name: '11-03-analisis-grafico',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_obligation_analysis?view_type=graph',
+    waitFor: '.o_graph_view, .o_view_graph, .o_content',
+    beforeCapture: async (page) => {
+      await page.locator('button.o-dropdown:has-text("Medidas")').first().click();
+      await page.waitForSelector('.o-dropdown--menu .o_menu_item', { state: 'visible', timeout: 10000 });
+      await page.locator('.o-dropdown--menu .o_menu_item').filter({ hasText: /Número/ }).first().click();
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(800);
+    },
+    annotations: [],
+  },
+  {
+    name: '11-04-analisis-pivote',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_obligation_analysis?view_type=pivot',
+    waitFor: '.o_pivot_view, .o_view_pivot, .o_content',
+    beforeCapture: async (page) => {
+      await page.locator('button.o-dropdown:has-text("Medidas")').first().click();
+      await page.waitForSelector('.o-dropdown--menu .o_menu_item', { state: 'visible', timeout: 10000 });
+      await page.locator('.o-dropdown--menu .o_menu_item').filter({ hasText: /Número/ }).first().click();
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(800);
+    },
+    annotations: [],
+  },
+  {
     name: '11-05-recalcular-vencimiento',
     url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_obligation_due_soon',
     waitFor: '.o_list_view',

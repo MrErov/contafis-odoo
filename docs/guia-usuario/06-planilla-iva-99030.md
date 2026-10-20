@@ -6,7 +6,7 @@ La Planilla 99030 es la declaración mensual de IVA en Venezuela. Contiene 48 í
 
 ## Generar la planilla del mes
 
-Ruta: *Cumplimiento VE → Planilla IVA 99030 → [Nuevo]*
+Ruta: *Cumplimiento VE → Impuestos → Planilla IVA 99030 → [Nuevo]*
 
 ![Wizard de generación de planilla](./assets/screenshots/06-01-planilla-generate.png)
 
@@ -19,7 +19,7 @@ Presione [Guardar] para crear la planilla en estado Borrador.
 
 ## Ver los ítems calculados
 
-Ruta: *Cumplimiento VE → Planilla IVA 99030*
+Ruta: *Cumplimiento VE → Impuestos → Planilla IVA 99030*
 
 ![Vista de planilla con ítems](./assets/screenshots/06-02-planilla-form.png)
 
