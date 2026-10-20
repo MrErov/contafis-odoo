@@ -1595,15 +1595,18 @@ class TestDueSoonTray(TransactionCase):
         )
 
     def test_due_soon_menu(self):
-        """RF-18: el menú "Próximos vencimientos" cuelga de la raíz Cumplimiento VE."""
+        """RF-18: el menú "Próximos vencimientos" cuelga de Operaciones."""
         menu = self.env.ref(
             'l10n_ve_compliance_manager.menu_l10n_ve_compliance_due_soon'
         )
         self.assertEqual(menu.name, 'Próximos vencimientos')
         self.assertEqual(
             menu.parent_id,
-            self.env.ref('l10n_ve_compliance_manager.menu_l10n_ve_compliance_root'),
+            self.env.ref(
+                'l10n_ve_compliance_manager.menu_l10n_ve_compliance_operations'
+            ),
         )
+        self.assertEqual(menu.sequence, 20)
         self.assertEqual(
             menu.action,
             self.env.ref(

@@ -10,42 +10,52 @@
               action="action_l10n_ve_compliance_client"
               sequence="10"/>
 
-    <menuitem id="menu_l10n_ve_compliance_due_soon"
-              name="Próximos vencimientos"
+    <menuitem id="menu_l10n_ve_compliance_operations"
+              name="Operaciones"
               parent="menu_l10n_ve_compliance_root"
-              action="action_l10n_ve_obligation_due_soon"
-              sequence="15"/>
+              sequence="20"/>
 
     <menuitem id="menu_l10n_ve_compliance_obligations"
               name="Obligaciones"
-              parent="menu_l10n_ve_compliance_root"
+              parent="menu_l10n_ve_compliance_operations"
               action="action_l10n_ve_obligation"
+              sequence="10"/>
+
+    <menuitem id="menu_l10n_ve_compliance_due_soon"
+              name="Próximos vencimientos"
+              parent="menu_l10n_ve_compliance_operations"
+              action="action_l10n_ve_obligation_due_soon"
               sequence="20"/>
 
     <menuitem id="menu_l10n_ve_compliance_documents"
               name="Documentos"
-              parent="menu_l10n_ve_compliance_root"
+              parent="menu_l10n_ve_compliance_operations"
               action="action_l10n_ve_document"
               sequence="30"/>
 
     <menuitem id="menu_l10n_ve_compliance_alerts"
               name="Alertas"
-              parent="menu_l10n_ve_compliance_root"
+              parent="menu_l10n_ve_compliance_operations"
               action="action_l10n_ve_alert"
               sequence="40"/>
 
+    <menuitem id="menu_l10n_ve_compliance_taxes"
+              name="Impuestos"
+              parent="menu_l10n_ve_compliance_root"
+              sequence="30"/>
+
     <menuitem id="menu_l10n_ve_islr_conciliation"
               name="Conciliación ISLR"
-              parent="menu_l10n_ve_compliance_root"
+              parent="menu_l10n_ve_compliance_taxes"
               action="action_l10n_ve_islr_conciliation"
-              sequence="42"
+              sequence="10"
               groups="account.group_account_manager,l10n_ve_compliance_accountant"/>
 
     <menuitem id="menu_l10n_ve_physical_invoice"
               name="Factura Física Rápida"
-              parent="menu_l10n_ve_compliance_root"
+              parent="menu_l10n_ve_compliance_taxes"
               action="action_l10n_ve_physical_invoice_wizard"
-              sequence="45"/>
+              sequence="50"/>
 
     <menuitem id="menu_l10n_ve_compliance_config"
               name="Configuración"

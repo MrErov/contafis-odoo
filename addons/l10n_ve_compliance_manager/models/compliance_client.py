@@ -70,6 +70,22 @@ class ComplianceClient(models.Model):
         compute='_compute_cartelera_html',
         sanitize=False,
     )
+    cartelera_valid_count = fields.Integer(
+        string='Documentos al día',
+        compute='_compute_cartelera_summary',
+    )
+    cartelera_total_count = fields.Integer(
+        string='Documentos totales',
+        compute='_compute_cartelera_summary',
+    )
+    cartelera_pending_count = fields.Integer(
+        string='Documentos pendientes',
+        compute='_compute_cartelera_summary',
+    )
+    cartelera_progress = fields.Float(
+        string='Progreso cartelera',
+        compute='_compute_cartelera_summary',
+    )
 
     @api.depends('rif')
     def _compute_rif_last_digit(self):
@@ -241,6 +257,18 @@ class ComplianceClient(models.Model):
 
             parts.append(Markup('</div>'))
             client.cartelera_html = Markup('').join(parts)
+
+    @api.depends('cartelera_status_current_ids.state')
+    def _compute_cartelera_summary(self):
+        """Resume la cartelera del mes actual para la tarjeta kanban."""
+        for client in self:
+            statuses = client.cartelera_status_current_ids
+            total = len(statuses)
+            valid = len(statuses.filtered(lambda status: status.state == 'valid'))
+            client.cartelera_total_count = total
+            client.cartelera_valid_count = valid
+            client.cartelera_pending_count = total - valid
+            client.cartelera_progress = round(valid * 100.0 / total, 1) if total else 0.0
 
     def _compute_cartelera_status_current(self):
         """Obtiene los statuses de cartelera del mes actual."""

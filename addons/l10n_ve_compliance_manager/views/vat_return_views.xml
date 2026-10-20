@@ -285,8 +285,8 @@
 
     <menuitem id="menu_l10n_ve_vat_return"
               name="Planilla IVA 99030"
-              parent="menu_l10n_ve_compliance_root"
+              parent="menu_l10n_ve_compliance_taxes"
               action="action_l10n_ve_vat_return"
-              sequence="70"
+              sequence="40"
               groups="account.group_account_manager"/>
 </odoo>

@@ -143,13 +143,15 @@
                 <field name="rif"/>
                 <field name="compliance_score"/>
                 <field name="compliance_status"/>
-                <field name="alert_ids"/>
                 <field name="pending_alert_count"/>
-                <field name="document_score"/>
-                <field name="cartelera_html"/>
+                <field name="cartelera_valid_count"/>
+                <field name="cartelera_total_count"/>
+                <field name="cartelera_pending_count"/>
+                <field name="cartelera_progress"/>
                 <templates>
                     <t t-name="card">
-                        <div t-attf-class="oe_kanban_global_click">
+                        <div t-attf-class="oe_kanban_global_click h-100 p-2"
+                             t-attf-style="border-left: 4px solid #{record.compliance_status.raw_value == 'vencido' ? '#dc3545' : (record.compliance_status.raw_value == 'pendiente' ? '#ffc107' : '#198754')}; background-color: #{record.compliance_status.raw_value == 'vencido' ? '#fff5f5' : (record.compliance_status.raw_value == 'pendiente' ? '#fffaf0' : '#f6fff9')};">
                             <div class="o_kanban_record_top">
                                 <div class="o_kanban_heading d-flex align-items-center">
                                     <img t-att-src="record.partner_id.raw_value ? '/web/image/res.partner/' + record.partner_id.raw_value + '/image_128' : '/web/static/img/placeholder.png'"
@@ -167,21 +169,34 @@
                                        decoration-warning="compliance_status == 'pendiente'"
                                        decoration-danger="compliance_status == 'vencido'"/>
                             </div>
-                            <div class="oe_kanban_card_meta">
-                                <span class="o_kanban_record_title">
-                                    Puntuación: <field name="compliance_score"/> / Doc: <field name="document_score"/>
+                            <div class="mt-2" t-if="record.cartelera_total_count.raw_value">
+                                <div class="d-flex justify-content-between align-items-center small">
+                                    <span class="text-muted">Cartelera documental</span>
+                                    <span class="fw-semibold">
+                                        <field name="cartelera_valid_count"/> / <field name="cartelera_total_count"/>
+                                    </span>
+                                </div>
+                                <div class="progress mt-1" style="height: 6px;">
+                                    <div t-attf-class="progress-bar #{record.cartelera_progress.raw_value >= 100 ? 'bg-success' : (record.cartelera_progress.raw_value >= 50 ? 'bg-warning' : 'bg-danger')}"
+                                         t-attf-style="width: #{record.cartelera_progress.raw_value}%;"/>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <span t-attf-class="badge #{record.cartelera_pending_count.raw_value > 0 ? 'text-bg-danger' : 'text-bg-success'}">
+                                        <field name="cartelera_pending_count"/> documentos pendientes
+                                    </span>
+                                    <span class="badge text-bg-warning" t-if="record.pending_alert_count.raw_value">
+                                        <i class="fa fa-bell me-1" title="Alertas pendientes"/><field name="pending_alert_count"/> alertas
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="text-muted small mt-2" t-else="">
+                                Sin cartelera del mes
+                            </div>
+                            <div class="oe_kanban_bottom_left o_kanban_redline mt-2">
+                                <span class="text-muted small"><field name="rif"/></span>
+                                <span class="text-muted small ms-2">
+                                    Cumplimiento <field name="compliance_score"/>%
                                 </span>
-                            </div>
-                            <div class="oe_kanban_bottom_right">
-                                <span class="badge text-bg-warning">
-                                    Alertas pendientes: <field name="pending_alert_count"/>
-                                </span>
-                            </div>
-                            <div class="oe_kanban_bottom_left o_kanban_redline">
-                                <field name="rif"/>
-                            </div>
-                            <div class="mt-2 small text-muted" t-if="record.cartelera_html.raw_value">
-                                <field name="cartelera_html"/>
                             </div>
                         </div>
                     </t>

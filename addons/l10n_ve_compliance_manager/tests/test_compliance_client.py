@@ -89,3 +89,38 @@ class TestComplianceClient(TransactionCase):
         self.assertNotIn('<script>', html)
         # Escapado SI debe estar
         self.assertIn('&lt;script&gt;', html)
+
+    def test_cartelera_summary_counts(self):
+        """Resume válidos/pendientes del mes actual para la tarjeta kanban."""
+        today = fields.Date.today()
+        doc_type_other = self.DocType.create({
+            'name': 'Doc Summary',
+            'code': 'SUM',
+            'required_for': 'company',
+        })
+        self.Status.create([
+            {
+                'client_id': self.client.id,
+                'document_type_id': self.type_c01.id,
+                'year': today.year,
+                'month': str(today.month),
+                'state': 'valid',
+            },
+            {
+                'client_id': self.client.id,
+                'document_type_id': doc_type_other.id,
+                'year': today.year,
+                'month': str(today.month),
+                'state': 'missing',
+            },
+        ])
+        self.client.invalidate_recordset([
+            'cartelera_valid_count',
+            'cartelera_total_count',
+            'cartelera_pending_count',
+            'cartelera_progress',
+        ])
+        self.assertEqual(self.client.cartelera_total_count, 2)
+        self.assertEqual(self.client.cartelera_valid_count, 1)
+        self.assertEqual(self.client.cartelera_pending_count, 1)
+        self.assertEqual(self.client.cartelera_progress, 50.0)
