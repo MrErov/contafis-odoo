@@ -77,13 +77,13 @@ en que se acumula:
 
 ## 📸 Capturas
 
-| Panel multi-cliente con semáforo fiscal | Bandeja de vencimientos accionable |
+| Panel multi-cliente con progreso documental | Bandeja de vencimientos accionable |
 |:---:|:---:|
-| ![Panel multi-cliente](docs/guia-usuario/assets/screenshots/03-03-client-kanban.png) | ![Bandeja de vencimientos](docs/guia-usuario/assets/screenshots/11-01-bandeja-acciones.png) |
+| ![Panel multi-cliente](docs/guia-usuario/assets/screenshots/03-03-client-kanban.png?v=2) | ![Bandeja de vencimientos](docs/guia-usuario/assets/screenshots/11-01-bandeja-acciones.png?v=2) |
 
 | Cartelera fiscal documental |
 |:---:|
-| ![Cartelera fiscal](docs/guia-usuario/assets/screenshots/09-01-cartelera-status.png) |
+| ![Cartelera fiscal](docs/guia-usuario/assets/screenshots/09-01-cartelera-status.png?v=2) |
 
 > La guía incluye 39 capturas reales del flujo completo: alta de
 > clientes, facturas, libro, planilla IVA, retenciones, calendario, cartelera
