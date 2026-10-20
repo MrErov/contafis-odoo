@@ -15,7 +15,7 @@ test.describe('Wizard Factura Física', () => {
     // Click en el botón Home Menu
     await page.locator('.o_navbar_apps_menu').first().click();
     await page.getByRole('menuitem', { name: 'Cumplimiento VE' }).click();
-    await page.locator('.o_menu_sections button.dropdown-toggle:not(.d-none)').first().click();
+    await page.locator('.o_menu_sections').getByRole('button', { name: 'Impuestos' }).click();
     await page.getByRole('menuitem', { name: 'Factura Física Rápida' }).click();
 
     // Verificar que el wizard se abre (esperar título visible)
@@ -28,7 +28,7 @@ test.describe('Wizard Factura Física', () => {
     await page.waitForSelector('.o_main_navbar, .o_user_menu, header', { timeout: 15000 });
     await page.locator('.o_navbar_apps_menu').first().click();
     await page.getByRole('menuitem', { name: 'Cumplimiento VE' }).click();
-    await page.locator('.o_menu_sections button.dropdown-toggle:not(.d-none)').first().click();
+    await page.locator('.o_menu_sections').getByRole('button', { name: 'Impuestos' }).click();
     await page.getByRole('menuitem', { name: 'Factura Física Rápida' }).click();
 
     // Esperar a que el título sea visible
@@ -52,7 +52,7 @@ test.describe('Wizard Factura Física', () => {
     await page.waitForSelector('.o_main_navbar, .o_user_menu, header', { timeout: 15000 });
     await page.locator('.o_navbar_apps_menu').first().click();
     await page.getByRole('menuitem', { name: 'Cumplimiento VE' }).click();
-    await page.locator('.o_menu_sections button.dropdown-toggle:not(.d-none)').first().click();
+    await page.locator('.o_menu_sections').getByRole('button', { name: 'Impuestos' }).click();
     await page.getByRole('menuitem', { name: 'Factura Física Rápida' }).click();
 
     // Verificar que el wizard se abre
