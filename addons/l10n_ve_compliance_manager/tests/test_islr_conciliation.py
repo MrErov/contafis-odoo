@@ -767,10 +767,10 @@ class TestIslrConciliacionViews(IslrWizardTestMixin, TransactionCase):
             'l10n_ve_compliance_manager.menu_l10n_ve_islr_conciliation'
         )
         root = self.env.ref(
-            'l10n_ve_compliance_manager.menu_l10n_ve_compliance_root'
+            'l10n_ve_compliance_manager.menu_l10n_ve_compliance_taxes'
         )
         self.assertEqual(menu.parent_id, root)
-        self.assertEqual(menu.sequence, 42)
+        self.assertEqual(menu.sequence, 10)
         self.assertEqual(
             menu.action.id,
             self.env.ref(

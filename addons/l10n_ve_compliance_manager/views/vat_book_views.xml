@@ -146,8 +146,8 @@
 
     <menuitem id="menu_l10n_ve_vat_book_line"
               name="Libro de Compras/Ventas"
-              parent="menu_l10n_ve_compliance_root"
+              parent="menu_l10n_ve_compliance_taxes"
               action="action_l10n_ve_vat_book_line"
-              sequence="65"
+              sequence="20"
               groups="account.group_account_manager"/>
 </odoo>

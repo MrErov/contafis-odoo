@@ -330,8 +330,8 @@
         <!-- Menu Item -->
         <menuitem id="menu_l10n_ve_import"
                   name="Importar desde Excel"
-                  parent="menu_l10n_ve_compliance_root"
-                  sequence="45"
+                  parent="menu_l10n_ve_compliance_operations"
+                  sequence="60"
                   action="action_l10n_ve_import_wizard"/>
     </data>
 </odoo>

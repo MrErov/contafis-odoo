@@ -110,7 +110,7 @@
 
     <menuitem id="menu_l10n_ve_cartelera_status"
               name="Snapshots Cartelera"
-              parent="menu_l10n_ve_compliance_root"
+              parent="menu_l10n_ve_compliance_operations"
               action="action_l10n_ve_cartelera_status"
-              sequence="35"/>
+              sequence="50"/>
 </odoo>
