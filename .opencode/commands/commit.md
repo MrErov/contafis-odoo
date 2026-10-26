@@ -8,7 +8,7 @@ Ejecuta y muéstrame la salida literal de:
 
 1.  `git status` → Solo deben aparecer los archivos esperados.
 2.  `git diff --stat` → La cantidad de cambios debe ser coherente.
-3.  `docker compose run --rm web odoo -d contea -u l10n_ve_compliance_manager --test-enable --stop-after-init --workers 0 --test-tags /l10n_ve_compliance_manager 2>&1 | grep -E "failed|tests when"` → Debe decir `0 failed, 0 error(s) of N tests`.
+3.  `pytest -q` → Debe decir todos los tests pasaron (ej. `562 passed`).
 
 ### Paso 2: Commit
 Si y solo si la verificación es exitosa, crea un commit usando **Conventional Commits** (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`).
