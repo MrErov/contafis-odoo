@@ -4,5 +4,13 @@
             <field name="key">l10n_ve_compliance.evidence_max_size_mb</field>
             <field name="value">5.0</field>
         </record>
+        <record id="l10n_ve_chat_webhook_url" model="ir.config_parameter">
+            <field name="key">l10n_ve_chat.webhook_url</field>
+            <field name="value"/>
+        </record>
+        <record id="l10n_ve_chat_auth_token" model="ir.config_parameter">
+            <field name="key">l10n_ve_chat.auth_token</field>
+            <field name="value"/>
+        </record>
     </data>
 </odoo>

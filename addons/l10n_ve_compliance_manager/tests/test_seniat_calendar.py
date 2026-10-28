@@ -26,6 +26,8 @@ class TestSeniatCalendarModels(TransactionCase):
         super().setUpClass()
         cls.CalendarTable = cls.env['l10n.ve.seniat.calendar.table']
         cls.CalendarLine = cls.env['l10n.ve.seniat.calendar']
+        # Limpiar tablas y líneas de TEST_YEAR para evitar conflictos con BD persistente
+        cls.CalendarTable.search([('year', '=', TEST_YEAR)]).unlink()
 
     def _create_table(self, **kwargs):
         vals = {'year': TEST_YEAR, 'code': 'a1'}
@@ -591,6 +593,11 @@ class TestBankHolidayModel(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.BankHoliday = cls.env['l10n.ve.bank.holiday']
+        # Limpiar feriados de TEST_YEAR para evitar conflictos con BD persistente
+        cls.BankHoliday.search([
+            ('date', '>=', f'{TEST_YEAR}-01-01'),
+            ('date', '<=', f'{TEST_YEAR}-12-31')
+        ]).unlink()
 
     def test_create_holiday_computes_year(self):
         """RF-19: al crear un feriado el año se computa desde la fecha y es buscable."""
@@ -1650,6 +1657,8 @@ class TestCopyCalendarWizard(TransactionCase):
         super().setUpClass()
         cls.Wizard = cls.env['l10n.ve.copy.calendar.wizard']
         cls.CalendarTable = cls.env['l10n.ve.seniat.calendar.table']
+        # Limpiar años destino de tests previos (2027, 2028, etc.) para evitar conflictos
+        cls.CalendarTable.search([('year', 'in', [2027, 2028, 2029])]).unlink()
 
     def _source_table(self, code):
         return self.CalendarTable.search([('year', '=', 2026), ('code', '=', code)])
@@ -1749,6 +1758,8 @@ class TestCalendarIntegration(TransactionCase):
         cls.ObligationType = cls.env['l10n.ve.obligation.type']
         cls.Client = cls.env['l10n.ve.compliance.client']
         cls.BankHoliday = cls.env['l10n.ve.bank.holiday']
+        # Limpiar obligaciones de tests previos para este contador
+        cls.Obligation.search([]).unlink()
         cls.partner = cls.env['res.partner'].create({'name': 'Distribuidora T10'})
         cls.accountant = cls.env['res.users'].create({
             'name': 'Contador T10',

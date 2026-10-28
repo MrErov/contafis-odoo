@@ -1,10 +1,10 @@
 {
     'name': 'Venezuela - Cumplimiento Fiscal y Documental',
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'author': 'Eurick Ospino',
     'website': 'https://github.com/MrErov/contafis-odoo-19.0v',
     'category': 'Accounting/Localizations',
-    'summary': 'Gestión de cumplimiento fiscal, parafiscal y documental para Venezuela',
+    'summary': 'Gestión de cumplimiento fiscal, parafiscales y documental para Venezuela',
     'description': """
 Módulo Odoo 19.0 para contadores y firmas contables que gestionan múltiples
 clientes en Venezuela.
@@ -17,6 +17,7 @@ Incluye:
 - Dashboard de cumplimiento por cliente.
 - Retenciones de IVA/ISLR/IGTF vinculadas a facturas de proveedor.
 - Libro de Compras/Ventas y Planilla IVA 99030 (Forma 99030 SENIAT).
+- Asistente Fiscal (Bot IA) integrado en Discuss.
     """,
     'license': 'LGPL-3',
     'depends': ['base', 'account', 'mail', 'l10n_ve'],
@@ -37,6 +38,7 @@ Incluye:
         'data/document_type_cartelera.xml',
         'data/obligation_bulk_actions.xml',
         'data/ir_config_parameter_data.xml',
+        'data/res_users_data.xml',
         'report/compliance_report.xml',
         'report/vat_return_report.xml',
         'report/islr_conciliation_report.xml',
@@ -63,6 +65,9 @@ Incluye:
         'views/vat_return_views.xml',
         'views/vat_book_export_views.xml',
         'views/regenerate_confirm_wizard_views.xml',
+        'views/res_users_views.xml',
+        'views/chat_history_views.xml',
+        'views/res_config_settings_views.xml',
     ],
     'demo': [
         'demo/demo_data.xml',

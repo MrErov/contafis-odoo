@@ -8,6 +8,8 @@ class TestVatBookLineSync(TaxGroupMixin, TransactionCase):
 
     def setUp(self):
         super().setUp()
+        # Limpiar líneas de libro de IVA preexistentes para evitar conflictos de constraint único
+        self.env['l10n.ve.vat.book.line'].search([]).unlink()
         self.partner = self.env['res.partner'].create({
             'name': 'Proveedor Test',
             'vat': 'J-12345678-9',

@@ -2,6 +2,7 @@ from . import (
     test_account_tax,
     test_cartelera_evidence,
     test_cartelera_status,
+    test_chat_history,
     test_compliance_client,
     test_document_types,
     test_export_regression,

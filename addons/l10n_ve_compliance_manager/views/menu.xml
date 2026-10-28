@@ -1,4 +1,16 @@
 <odoo>
+    <record id="action_l10n_ve_chat_history" model="ir.actions.act_window">
+        <field name="name">Historial de Chats</field>
+        <field name="res_model">l10n.ve.chat.history</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_filter_my_company': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Historial de conversaciones del Asistente Fiscal
+            </p>
+        </field>
+    </record>
+
     <menuitem id="menu_l10n_ve_compliance_root"
               name="Cumplimiento VE"
               web_icon="l10n_ve_compliance_manager,static/description/icon.png"
@@ -85,4 +97,10 @@
               parent="menu_l10n_ve_compliance_config"
               action="action_l10n_ve_bank_holiday"
               sequence="35"/>
+
+    <menuitem id="menu_l10n_ve_chat_history"
+              name="Historial de chats"
+              parent="menu_l10n_ve_compliance_config"
+              action="action_l10n_ve_chat_history"
+              sequence="40"/>
 </odoo>
