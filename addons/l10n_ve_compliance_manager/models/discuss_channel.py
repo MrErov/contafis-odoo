@@ -53,12 +53,16 @@ class DiscussChannel(models.Model):
                 ('partner_id', '=', author_id)
             ], limit=1)
 
+        _logger.info("BOT DEBUG - Resolved user: %s (ID: %s), Author ID: %s, Env User: %s",
+                     user.name if user else 'None', user.id if user else 'None', author_id, self.env.user.id)
+
         if not user:
             _logger.warning("Message from partner without user: %s", author_id)
             self._post_bot_error(_("⚠️ No se puede identificar tu usuario para procesar la consulta."))
             return message
 
         # Check API token
+        _logger.info("BOT DEBUG - User ID: %s, Partner ID: %s, API Token: %s", user.id, user.partner_id.id, user.api_token)
         if not user.api_token:
             self._post_bot_error(_("⚠️ Por favor, configura tu Token API en tus preferencias para usar el Asistente."))
             return message

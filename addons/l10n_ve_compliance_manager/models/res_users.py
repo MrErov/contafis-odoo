@@ -7,10 +7,9 @@ class ResUsers(models.Model):
 
     api_token = fields.Char(
         string='Token API Asistente Fiscal',
-        groups='base.group_system',
         help='Token Bearer para autenticar peticiones al backend FastAPI del '
-             'Asistente Fiscal (http://localhost:8000/chat). Solo visible y '
-             'editable por administradores (base.group_system).',
+             'Asistente Fiscal (http://localhost:8000/chat). Cada usuario '
+             'configura su propio token.',
     )
 
     def write(self, vals):

@@ -1,5 +1,6 @@
 <odoo>
     <data>
+        <!-- Para el formulario completo (admin editando otros usuarios) -->
         <record id="view_res_users_form_inherit_l10n_ve_chat" model="ir.ui.view">
             <field name="name">res.users.form.inherit.l10n.ve.chat</field>
             <field name="model">res.users</field>
@@ -8,7 +9,22 @@
                 <xpath expr="//page[@name='preferences']" position="inside">
                     <group string="Asistente Fiscal">
                         <field name="api_token" widget="password"
-                               help="Token Bearer para autenticar peticiones al backend FastAPI del Asistente Fiscal (http://localhost:8000/chat). Solo visible y editable por administradores (base.group_system)."/>
+                               help="Token Bearer para autenticar peticiones al backend FastAPI del Asistente Fiscal (http://localhost:8000/chat)."/>
+                    </group>
+                </xpath>
+            </field>
+        </record>
+
+        <!-- Para el formulario simplificado (usuario editando su propio perfil) -->
+        <record id="view_res_users_form_simple_inherit_l10n_ve_chat" model="ir.ui.view">
+            <field name="name">res.users.form.simple.inherit.l10n.ve.chat</field>
+            <field name="model">res.users</field>
+            <field name="inherit_id" ref="base.view_users_form_simple_modif"/>
+            <field name="arch" type="xml">
+                <xpath expr="//page[@name='preferences_page']//group[@name='other_preferences']" position="inside">
+                    <group string="Asistente Fiscal">
+                        <field name="api_token" widget="password"
+                               help="Token Bearer para autenticar peticiones al backend FastAPI del Asistente Fiscal (http://localhost:8000/chat)."/>
                     </group>
                 </xpath>
             </field>
