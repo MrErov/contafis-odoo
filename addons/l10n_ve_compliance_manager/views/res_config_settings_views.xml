@@ -1,0 +1,21 @@
+<odoo>
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.l10n_ve_chat</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app string="ContaFis AI" name="contafis_ai" logo="fa-comments">
+                    <block title="Asistente de IA (Bot)">
+                        <setting string="Webhook URL" help="URL del endpoint que recibirá los mensajes (POST JSON).">
+                            <field name="l10n_ve_chat_webhook_url" placeholder="https://tu-n8n.com/webhook/contafis"/>
+                        </setting>
+                        <setting string="Token de Autenticación" help="Token Bearer opcional.">
+                            <field name="l10n_ve_chat_auth_token" password="True"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

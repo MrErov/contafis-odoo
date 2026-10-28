@@ -100,5 +100,23 @@
             <field name="model_id" ref="model_l10n_ve_islr_reconciliation_line"/>
             <field name="domain_force">[('company_id', 'in', company_ids)]</field>
         </record>
+
+        <record id="rule_l10n_ve_chat_history_accountant" model="ir.rule">
+            <field name="name">Historial Chat: solo mi compañía</field>
+            <field name="model_id" ref="model_l10n_ve_chat_history"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+            <field name="groups" eval="[(6, 0, [ref('account.group_account_user'), ref('l10n_ve_compliance_accountant')])]"/>
+        </record>
+        <record id="rule_l10n_ve_chat_history_admin" model="ir.rule">
+            <field name="name">Historial Chat: el administrador ve todo</field>
+            <field name="model_id" ref="model_l10n_ve_chat_history"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        </record>
+        <record id="rule_l10n_ve_chat_history_company" model="ir.rule">
+            <field name="name">Historial Chat: aislamiento por compañía</field>
+            <field name="model_id" ref="model_l10n_ve_chat_history"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
     </data>
 </odoo>
