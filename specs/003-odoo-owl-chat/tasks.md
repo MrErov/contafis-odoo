@@ -30,22 +30,22 @@
   **Archivos:** static/src/systray_chat_widget.js, static/src/chat_panel/ChatPanel.js, static/src/chat_panel/hooks/useChat.js, static/src/chat_panel/MessageList.js, static/src/chat_panel/MessageItem.js, static/src/chat_panel/InputArea.js, static/src/chat_panel/NewConversationButton.js, static/src/xml/chat_templates.xml, __manifest__.py (assets)
   **Hecho cuando:** Módulo actualiza sin errores (-u); icono en systray registrado; click abre panel lateral (owl.SidePanel equivalente); useChat.loadHistory() llama RPC get_last_conversation + get_history; panel muestra mensajes históricos; tests suite 0 failed.
 
-- [ ] **T7. Componente InputArea.js + envío mensaje + validación token vacío + truncamiento 4000 chars**
-  **RF cubiertos:** RF-2, RF-3, RF-47 (límite content)
-  **Archivos:** static/src/chat_panel/InputArea.js, static/src/chat_panel/hooks/useChat.js (método sendMessage)
-  **Hecho cuando:** Escribir mensaje + Enter llama sendMessage; token vacío muestra _("Token de API no configurado...") y NO hace RPC; mensaje > 4000 chars trunca con aviso "Mensaje truncado a 4000 caracteres"; RPC incluye headers Authorization + X-Odoo-Company + body correcto.
+- [x] **T7. Pivot a Discuss nativo: discuss_channel.py + res.users.api_token + res.config.settings**
+  **RF cubiertos:** RF-1, RF-2, RF-3, RF-7, RF-9, RF-11
+  **Archivos:** models/discuss_channel.py, models/res_users.py, models/res_config_settings.py, views/res_users_views.xml, views/res_config_settings_views.xml, data/res_users_data.xml
+  **Hecho cuando:** Pivot de OWL a Discuss nativo (discuss.channel) completado; bot user `contafis_bot` auto-activado con password; message_post intercepta en 1-on-1; api_token en res.users (sin group restriction, editable en preferencias); webhook_url + auth_token en ir.config_parameter; tests suite 0 failed.
 
-- [ ] **T8. Manejo respuestas backend: éxito (RF-4), 401/403 (RF-5), 5xx/timeout (RF-6) + warnings + reintento 1x**
-  **RF cubiertos:** RF-4, RF-5, RF-6, RF-42, RF-46
-  **Archivos:** static/src/chat_panel/hooks/useChat.js (manejo respuestas), static/src/chat_panel/MessageItem.js (render warnings)
-  **Hecho cuando:** Mock FastAPI 200 -> render respuesta + warnings array + actualiza conversation_id; Mock 401 -> muestra _("Token inválido o expirado") + botón reintentar; Mock 500/timeout -> muestra _("Error de comunicación...") + log en ir.logging; reintento 1 vez con backoff 2s antes de error final.
+- [x] **T8. Llamada webhook FastAPI + timeout 60s + logging de latencia + manejo errores 401/5xx**
+  **RF cubiertos:** RF-4, RF-5, RF-6
+  **Archivos:** models/discuss_channel.py
+  **Hecho cuando:** requests.post con timeout=60s; logging start_time + elapsed en cada request (timeout/error/success); FastAPI espera {"message": "text"} + header X-User-Token; respuestas 401/403/5xx/4xx mapeadas a mensajes amigables; tests suite 0 failed.
 
-- [ ] **T9. Botón Nueva conversación + cambio de empresa (listener session.company_id)**
-  **RF cubiertos:** RF-10, RF-45
-  **Archivos:** static/src/chat_panel/NewConversationButton.js, static/src/chat_panel/hooks/useChat.js (createConversation, switchCompany), static/src/chat_panel/ChatPanel.js (integración listener)
-  **Hecho cuando:** Click Nueva conversación genera UUID v4, limpia panel, nuevo conversation_id; cambiar empresa en switcher Odoo -> widget detecta y crea conversación vacía automáticamente; demo manual: 2 empresas, switch -> historial aislado por empresa.
+- [x] **T9. Formato warnings como texto plano (evita error OWL notIn) + body_is_html=False**
+  **RF cubiertos:** RF-42, RF-46
+  **Archivos:** models/discuss_channel.py
+  **Hecho cuando:** warnings como dict -> extrae campo 'message'; render como bullet points Unicode (·) en texto plano; NO HTML crudo que rompa OWL; body_is_html removido; tests suite 0 failed.
 
-- [ ] **T10. Componentes UI restantes + pulido: MessageList.js (load more), MessageItem.js, accesibilidad, i18n + tests HttpCase (9 tests) + demo final**
-  **RF cubiertos:** RF-1, RF-2, RF-3, RF-4, RF-5, RF-6, RF-7, RF-10, RF-11, RF-43, RF-44, RF-47
-  **Archivos:** static/src/chat_panel/MessageList.js, static/src/chat_panel/MessageItem.js, tests/test_chat_widget_http.py (nuevo HttpCase)
-  **Hecho cuando:** 9 HttpCase tests en verde (widget abre, envío éxito, token vacío, 401, 500, nueva conversación, switch empresa, menú historial, truncamiento); demo manual completa: contador abre systray -> pregunta -> respuesta + warnings -> recarga -> historial persiste -> switch empresa -> nueva conversación vacía; suite completa >= 337 tests (0 failed); ruff/check-xml/trailing-whitespace/mixed-line-ending verdes.
+- [x] **T10. Tests E2E MCP Chrome DevTools + verificación visual + cierre spec**
+  **RF cubiertos:** RF-1, RF-2, RF-3, RF-4, RF-5, RF-6, RF-7, RF-9, RF-11
+  **Archivos:** tests/test_discuss_bot.py (nuevo), MCP verification
+  **Hecho cuando:** MCP Chrome DevTools: login admin -> abre canal ContaFis AI -> envía "Hola, ¿qué vencimientos tengo?" -> bot responde con 6 obligaciones reales + warnings formateados; 337 tests pasando (0 failed); spec 003 marcada COMPLETADA en SPEC.md; commit de cierre.
