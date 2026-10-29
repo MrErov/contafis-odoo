@@ -4,7 +4,6 @@
         <field name="model">l10n.ve.vat.return</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">l10n_ve_compliance_manager.report_vat_return_99030</field>
-        <field name="report_file">l10n_ve_compliance_manager.report_vat_return_99030</field>
         <field name="binding_model_id" ref="model_l10n_ve_vat_return"/>
         <field name="print_report_name">'Planilla IVA 99030 - %s - %s' % (object.company_id.name, object.period_month)</field>
     </record>

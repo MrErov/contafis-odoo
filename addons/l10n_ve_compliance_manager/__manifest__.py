@@ -25,7 +25,7 @@ Incluye:
     'data': [
         'security/groups.xml',
         'security/ir.access.csv',
-        'security/ir_rule.xml',
+        'security/ir.access.xml',
         'data/mail_templates.xml',
         'data/cron.xml',
         'data/ir_sequence.xml',

@@ -4,7 +4,6 @@
         <field name="model">l10n.ve.islr.reconciliation</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">l10n_ve_compliance_manager.report_islr_conciliation_document</field>
-        <field name="report_file">l10n_ve_compliance_manager.report_islr_conciliation_document</field>
         <field name="print_report_name">'Conciliación ISLR - %s' % (object.name)</field>
     </record>
 
