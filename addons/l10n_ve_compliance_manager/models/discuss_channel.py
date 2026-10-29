@@ -1,7 +1,7 @@
 import logging
+import time
 
 import requests
-from markupsafe import Markup
 from odoo import models
 from odoo.tools.translate import _
 
@@ -120,10 +120,12 @@ class DiscussChannel(models.Model):
 
         _logger.info("BOT WEBHOOK - URL: %s, Payload: %s, Headers: %s", webhook_url, payload, headers)
 
+        start_time = time.time()
         try:
-            response = requests.post(webhook_url, json=payload, headers=headers, timeout=30)
+            response = requests.post(webhook_url, json=payload, headers=headers, timeout=60)
         except requests.Timeout:
-            _logger.error("Timeout calling webhook: %s", webhook_url)
+            elapsed = time.time() - start_time
+            _logger.error("Timeout calling webhook after %.2fs: %s", elapsed, webhook_url)
             # Post timeout error as bot
             bot_user = self.env.ref('l10n_ve_compliance_manager.user_contafis_bot', raise_if_not_found=False)
             if bot_user:
@@ -135,7 +137,8 @@ class DiscussChannel(models.Model):
                 )
             return None
         except requests.RequestException as e:
-            _logger.error("Request error: %s", e)
+            elapsed = time.time() - start_time
+            _logger.error("Request error after %.2fs: %s", elapsed, e)
             bot_user = self.env.ref('l10n_ve_compliance_manager.user_contafis_bot', raise_if_not_found=False)
             if bot_user:
                 self.sudo().message_post(
@@ -145,6 +148,9 @@ class DiscussChannel(models.Model):
                     subtype_xmlid='mail.mt_comment',
                 )
             return None
+
+        elapsed = time.time() - start_time
+        _logger.info("BOT WEBHOOK - Response received in %.2fs, status: %s", elapsed, response.status_code)
 
         if response.status_code == 401 or response.status_code == 403:
             bot_user = self.env.ref('l10n_ve_compliance_manager.user_contafis_bot', raise_if_not_found=False)
@@ -226,20 +232,20 @@ class DiscussChannel(models.Model):
         body = response
         if warnings:
             # Format warnings: extract 'message' from dict, fallback to str
+            # Use plain text with Unicode bullets to avoid OWL rendering issues
             formatted_warnings = []
             for w in warnings:
                 if isinstance(w, dict):
                     msg = w.get('message', str(w))
                 else:
                     msg = str(w)
-                formatted_warnings.append(f'<li>⚠️ {msg}</li>')
-            warning_html = '<ul>' + ''.join(formatted_warnings) + '</ul>'
-            body = Markup(body) + Markup(f'<br/><br/>{warning_html}')
+                formatted_warnings.append(f'\n  • {msg}')
+            warning_text = ''.join(formatted_warnings)
+            body += f'\n\n⚠️ Advertencias:{warning_text}'
 
         self.sudo().message_post(
             body=body,
             author_id=bot_user.partner_id.id,
             message_type='comment',
             subtype_xmlid='mail.mt_comment',
-            body_is_html=True,
         )
