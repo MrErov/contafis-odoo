@@ -1,0 +1,33 @@
+services:
+  web:
+    image: odoo:20.0
+    depends_on:
+      - db
+    ports:
+      - "8091:8069"
+      - "8074:8072"
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=odoo
+      - ODOO_LONGPOLLING_PORT=8072
+    volumes:
+      - odoo-web-data-20:/var/lib/odoo
+      - ./config/odoo.conf/odoo.conf:/etc/odoo/odoo.conf
+      - ./addons:/mnt/extra-addons
+    command: --
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_USER=odoo
+    volumes:
+      - odoo-db-data-20:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  odoo-web-data-20:
+  odoo-db-data-20:

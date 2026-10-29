@@ -24,7 +24,7 @@ Incluye:
     'post_init_hook': 'post_init_hook',
     'data': [
         'security/groups.xml',
-        'security/ir.model.access.csv',
+        'security/ir.access.csv',
         'security/ir_rule.xml',
         'data/mail_templates.xml',
         'data/cron.xml',
