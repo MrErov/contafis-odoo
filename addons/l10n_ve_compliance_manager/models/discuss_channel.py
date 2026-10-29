@@ -224,8 +224,16 @@ class DiscussChannel(models.Model):
 
         body = response
         if warnings:
-            warning_text = '\n'.join([f'⚠️ {w}' for w in warnings])
-            body += f'\n\n<blockquote>{warning_text}</blockquote>'
+            # Format warnings: extract 'message' from dict, fallback to str
+            formatted_warnings = []
+            for w in warnings:
+                if isinstance(w, dict):
+                    msg = w.get('message', str(w))
+                else:
+                    msg = str(w)
+                formatted_warnings.append(f'<li>⚠️ {msg}</li>')
+            warning_html = '<ul>' + ''.join(formatted_warnings) + '</ul>'
+            body += f'\n\n{warning_html}'
 
         self.sudo().message_post(
             body=body,
