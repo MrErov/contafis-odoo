@@ -5,15 +5,15 @@
 <h1 align="center">ContaFis</h1>
 
 <p align="center">
-  <strong>Cumplimiento fiscal venezolano en Odoo 19.</strong><br/>
+  <strong>Cumplimiento fiscal venezolano en Odoo 20.</strong><br/>
   Módulo para contadores y firmas que gestionan varias empresas desde una
   sola instancia.
 </p>
 
 <p align="center">
-  <a href="https://github.com/MrErov/contafis-odoo-19.0v/actions/workflows/ci.yml"><img src="https://github.com/MrErov/contafis-odoo-19.0v/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Passing"/></a>
+  <a href="https://github.com/MrErov/contafis-odoo/actions/workflows/ci.yml"><img src="https://github.com/MrErov/contafis-odoo/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Passing"/></a>
   <img src="https://img.shields.io/badge/Tests-340%20passing-brightgreen?style=flat-square" alt="340 tests passing"/>
-  <img src="https://img.shields.io/badge/Odoo-19.0-875A7B?style=flat-square&logo=odoo&logoColor=white" alt="Odoo 19.0"/>
+  <img src="https://img.shields.io/badge/Odoo-20.0-875A7B?style=flat-square&logo=odoo&logoColor=white" alt="Odoo 20.0"/>
   <img src="https://img.shields.io/badge/License-LGPL--3-blue?style=flat-square" alt="License LGPL-3"/>
 </p>
 
@@ -27,7 +27,7 @@
 
 ---
 
-ContaFis es un módulo **Odoo 19.0** para la gestión fiscal, parafiscal y
+ContaFis es un módulo **Odoo 20.0** para la gestión fiscal, parafiscal y
 documental de empresas venezolanas. Centraliza clientes, vencimientos,
 cartelera documental, alertas, libro de compras/ventas, planilla IVA 99030 y
 conciliación ISLR.
@@ -94,7 +94,7 @@ la consolidación manual entre hojas de cálculo, correos y carpetas.
 
 | Capa | Tecnología |
 |---|---|
-| ERP | **Odoo 19.0 Community** |
+| ERP | **Odoo 20.0 Community** |
 | Base de datos | **PostgreSQL 15** |
 | Runtime | **Python 3.10+** |
 | Infraestructura | **Docker + Docker Compose** |
@@ -113,8 +113,8 @@ planifica, implementa y cierra con la suite y el CI en verde.
 Requisitos: Docker Desktop y Docker Compose.
 
 ```bash
-git clone https://github.com/MrErov/contafis-odoo-19.0v.git
-cd contafis-odoo-19.0v
+git clone https://github.com/MrErov/contafis-odoo.git
+cd contafis-odoo
 
 mkdir -p config/odoo.conf
 cp odoo.conf.example config/odoo.conf/odoo.conf

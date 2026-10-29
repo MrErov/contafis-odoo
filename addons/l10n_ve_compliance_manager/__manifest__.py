@@ -1,12 +1,12 @@
 {
     'name': 'Venezuela - Cumplimiento Fiscal y Documental',
-    'version': '19.0.1.3.0',
+    'version': '20.0.1.0.0',
     'author': 'Eurick Ospino',
-    'website': 'https://github.com/MrErov/contafis-odoo-19.0v',
+    'website': 'https://github.com/MrErov/contafis-odoo',
     'category': 'Accounting/Localizations',
     'summary': 'Gestión de cumplimiento fiscal, parafiscales y documental para Venezuela',
-    'description': """
-Módulo Odoo 19.0 para contadores y firmas contables que gestionan múltiples
+'description': """
+MA3dulo Odoo 20.0 para contadores y firmas contables que gestionan mA�ltiples
 clientes en Venezuela.
 
 Incluye:
