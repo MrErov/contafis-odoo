@@ -109,24 +109,15 @@ class DiscussChannel(models.Model):
             return None
 
         webhook_url = self.env['ir.config_parameter'].sudo().get_param('l10n_ve_chat.webhook_url', '')
-        auth_token = self.env['ir.config_parameter'].sudo().get_param('l10n_ve_chat.auth_token', '')
 
-        # company = user.company_id or self.env.company  # unused
-        _company = user.company_id or self.env.company  # unused, kept for clarity
-
-        # Get conversation history for context
-        history = self._get_conversation_history(channel_id)
-
-        payload = {
-            'question': question,
-            'conversation_id': str(channel_id),
-            'history': history,
-        }
+        # FastAPI expects: {"message": "text"} with header X-User-Token: <user.api_token>
+        payload = {'message': question}
         headers = {
             'Content-Type': 'application/json',
+            'X-User-Token': user.api_token or '',
         }
-        if auth_token:
-            headers['Authorization'] = f'Bearer {auth_token}'
+
+        _logger.info("BOT WEBHOOK - URL: %s, Payload: %s, Headers: %s", webhook_url, payload, headers)
 
         try:
             response = requests.post(webhook_url, json=payload, headers=headers, timeout=30)
@@ -227,7 +218,8 @@ class DiscussChannel(models.Model):
         if not bot_user:
             return
 
-        response = response_data.get('response', '')
+        # Handle both 'response' (legacy) and 'answer' (FastAPI) fields
+        response = response_data.get('response') or response_data.get('answer', '')
         warnings = response_data.get('warnings', [])
 
         body = response
