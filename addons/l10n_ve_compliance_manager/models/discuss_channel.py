@@ -1,6 +1,7 @@
 import logging
 
 import requests
+from markupsafe import Markup
 from odoo import models
 from odoo.tools.translate import _
 
@@ -233,11 +234,12 @@ class DiscussChannel(models.Model):
                     msg = str(w)
                 formatted_warnings.append(f'<li>⚠️ {msg}</li>')
             warning_html = '<ul>' + ''.join(formatted_warnings) + '</ul>'
-            body += f'\n\n{warning_html}'
+            body = Markup(body) + Markup(f'<br/><br/>{warning_html}')
 
         self.sudo().message_post(
             body=body,
             author_id=bot_user.partner_id.id,
             message_type='comment',
             subtype_xmlid='mail.mt_comment',
+            body_is_html=True,
         )
