@@ -2,7 +2,7 @@
     'name': 'Venezuela - Cumplimiento Fiscal y Documental',
     'version': '19.0.1.3.0',
     'author': 'Eurick Ospino',
-    'website': 'https://github.com/MrErov/contafis-odoo-19.0v',
+    'website': 'https://github.com/MrErov/contafis-odoo',
     'category': 'Accounting/Localizations',
     'summary': 'Gestión de cumplimiento fiscal, parafiscales y documental para Venezuela',
     'description': """
