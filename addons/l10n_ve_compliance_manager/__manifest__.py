@@ -6,7 +6,7 @@
     'category': 'Accounting/Localizations',
     'summary': 'Gestión de cumplimiento fiscal, parafiscales y documental para Venezuela',
 'description': """
-MA3dulo Odoo 20.0 para contadores y firmas contables que gestionan mA�ltiples
+Módulo Odoo 20.0 para contadores y firmas contables que gestionan múltiples
 clientes en Venezuela.
 
 Incluye:

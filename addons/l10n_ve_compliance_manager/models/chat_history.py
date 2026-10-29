@@ -43,10 +43,7 @@ class ChatHistory(models.Model):
         readonly=True,
     )
 
-    _sql_constraints = [
-        (
-            'uniq_msg_per_conv_per_user_per_company',
-            'UNIQUE(user_id, company_id, conversation_id, create_date)',
-            'Ya existe un mensaje con los mismos datos en esta conversación.',
-        ),
-    ]
+    _unique_msg_per_conv_per_user_per_company = models.Constraint(
+        'UNIQUE(user_id, company_id, conversation_id, create_date)',
+        'Ya existe un mensaje con los mismos datos en esta conversación.',
+    )
