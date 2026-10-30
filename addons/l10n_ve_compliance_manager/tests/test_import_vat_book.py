@@ -3,6 +3,7 @@ from io import BytesIO
 from pathlib import Path
 
 import openpyxl
+from odoo.orm.fields_binary import BinaryBytes
 from odoo.tests import TransactionCase, tagged
 
 
@@ -336,10 +337,9 @@ class TestImportVatBook(TransactionCase):
         ]
 
         excel_content = self._create_vat_book_excel(rows_data, book_type='purchase', header_row=7)
-        excel_b64 = base64.b64encode(excel_content)
 
         wizard.write({
-            'file': excel_b64,
+            'file': BinaryBytes(excel_content),
             'filename': 'test_vat_book.xlsx',
         })
 
@@ -386,7 +386,7 @@ class TestImportVatBook(TransactionCase):
             'anticipo_import': 0,
         }]
         excel = self._create_vat_book_excel(rows, book_type='purchase')
-        wizard.write({'file': base64.b64encode(excel), 'filename': 'test.xlsx'})
+        wizard.write({'file': BinaryBytes(excel), 'filename': 'test.xlsx'})
         wizard.action_load_file()
         wizard.action_import()
 
@@ -420,7 +420,7 @@ class TestImportVatBook(TransactionCase):
             'vat_retained_buyer': 50,
         }]
         excel = self._create_vat_book_excel(rows, book_type='sale')
-        wizard.write({'file': base64.b64encode(excel), 'filename': 'test.xlsx'})
+        wizard.write({'file': BinaryBytes(excel), 'filename': 'test.xlsx'})
         wizard.action_load_file()
         wizard.action_import()
 
@@ -458,7 +458,7 @@ class TestImportVatBook(TransactionCase):
             'anticipo_import': 0,
         }]
         excel = self._create_vat_book_excel(rows, book_type='purchase')
-        wizard.write({'file': base64.b64encode(excel), 'filename': 'test.xlsx'})
+        wizard.write({'file': BinaryBytes(excel), 'filename': 'test.xlsx'})
         wizard.action_load_file()
         wizard.action_import()
 
@@ -581,7 +581,7 @@ class TestImportVatBook(TransactionCase):
         }]
 
         excel = self._create_vat_book_both_excel(purchase_rows, sale_rows)
-        wizard.write({'file': base64.b64encode(excel), 'filename': 'test.xlsx'})
+        wizard.write({'file': BinaryBytes(excel), 'filename': 'test.xlsx'})
         wizard.action_load_file()
 
         # Verificar que se crearon líneas de ambas hojas
@@ -679,7 +679,7 @@ class TestImportVatBook(TransactionCase):
         ]
 
         excel = self._create_vat_book_both_excel(purchase_rows, sale_rows)
-        wizard.write({'file': base64.b64encode(excel), 'filename': 'test.xlsx'})
+        wizard.write({'file': BinaryBytes(excel), 'filename': 'test.xlsx'})
         wizard.action_load_file()
         wizard.action_import()
 
@@ -780,7 +780,7 @@ class TestImportVatBook(TransactionCase):
 
         fixture_path = Path(__file__).parent / 'fixtures' / 'Libro_COMPRAS_VENTAS_Ficticio.xlsx'
         wizard.write({
-            'file': base64.b64encode(fixture_path.read_bytes()),
+            'file': BinaryBytes(fixture_path.read_bytes()),
             'filename': fixture_path.name,
         })
         wizard.action_load_file()
@@ -800,7 +800,7 @@ class TestImportVatBook(TransactionCase):
 
         fixture_path = Path(__file__).parent / 'fixtures' / 'Libro_COMPRAS_VENTAS_Ficticio.xlsx'
         wizard.write({
-            'file': base64.b64encode(fixture_path.read_bytes()),
+            'file': BinaryBytes(fixture_path.read_bytes()),
             'filename': fixture_path.name,
         })
         wizard.action_load_file()
@@ -816,7 +816,7 @@ class TestImportVatBook(TransactionCase):
 
         fixture_path = Path(__file__).parent / 'fixtures' / 'Libro_COMPRAS_VENTAS_Ficticio.xlsx'
         wizard.write({
-            'file': base64.b64encode(fixture_path.read_bytes()),
+            'file': BinaryBytes(fixture_path.read_bytes()),
             'filename': fixture_path.name,
         })
         wizard.action_load_file()
@@ -869,7 +869,7 @@ class TestImportVatBook(TransactionCase):
         wizard2 = self._create_wizard('vat_book_purchase')
         wizard2.period_month = '2026-08'
         wizard2.write({
-            'file': base64.b64encode(fixture_path.read_bytes()),
+            'file': BinaryBytes(fixture_path.read_bytes()),
             'filename': fixture_path.name,
         })
         wizard2.action_load_file()
@@ -901,7 +901,7 @@ class TestImportVatBook(TransactionCase):
         wizard.period_month = '2026-08'
         fixture_path = Path(__file__).parent / 'fixtures' / 'Libro_COMPRAS_VENTAS_Ficticio.xlsx'
         wizard.write({
-            'file': base64.b64encode(fixture_path.read_bytes()),
+            'file': BinaryBytes(fixture_path.read_bytes()),
             'filename': fixture_path.name,
         })
         wizard.action_load_file()

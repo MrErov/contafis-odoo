@@ -1,9 +1,9 @@
-import base64
 from io import BytesIO
 from pathlib import Path
 
 import openpyxl
 from odoo.exceptions import UserError
+from odoo.orm.fields_binary import BinaryBytes
 from odoo.tests import TransactionCase, tagged
 
 
@@ -198,11 +198,10 @@ class TestImportCartelera(TransactionCase):
         ]
 
         excel_content = self._create_cartelera_excel(rows_data, 'enero')
-        excel_b64 = base64.b64encode(excel_content)
 
         wizard = self._create_wizard(year=2026, month='1')
         wizard.write({
-            'file': excel_b64,
+            'file': BinaryBytes(excel_content),
             'filename': 'cartelera_test.xlsx',
         })
 
@@ -232,7 +231,7 @@ class TestImportCartelera(TransactionCase):
     def test_parse_nonjanuary_structure_sniffs_rif_column(self):
         """feb/dic: el sniffing elige la columna C y descarta el dummy A/B.
 
-        Simula la hoja real (sin celda "RIF" en los headers, fila-ejemplo
+        Simula la hoja real (sin celda "RIF" en los encabezados, fila-ejemplo
         con "J000000001" en A/B y datos reales en C/D/E..): antes se
         generaba una línea basura con el RIF de ejemplo y el parseo se
         cortaba en la segunda fila.
@@ -257,7 +256,7 @@ class TestImportCartelera(TransactionCase):
 
                 wizard = self._create_wizard(year=2026, month=month)
                 wizard.write({
-                    'file': base64.b64encode(excel_content),
+                    'file': BinaryBytes(excel_content),
                     'filename': f'cartelera_{sheet_name}.xlsx',
                 })
                 wizard.action_load_file()
@@ -283,7 +282,7 @@ class TestImportCartelera(TransactionCase):
 
         wizard = self._create_wizard(year=2026, month=month)
         wizard.write({
-            'file': base64.b64encode(
+            'file': BinaryBytes(
                 self._fixture_path('Control_Cartelera_Fiscal_Prueba.xlsx').read_bytes()
             ),
             'filename': 'Control_Cartelera_Fiscal_Prueba.xlsx',
@@ -329,11 +328,10 @@ class TestImportCartelera(TransactionCase):
         ]
 
         excel_content = self._create_cartelera_excel(rows_data, 'enero')
-        excel_b64 = base64.b64encode(excel_content)
 
         wizard = self._create_wizard(year=2026, month='1')
         wizard.write({
-            'file': excel_b64,
+            'file': BinaryBytes(excel_content),
             'filename': 'cartelera_test.xlsx',
             'mode': 'lax',
         })
@@ -375,11 +373,10 @@ class TestImportCartelera(TransactionCase):
         ]
 
         excel_content = self._create_cartelera_excel(rows_data, 'enero')
-        excel_b64 = base64.b64encode(excel_content)
 
         wizard = self._create_wizard(year=2026, month='1')
         wizard.write({
-            'file': excel_b64,
+            'file': BinaryBytes(excel_content),
             'filename': 'cartelera_test.xlsx',
             'mode': 'lax',
         })
@@ -428,12 +425,11 @@ class TestImportCartelera(TransactionCase):
         ]
 
         excel_content = self._create_cartelera_excel(rows_data, 'enero')
-        excel_b64 = base64.b64encode(excel_content)
 
         # Primera importación
         wizard1 = self._create_wizard(year=2026, month='1')
         wizard1.write({
-            'file': excel_b64,
+            'file': BinaryBytes(excel_content),
             'filename': 'cartelera_test.xlsx',
             'mode': 'lax',
         })
@@ -453,7 +449,7 @@ class TestImportCartelera(TransactionCase):
         # Segunda importación (mismo archivo)
         wizard2 = self._create_wizard(year=2026, month='1')
         wizard2.write({
-            'file': excel_b64,
+            'file': BinaryBytes(excel_content),
             'filename': 'cartelera_test.xlsx',
             'mode': 'lax',
         })
@@ -484,11 +480,10 @@ class TestImportCartelera(TransactionCase):
 
         # Crear Excel con hoja 'invalid' en lugar de 'enero'
         excel_content = self._create_cartelera_excel(rows_data, 'invalid')
-        excel_b64 = base64.b64encode(excel_content)
 
         wizard = self._create_wizard(year=2026, month='1')
         wizard.write({
-            'file': excel_b64,
+            'file': BinaryBytes(excel_content),
             'filename': 'cartelera_test.xlsx',
         })
 
@@ -597,11 +592,10 @@ class TestImportCartelera(TransactionCase):
         ]
 
         excel_content = self._create_cartelera_excel(rows_data, 'enero')
-        excel_b64 = base64.b64encode(excel_content)
 
         wizard = self._create_wizard(year=2026, month='1')
         wizard.write({
-            'file': excel_b64,
+            'file': BinaryBytes(excel_content),
             'filename': 'cartelera_test.xlsx',
             'mode': 'strict',
         })
@@ -630,11 +624,10 @@ class TestImportCartelera(TransactionCase):
         ]
 
         excel_content = self._create_cartelera_excel(rows_data, 'enero')
-        excel_b64 = base64.b64encode(excel_content)
 
         wizard = self._create_wizard(year=2026, month='1')
         wizard.write({
-            'file': excel_b64,
+            'file': BinaryBytes(excel_content),
             'filename': 'cartelera_test.xlsx',
             'mode': 'lax',
         })

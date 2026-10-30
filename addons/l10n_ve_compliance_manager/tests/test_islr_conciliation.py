@@ -1,4 +1,3 @@
-import base64
 from io import BytesIO
 from pathlib import Path
 
@@ -12,6 +11,7 @@ from odoo.addons.l10n_ve_compliance_manager.models.islr_conciliation import (
     to_amount,
 )
 from odoo.exceptions import UserError
+from odoo.orm.fields_binary import BinaryBytes
 from odoo.tests import TransactionCase, tagged
 from openpyxl import Workbook
 from psycopg2 import IntegrityError
@@ -492,7 +492,7 @@ class IslrWizardTestMixin:
 
     def _load_bytes(self, wizard, content, filename='conciliacion.xlsx'):
         wizard.write({
-            'file': base64.b64encode(content),
+            'file': BinaryBytes(content),
             'filename': filename,
         })
         return wizard.action_load_file()
@@ -702,7 +702,7 @@ class TestIslrConciliacionWizardImport(IslrWizardTestMixin, TransactionCase):
         record = self._find_record()
         attachment = self.env['ir.attachment'].create({
             'name': 'conciliacion.pdf',
-            'datas': base64.b64encode(b'pdf'),
+            'datas': BinaryBytes(b'pdf'),
             'res_model': record._name,
             'res_id': record.id,
         })
