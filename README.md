@@ -11,11 +11,19 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/MrErov/contafis-odoo-19.0v/actions/workflows/ci.yml"><img src="https://github.com/MrErov/contafis-odoo-19.0v/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Passing"/></a>
-  <img src="https://img.shields.io/badge/Tests-340%20passing-brightgreen?style=flat-square" alt="340 tests passing"/>
+  <a href="https://github.com/MrErov/contafis-odoo/actions/workflows/ci.yml"><img src="https://github.com/MrErov/contafis-odoo/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Passing"/></a>
+  <img src="https://img.shields.io/badge/Tests-337%20passing-brightgreen?style=flat-square" alt="337 tests passing"/>
   <img src="https://img.shields.io/badge/Odoo-19.0-875A7B?style=flat-square&logo=odoo&logoColor=white" alt="Odoo 19.0"/>
   <img src="https://img.shields.io/badge/License-LGPL--3-blue?style=flat-square" alt="License LGPL-3"/>
+  <img src="https://img.shields.io/badge/Release-v1.3.0-orange?style=flat-square" alt="Release v1.3.0"/>
 </p>
+
+## 🌐 Ecosistema ContaFis
+
+| Componente | Descripción |
+|---|---|
+| **Módulo Odoo (este repo)** | Gestión fiscal completa: calendario SENIAT, conciliación ISLR, libro IVA, alertas y **Bot IA integrado en Discuss**. |
+| **[Asistente IA (LangGraph)](https://github.com/MrErov/contafis-assistant)** | Backend RAG con LangChain, FastAPI y ChromaDB. Demo pública disponible. |
 
 <p align="center">
   <a href="docs/guia-usuario/guia-usuario.pdf"><strong>Guía de Usuario · 68 págs.</strong></a>
@@ -52,6 +60,7 @@ la consolidación manual entre hojas de cálculo, correos y carpetas.
 | **Multiempresa**<br/>Aislamiento de clientes, obligaciones y conciliaciones por compañía y contador. | **Alertas**<br/>Email y WhatsApp vía `wa.me`. |
 | **Bandeja y análisis**<br/>Vencimientos, acciones masivas, KPIs, gráfico y pivote. | **Importadores Excel**<br/>Libro de compras/ventas, cartelera y planilla IVA 99030. |
 | **Factura Física Rápida**<br/>Carga de compras desde talonario o máquina fiscal. | **Reportes PDF**<br/>Cumplimiento y planilla IVA. |
+| **Asistente Fiscal (Bot IA)**<br/>Integrado en Odoo Discuss, conecta con el backend LangChain RAG para consultas fiscales en lenguaje natural. | |
 
 ---
 
@@ -113,8 +122,8 @@ planifica, implementa y cierra con la suite y el CI en verde.
 Requisitos: Docker Desktop y Docker Compose.
 
 ```bash
-git clone https://github.com/MrErov/contafis-odoo-19.0v.git
-cd contafis-odoo-19.0v
+git clone https://github.com/MrErov/contafis-odoo.git
+cd contafis-odoo
 
 mkdir -p config/odoo.conf
 cp odoo.conf.example config/odoo.conf/odoo.conf
@@ -138,7 +147,7 @@ docker compose run --rm web odoo -d contea \
 
 ## Verificación
 
-**340 tests pasando:** 331 backend (`TransactionCase`) + 9 E2E (Playwright).
+**337 tests pasando:** 328 backend (`TransactionCase`) + 9 E2E (Playwright).
 
 ```bash
 # Backend
@@ -164,6 +173,7 @@ planilla IVA, conciliación ISLR y su PDF.
 - [x] Libro de compras/ventas, planilla IVA 99030 e importadores Excel.
 - [x] Bandeja de vencimientos, KPIs y aislamiento multiempresa.
 - [x] Conciliación ISLR con importador Excel y reporte PDF.
+- [x] Asistente Fiscal (Bot IA) integrado en Discuss con backend LangChain RAG.
 - [ ] Portal del cliente (solo lectura).
 - [ ] Integración opcional con WhatsApp Business API.
 
