@@ -10,10 +10,15 @@
   sola instancia.
 </p>
 
+> ⚠️ **Nota sobre esta rama (Odoo 20.0)**
+> Esta es la rama de migración activa para Odoo 20.0.
+> El módulo instala correctamente y la seguridad multi-compañía funciona, pero hay 10 issues conocidos en pruebas de exportación XLSX y generación de PDFs.
+> La versión estable y lista para producción está en la rama **[19.0](https://github.com/MrErov/contafis-odoo/tree/19.0)**.
+
 <p align="center">
   <a href="https://github.com/MrErov/contafis-odoo/actions/workflows/ci.yml"><img src="https://github.com/MrErov/contafis-odoo/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Passing"/></a>
-  <img src="https://img.shields.io/badge/Tests-340%20passing-brightgreen?style=flat-square" alt="340 tests passing"/>
-  <img src="https://img.shields.io/badge/Odoo-20.0-875A7B?style=flat-square&logo=odoo&logoColor=white" alt="Odoo 20.0"/>
+  <img src="https://img.shields.io/badge/Tests-97%25%20passing-yellow?style=flat-square" alt="97% tests passing"/>
+  <img src="https://img.shields.io/badge/Odoo-20.0%20(migration)-875A7B?style=flat-square&logo=odoo&logoColor=white" alt="Odoo 20.0 (migration)"/>
   <img src="https://img.shields.io/badge/License-LGPL--3-blue?style=flat-square" alt="License LGPL-3"/>
 </p>
 
@@ -138,7 +143,7 @@ docker compose run --rm web odoo -d contea \
 
 ## Verificación
 
-**340 tests pasando:** 331 backend (`TransactionCase`) + 9 E2E (Playwright).
+**337 tests:** 328 backend (`TransactionCase`) + 9 E2E (Playwright). 10 tests fallando (exportación XLSX y PDFs).
 
 ```bash
 # Backend
