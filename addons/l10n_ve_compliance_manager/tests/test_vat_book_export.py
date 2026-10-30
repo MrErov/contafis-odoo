@@ -1,4 +1,3 @@
-import base64
 from io import BytesIO
 
 import openpyxl
@@ -87,7 +86,7 @@ class TestVatBookExport(TransactionCase):
         self.assertTrue(wizard.template_file)
 
         # Verificar contenido del XLSX
-        xlsx = base64.b64decode(wizard.template_file)
+        xlsx = wizard.template_file.content
         wb, ws = self._read_xlsx(xlsx)
 
         # Verificar nombre de hoja
@@ -148,7 +147,7 @@ class TestVatBookExport(TransactionCase):
         self.assertIn('Libro_Ventas_2026-08.xlsx', result['url'])
         self.assertTrue(wizard.template_file)
 
-        xlsx = base64.b64decode(wizard.template_file)
+        xlsx = wizard.template_file.content
         wb, ws = self._read_xlsx(xlsx)
 
         self.assertEqual(ws.title, 'VENTAS')
@@ -199,7 +198,7 @@ class TestVatBookExport(TransactionCase):
         self.assertIn('Libro_Compras_Ventas_2026-08.xlsx', result['url'])
         self.assertTrue(wizard.template_file)
 
-        xlsx = base64.b64decode(wizard.template_file)
+        xlsx = wizard.template_file.content
         wb = openpyxl.load_workbook(BytesIO(xlsx), data_only=True)
 
         # Verificar que tiene 2 hojas
@@ -224,7 +223,7 @@ class TestVatBookExport(TransactionCase):
         })
         wizard.action_export_xlsx()
 
-        xlsx = base64.b64decode(wizard.template_file)
+        xlsx = wizard.template_file.content
         wb, ws = self._read_xlsx(xlsx)
 
         # Solo headers (fila 1) + total (fila 2) = 2 filas
@@ -242,7 +241,7 @@ class TestVatBookExport(TransactionCase):
             'book_type': 'purchase',
         })
         wizard.action_export_xlsx()
-        xlsx = base64.b64decode(wizard.template_file)
+        xlsx = wizard.template_file.content
         wb, ws = self._read_xlsx(xlsx)
 
         export_headers = [ws.cell(row=1, column=c).value for c in range(1, ws.max_column + 1)]
@@ -252,7 +251,7 @@ class TestVatBookExport(TransactionCase):
             'import_type': 'vat_book_purchase',
         })
         import_wizard.action_download_template()
-        import_xlsx = base64.b64decode(import_wizard.template_file)
+        import_xlsx = import_wizard.template_file.content
         import_wb = openpyxl.load_workbook(BytesIO(import_xlsx))
         import_ws = import_wb.active
         import_headers = [import_ws.cell(row=1, column=c).value for c in range(1, import_ws.max_column + 1)]
@@ -267,7 +266,7 @@ class TestVatBookExport(TransactionCase):
             'book_type': 'sale',
         })
         wizard.action_export_xlsx()
-        xlsx = base64.b64decode(wizard.template_file)
+        xlsx = wizard.template_file.content
         wb, ws = self._read_xlsx(xlsx)
 
         export_headers = [ws.cell(row=1, column=c).value for c in range(1, ws.max_column + 1)]
@@ -276,7 +275,7 @@ class TestVatBookExport(TransactionCase):
             'import_type': 'vat_book_sale',
         })
         import_wizard.action_download_template()
-        import_xlsx = base64.b64decode(import_wizard.template_file)
+        import_xlsx = import_wizard.template_file.content
         import_wb = openpyxl.load_workbook(BytesIO(import_xlsx))
         import_ws = import_wb.active
         import_headers = [import_ws.cell(row=1, column=c).value for c in range(1, import_ws.max_column + 1)]
@@ -335,7 +334,7 @@ class TestVatBookExport(TransactionCase):
             'book_type': 'purchase',
         })
         wizard.action_export_xlsx()
-        xlsx = base64.b64decode(wizard.template_file)
+        xlsx = wizard.template_file.content
         wb, ws = self._read_xlsx(xlsx)
 
         # Deben aparecer 2 filas de datos (constraint permite por distinto direction)

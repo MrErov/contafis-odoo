@@ -1476,26 +1476,27 @@ class TestAccountantRecordRules(TransactionCase):
 
     def test_rules_loaded_with_expected_domains(self):
         """RF-17: reglas de registro por contador y allow-all para el admin."""
+        # En Odoo 20, ir.rule se migró a ir.access con un registro por grupo
         obligation_rule = self.env.ref(
-            'l10n_ve_compliance_manager.rule_l10n_ve_obligation_accountant'
+            'l10n_ve_compliance_manager.rule_l10n_ve_obligation_accountant_g0'
         )
         self.assertEqual(obligation_rule.model_id.model, 'l10n.ve.obligation')
         self.assertEqual(
-            obligation_rule.domain_force,
+            obligation_rule.domain,
             "[('client_id.accountant_id', '=', user.id)]",
         )
-        self.assertIn(self.accountant_group, obligation_rule.groups)
-        self.assertIn(self.compliance_group, obligation_rule.groups)
+        self.assertEqual(obligation_rule.group_id, self.accountant_group)
+        self.assertEqual(obligation_rule.operation, 'crud')
         client_rule = self.env.ref(
-            'l10n_ve_compliance_manager.rule_l10n_ve_compliance_client_accountant'
+            'l10n_ve_compliance_manager.rule_l10n_ve_compliance_client_accountant_g0'
         )
         self.assertEqual(client_rule.model_id.model, 'l10n.ve.compliance.client')
-        self.assertEqual(client_rule.domain_force, "[('accountant_id', '=', user.id)]")
+        self.assertEqual(client_rule.domain, "[('accountant_id', '=', user.id)]")
         admin_rule = self.env.ref(
             'l10n_ve_compliance_manager.rule_l10n_ve_obligation_admin'
         )
-        self.assertEqual(admin_rule.domain_force, "[(1, '=', 1)]")
-        self.assertIn(self.env.ref('base.group_system'), admin_rule.groups)
+        self.assertEqual(admin_rule.domain, "[(1, '=', 1)]")
+        self.assertEqual(admin_rule.group_id, self.env.ref('base.group_system'))
 
     def test_obligation_isolation_between_accountants(self):
         """RF-17: un contador no ve las obligaciones del otro contador."""

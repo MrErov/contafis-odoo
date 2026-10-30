@@ -914,7 +914,7 @@ class TestIslrConciliacionLifecycle(IslrWizardTestMixin, TransactionCase):
         self.assertEqual(attachment.mimetype, 'application/pdf')
         self.assertEqual(attachment.res_model, record._name)
         self.assertEqual(attachment.res_id, record.id)
-        content = base64.b64decode(attachment.datas)
+        content = attachment.datas.content
         self.assertTrue(content.startswith(b'%PDF'), content[:60])
 
     def test_pdf_incluye_datos_clave_y_advertencias(self):

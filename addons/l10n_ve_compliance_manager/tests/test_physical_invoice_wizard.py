@@ -364,7 +364,7 @@ class TestPhysicalInvoiceWizard(TaxGroupMixin, TransactionCase):
         partner = self.env['res.partner'].search([('vat', '=', rif_nuevo)])
         self.assertTrue(partner)
         self.assertEqual(partner.name, 'Nuevo Proveedor Test')
-        self.assertEqual(partner.company_type, 'company')
+        self.assertTrue(partner.is_company)
         self.assertEqual(move.partner_id, partner)
 
     def test_wizard_physical_total_warning(self):

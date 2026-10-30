@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from odoo import fields
 from odoo.exceptions import AccessError, UserError
+from odoo.orm.fields_binary import BinaryBytes
 from odoo.tests import TransactionCase, tagged
 
 
@@ -53,7 +54,7 @@ class TestObligationPaymentWizard(TransactionCase):
         self.assertEqual(wizard.payment_date, fields.Date.today())
 
         wizard.payment_reference = 'REF-123'
-        wizard.payment_attachment = b'ZmlsZQ=='
+        wizard.payment_attachment = BinaryBytes(b'ZmlsZQ==')
         result = wizard.action_confirm()
 
         self.assertEqual(obligation.state, 'paid')

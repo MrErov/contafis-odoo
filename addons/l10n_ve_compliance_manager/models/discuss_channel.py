@@ -81,7 +81,7 @@ class DiscussChannel(models.Model):
 
     def _is_configured(self):
         """Check if the webhook is configured."""
-        webhook_url = self.env['ir.config_parameter'].sudo().get_param('l10n_ve_chat.webhook_url', '')
+        webhook_url = self.env['ir.config_parameter'].sudo().get_str('l10n_ve_chat.webhook_url', '')
         return bool(webhook_url)
 
     def _post_bot_error(self, msg):
@@ -109,7 +109,7 @@ class DiscussChannel(models.Model):
                 )
             return None
 
-        webhook_url = self.env['ir.config_parameter'].sudo().get_param('l10n_ve_chat.webhook_url', '')
+        webhook_url = self.env['ir.config_parameter'].sudo().get_str('l10n_ve_chat.webhook_url', '')
 
         # FastAPI expects: {"message": "text"} with header X-User-Token: <user.api_token>
         payload = {'message': question}

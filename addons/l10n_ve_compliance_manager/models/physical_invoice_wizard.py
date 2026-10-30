@@ -294,7 +294,7 @@ class PhysicalInvoiceWizard(models.TransientModel):
             partner = self.env['res.partner'].create({
                 'name': self.new_partner_name,
                 'vat': self.partner_vat,
-                'company_type': self.new_partner_type,
+                'is_company': self.new_partner_type == 'company',
                 'street': self.new_partner_street,
                 'email': self.new_partner_email,
                 'phone': self.new_partner_phone,

@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from odoo import fields
+from odoo.orm.fields_binary import BinaryBytes
 from odoo.tests import TransactionCase, tagged
 
 
@@ -97,7 +98,7 @@ class TestObligationActions(TransactionCase):
             state='paid',
             payment_date=fields.Date.today(),
             payment_reference='REF-001',
-            payment_attachment=b'ZmlsZQ==',
+            payment_attachment=BinaryBytes(b'ZmlsZQ=='),
         )
         obligation.due_date = fields.Date.today() + timedelta(days=10)
 
@@ -108,7 +109,7 @@ class TestObligationActions(TransactionCase):
         self.assertFalse(obligation.payment_date)
         self.assertFalse(obligation.payment_reference)
         self.assertEqual(
-            obligation.payment_attachment, b'ZmlsZQ==',
+            obligation.payment_attachment.content, b'ZmlsZQ==',
             'El comprobante debe conservarse al reabrir',
         )
 

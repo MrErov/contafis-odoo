@@ -1,7 +1,7 @@
-import base64
 from io import BytesIO
 
 from odoo import fields, models
+from odoo.orm.fields_binary import BinaryBytes
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 
@@ -416,7 +416,7 @@ class VatReturn(models.Model):
         # Guardar en campos Binary
         filename = f'Planilla_99030_{self.period_month}.xlsx'
         self.write({
-            'export_file': base64.b64encode(xlsx_content),
+            'export_file': BinaryBytes(xlsx_content),
             'export_filename': filename,
         })
 

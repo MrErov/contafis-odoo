@@ -493,8 +493,7 @@ class TestImportVatBook(TransactionCase):
         self.assertIn('plantilla_vat_book_purchase.xlsx', result['url'])
         self.assertTrue(wizard.template_file)
 
-        import base64
-        xlsx = base64.b64decode(wizard.template_file)
+        xlsx = wizard.template_file.content
         wb = openpyxl.load_workbook(BytesIO(xlsx))
         ws = wb.active
 
@@ -524,8 +523,7 @@ class TestImportVatBook(TransactionCase):
         self.assertIn('plantilla_vat_book_sale.xlsx', result['url'])
         self.assertTrue(wizard.template_file)
 
-        import base64
-        xlsx = base64.b64decode(wizard.template_file)
+        xlsx = wizard.template_file.content
         wb = openpyxl.load_workbook(BytesIO(xlsx))
         ws = wb.active
 

@@ -202,7 +202,7 @@ class TestCarteleraEvidence(TransactionCase):
         })
 
         # Verificar que la imagen guardada es decodificable
-        img_bytes = base64.b64decode(evidence.image)
+        img_bytes = evidence.image.content
         img_restored = PILImage.open(io.BytesIO(img_bytes))
         img_restored.verify()  # lanza excepción si está corrupta
 

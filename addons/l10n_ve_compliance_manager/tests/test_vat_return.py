@@ -1,4 +1,3 @@
-import base64
 from io import BytesIO
 
 import openpyxl
@@ -282,7 +281,7 @@ class TestVatReturn(TaxGroupMixin, TransactionCase):
         self.assertEqual(vat_return.export_filename, 'Planilla_99030_2026-08.xlsx')
 
         # Verificar contenido del XLSX
-        xlsx = base64.b64decode(vat_return.export_file)
+        xlsx = vat_return.export_file.content
         wb = openpyxl.load_workbook(BytesIO(xlsx), data_only=True)
         ws = wb.active
 
@@ -336,7 +335,7 @@ class TestVatReturn(TaxGroupMixin, TransactionCase):
         })
         vat_return.action_export_99030_xlsx()
 
-        xlsx = base64.b64decode(vat_return.export_file)
+        xlsx = vat_return.export_file.content
         wb = openpyxl.load_workbook(BytesIO(xlsx), data_only=True)
         ws = wb.active
 

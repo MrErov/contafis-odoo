@@ -66,7 +66,7 @@ class CarteleraEvidence(models.Model):
     def _get_max_size_mb(self):
         """Obtiene el tamaño máximo permitido en MB desde ir.config_parameter."""
         ICP = self.env['ir.config_parameter'].sudo()
-        return float(ICP.get_param('l10n_ve_compliance.evidence_max_size_mb', '5.0'))
+        return float(ICP.get_str('l10n_ve_compliance.evidence_max_size_mb', '5.0'))
 
     @api.constrains('image')
     def _check_image_size(self):

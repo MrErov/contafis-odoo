@@ -1,7 +1,7 @@
-import base64
 from io import BytesIO
 
 from odoo import fields, models
+from odoo.orm.fields_binary import BinaryBytes
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
@@ -47,7 +47,7 @@ class VatBookExportWizard(models.TransientModel):
             filename = f'Libro_Ventas_{self.period_month}.xlsx'
 
         self.write({
-            'template_file': base64.b64encode(xlsx_content),
+            'template_file': BinaryBytes(xlsx_content),
             'filename': filename,
         })
         return {

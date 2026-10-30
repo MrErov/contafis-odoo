@@ -5,6 +5,7 @@ from io import BytesIO
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
+from odoo.orm.fields_binary import BinaryBytes
 from odoo.tools.translate import _
 
 from .vat_book_headers import VAT_BOOK_HEADER_MAP
@@ -237,7 +238,7 @@ class ImportWizard(models.TransientModel):
             xlsx_content = self._generate_vat_book_both_template()
             filename = f'plantilla_{self.import_type}.xlsx'
             self.write({
-                'template_file': base64.b64encode(xlsx_content),
+                'template_file': BinaryBytes(xlsx_content),
                 'filename': filename,
             })
             return {
@@ -253,7 +254,7 @@ class ImportWizard(models.TransientModel):
         xlsx_content = self._generate_template_xlsx(template_data)
         filename = f'plantilla_{self.import_type}.xlsx'
         self.write({
-            'template_file': base64.b64encode(xlsx_content),
+            'template_file': BinaryBytes(xlsx_content),
             'filename': filename,
         })
         return {
@@ -546,7 +547,6 @@ class ImportWizard(models.TransientModel):
         if not self.file:
             raise UserError(_('Debe subir un archivo Excel.'))
 
-        import base64
         from io import BytesIO
 
         import openpyxl
@@ -670,7 +670,6 @@ class ImportWizard(models.TransientModel):
         if self.import_type == 'islr_conciliation':
             return self._load_islr_conciliation_file()
 
-        import base64
 
         import openpyxl
         from openpyxl.utils import get_column_letter
@@ -742,7 +741,6 @@ class ImportWizard(models.TransientModel):
     def _load_islr_conciliation_file(self):
         """Carga la conciliación ISLR: parsea, resuelve cliente y va a preview."""
         self.ensure_one()
-        import base64
 
         from odoo.addons.l10n_ve_compliance_manager.models.islr_conciliation import (
             IslrParseError,
@@ -1013,7 +1011,6 @@ class ImportWizard(models.TransientModel):
         if not self.file and not ws:
             raise UserError(_('Debe subir un archivo Excel.'))
 
-        import base64
         from io import BytesIO
 
         import openpyxl
@@ -1678,7 +1675,6 @@ class ImportWizard(models.TransientModel):
         if not self.file:
             raise UserError(_('Debe subir un archivo Excel.'))
 
-        import base64
         from io import BytesIO
 
         import openpyxl
@@ -2052,7 +2048,6 @@ class ImportWizard(models.TransientModel):
 
     def _create_import_log(self, success_count, error_count, skipped_count, records_created):
         """Crea log persistente de importación."""
-        import base64
         from io import BytesIO
 
         # Generar log Excel de resultados

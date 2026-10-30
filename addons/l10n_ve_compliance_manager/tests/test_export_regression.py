@@ -1,4 +1,3 @@
-import base64
 from io import BytesIO
 
 import openpyxl
@@ -112,7 +111,7 @@ class TestExportRegression(TaxGroupMixin, TransactionCase):
         wizard.action_export_xlsx()
 
         # Decodificar el archivo
-        xlsx_content = base64.b64decode(wizard.template_file)
+        xlsx_content = wizard.template_file.content
         wb = openpyxl.load_workbook(BytesIO(xlsx_content))
         ws = wb.active
 
