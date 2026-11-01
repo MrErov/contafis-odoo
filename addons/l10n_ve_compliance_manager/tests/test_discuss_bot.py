@@ -183,3 +183,82 @@ class TestDiscussBotSessionAuth(TransactionCase):
                 self.assertEqual(headers['X-Odoo-Session'], 'test-session-id-456')
             finally:
                 discuss_channel_module.request = original_request
+
+    def _create_bot_channel(self, name):
+        """Crea un canal 1-a-1 usuario/bot para los tests de blindaje."""
+        return self.Channel.with_user(self.accountant).create({
+            'name': name,
+            'channel_type': 'chat',
+            'channel_member_ids': [
+                (0, 0, {'partner_id': self.accountant.partner_id.id}),
+                (0, 0, {'partner_id': self.BotUser.partner_id.id}),
+            ],
+        })
+
+    def _last_bot_message(self, channel):
+        return self.env['mail.message'].search([
+            ('model', '=', 'discuss.channel'),
+            ('res_id', '=', channel.id),
+            ('author_id', '=', self.BotUser.partner_id.id),
+        ], order='create_date DESC', limit=1)
+
+    def test_no_http_context_posts_friendly_session_message(self):
+        """Fuera de contexto HTTP (request = None) no debe fallar ni llamar al webhook."""
+        if not self.BotUser:
+            self.skipTest("Bot user not found")
+
+        channel = self._create_bot_channel('Test Bot Chat No HTTP')
+
+        original_request = discuss_channel_module.request
+        discuss_channel_module.request = None
+
+        try:
+            with patch('requests.post') as mock_post:
+                channel.with_user(self.accountant).message_post(
+                    body='Hola bot sin contexto HTTP',
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_comment',
+                )
+                self.assertFalse(
+                    mock_post.called,
+                    "No debe llamarse al webhook sin session_id",
+                )
+        finally:
+            discuss_channel_module.request = original_request
+
+        bot_message = self._last_bot_message(channel)
+        self.assertTrue(bot_message, "El bot debe dejar constancia del fallo de sesión")
+        self.assertIn('Sesión no detectada', bot_message.body)
+
+    def test_unbound_request_does_not_raise(self):
+        """Si el acceso a request.session lanza, se captura y se avisa al usuario."""
+        if not self.BotUser:
+            self.skipTest("Bot user not found")
+
+        channel = self._create_bot_channel('Test Bot Chat Unbound Request')
+
+        mock_request = MagicMock()
+        type(mock_request).session = PropertyMock(
+            side_effect=RuntimeError('object is not bound to a request')
+        )
+
+        original_request = discuss_channel_module.request
+        discuss_channel_module.request = mock_request
+
+        try:
+            with patch('requests.post') as mock_post:
+                channel.with_user(self.accountant).message_post(
+                    body='Hola bot con request roto',
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_comment',
+                )
+                self.assertFalse(
+                    mock_post.called,
+                    "No debe llamarse al webhook si no hay session_id",
+                )
+        finally:
+            discuss_channel_module.request = original_request
+
+        bot_message = self._last_bot_message(channel)
+        self.assertTrue(bot_message, "El bot debe postear el aviso de sesión")
+        self.assertIn('Sesión no detectada', bot_message.body)
