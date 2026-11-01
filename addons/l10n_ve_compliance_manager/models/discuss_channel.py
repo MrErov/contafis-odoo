@@ -3,9 +3,17 @@ import time
 
 import requests
 from odoo import models
+from odoo.http import request
 from odoo.tools.translate import _
 
 _logger = logging.getLogger(__name__)
+
+# Disclaimer legal para respuestas del asistente
+LEGAL_DISCLAIMER = _(
+    "\n\n⚠️ Esta respuesta es generada por un asistente de IA y tiene carácter meramente informativo. "
+    "No constituye asesoría legal, fiscal ni profesional. Para decisiones importantes, "
+    "consulte a un profesional calificado."
+)
 
 
 class DiscussChannel(models.Model):
@@ -62,12 +70,6 @@ class DiscussChannel(models.Model):
             self._post_bot_error(_("⚠️ No se puede identificar tu usuario para procesar la consulta."))
             return message
 
-        # Check API token
-        _logger.info("BOT DEBUG - User ID: %s, Partner ID: %s, API Token: %s", user.id, user.partner_id.id, user.api_token)
-        if not user.api_token:
-            self._post_bot_error(_("⚠️ Por favor, configura tu Token API en tus preferencias para usar el Asistente."))
-            return message
-
         # Call the webhook with the user context
         try:
             response_data = self._call_webhook(user, body, self.id)
@@ -111,11 +113,16 @@ class DiscussChannel(models.Model):
 
         webhook_url = self.env['ir.config_parameter'].sudo().get_param('l10n_ve_chat.webhook_url', '')
 
-        # FastAPI expects: {"message": "text"} with header X-User-Token: <user.api_token>
+        # Get session ID from HTTP request context
+        session_id = ''
+        if request and request.session:
+            session_id = request.session.sid or ''
+
+        # FastAPI expects: {"message": "text"} with header X-Odoo-Session: <session_id>
         payload = {'message': question}
         headers = {
             'Content-Type': 'application/json',
-            'X-User-Token': user.api_token or '',
+            'X-Odoo-Session': session_id,
         }
 
         _logger.info("BOT WEBHOOK - URL: %s, Payload: %s, Headers: %s", webhook_url, payload, headers)
@@ -242,6 +249,9 @@ class DiscussChannel(models.Model):
                 formatted_warnings.append(f'\n  • {msg}')
             warning_text = ''.join(formatted_warnings)
             body += f'\n\n⚠️ Advertencias:{warning_text}'
+
+        # Add legal disclaimer
+        body += LEGAL_DISCLAIMER
 
         self.sudo().message_post(
             body=body,
