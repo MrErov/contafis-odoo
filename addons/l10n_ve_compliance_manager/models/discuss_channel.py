@@ -113,10 +113,27 @@ class DiscussChannel(models.Model):
 
         webhook_url = self.env['ir.config_parameter'].sudo().get_param('l10n_ve_chat.webhook_url', '')
 
-        # Get session ID from HTTP request context
+        # Get session ID from HTTP request context.
+        # `request` may be unbound (crons, unit tests, RPC without an HTTP
+        # request), in which case any attribute access raises. Never let that
+        # break the caller: fall back to an empty session and warn instead.
         session_id = ''
-        if request and request.session:
-            session_id = request.session.sid or ''
+        try:
+            if request and hasattr(request, 'session') and request.session:
+                session_id = request.session.sid or ''
+        except Exception:
+            _logger.warning(
+                "No se pudo obtener session_id desde el request (contexto no HTTP)."
+            )
+
+        # Without a session there is nothing the external agent can authenticate
+        # against, so fail friendly instead of sending an anonymous request.
+        if not session_id:
+            _logger.warning("No hay session_id disponible: se cancela la llamada al agente.")
+            self._post_bot_error(
+                _("🔐 Sesión no detectada. Por favor, recargá Odoo e intentá de nuevo.")
+            )
+            return None
 
         # FastAPI expects: {"message": "text"} with header X-Odoo-Session: <session_id>
         payload = {'message': question}
