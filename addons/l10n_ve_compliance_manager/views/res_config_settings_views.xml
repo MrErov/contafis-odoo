@@ -14,6 +14,20 @@
                             <field name="l10n_ve_chat_auth_token" password="True"/>
                         </setting>
                     </block>
+                    <block title="Digitalización de facturas">
+                        <setting string="URL del servicio"
+                                 help="URL del endpoint /digitize del servicio contafis-assistant.">
+                            <field name="l10n_ve_digitize_url" placeholder="https://tu-servicio/digitize"/>
+                        </setting>
+                        <setting string="Timeout (segundos)"
+                                 help="Tiempo máximo de espera de la respuesta del servicio.">
+                            <field name="l10n_ve_digitize_timeout_seconds"/>
+                        </setting>
+                        <setting string="Tamaño máximo de imagen (MB)"
+                                 help="Límite local antes de enviar la imagen al servicio.">
+                            <field name="l10n_ve_digitize_max_image_mb"/>
+                        </setting>
+                    </block>
                 </app>
             </xpath>
         </field>

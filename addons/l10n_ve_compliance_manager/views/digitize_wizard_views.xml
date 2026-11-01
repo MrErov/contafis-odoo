@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_l10n_ve_digitize_wizard_form" model="ir.ui.view">
+        <field name="name">l10n.ve.digitize.wizard.form</field>
+        <field name="model">l10n.ve.digitize.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Digitalizar Factura">
+                <header>
+                    <button name="action_digitize" string="Analizar"
+                            type="object" class="btn-primary"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </header>
+                <sheet>
+                    <group string="Datos de la operación">
+                        <group>
+                            <field name="type" required="true"/>
+                            <field name="document_type_hint" required="true"/>
+                        </group>
+                    </group>
+                    <group string="Imagen de la factura">
+                        <group>
+                            <field name="image" filename="filename" required="true"
+                                   help="Formatos aceptados: JPG, JPEG, PNG y WEBP."/>
+                        </group>
+                        <group>
+                            <field name="filename" readonly="1" invisible="not filename"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-danger" role="alert"
+                         invisible="state != 'error'">
+                        <field name="error_message" readonly="1"/>
+                    </div>
+                    <group string="Resultado" invisible="state != 'done'">
+                        <group>
+                            <field name="detected_document_type" readonly="1"/>
+                            <field name="confidence" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_l10n_ve_digitize_wizard" model="ir.actions.act_window">
+        <field name="name">Digitalizar Factura</field>
+        <field name="res_model">l10n.ve.digitize.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

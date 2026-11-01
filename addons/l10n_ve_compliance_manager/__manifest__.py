@@ -1,6 +1,6 @@
 {
     'name': 'Venezuela - Cumplimiento Fiscal y Documental',
-    'version': '19.0.1.3.0',
+    'version': '19.0.1.4.0',
     'author': 'Eurick Ospino',
     'website': 'https://github.com/MrErov/contafis-odoo-19.0v',
     'category': 'Accounting/Localizations',
@@ -54,6 +54,7 @@ Incluye:
         'views/bank_holiday_views.xml',
         'views/account_move_views.xml',
         'views/physical_invoice_wizard_views.xml',
+        'views/digitize_wizard_views.xml',
         'views/islr_conciliation_views.xml',
         'views/menu.xml',
         'views/obligation_analysis_views.xml',
