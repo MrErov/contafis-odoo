@@ -8,6 +8,8 @@ from . import (
     cartelera_status,
     chat_history,
     compliance_client,
+    digitize_client,
+    digitize_wizard,
     discuss_channel,
     document,
     document_type,
