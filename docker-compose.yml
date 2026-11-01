@@ -15,7 +15,7 @@ services:
       - odoo-web-data:/var/lib/odoo
       - ./config/odoo.conf/odoo.conf:/etc/odoo/odoo.conf
       - ./addons:/mnt/extra-addons
-    command: --
+    command: odoo --workers=2
     restart: unless-stopped
 
   db:
