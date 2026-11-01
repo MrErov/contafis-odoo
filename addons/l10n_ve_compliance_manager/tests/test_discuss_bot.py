@@ -262,3 +262,56 @@ class TestDiscussBotSessionAuth(TransactionCase):
         bot_message = self._last_bot_message(channel)
         self.assertTrue(bot_message, "El bot debe postear el aviso de sesión")
         self.assertIn('Sesión no detectada', bot_message.body)
+
+    def _post_and_get_bot_reply(self, channel_name, status_code):
+        """Envía un mensaje con el agente respondiendo `status_code` y devuelve la réplica del bot."""
+        channel = self._create_bot_channel(channel_name)
+
+        with patch('requests.post') as mock_post:
+            mock_response = MagicMock()
+            mock_response.status_code = status_code
+            mock_response.json.return_value = {'detail': 'error'}
+            mock_post.return_value = mock_response
+
+            mock_session = MagicMock()
+            mock_session.sid = 'test-session-id-789'
+            mock_request = MagicMock()
+            type(mock_request).session = PropertyMock(return_value=mock_session)
+            original_request = discuss_channel_module.request
+            discuss_channel_module.request = mock_request
+
+            try:
+                channel.with_user(self.accountant).message_post(
+                    body='Consulta con sesión',
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_comment',
+                )
+            finally:
+                discuss_channel_module.request = original_request
+
+        return self._last_bot_message(channel)
+
+    def test_expired_session_is_reported_as_session_error(self):
+        """Un 401 del agente (sesión expirada) no debe hablar del token del webhook."""
+        if not self.BotUser:
+            self.skipTest("Bot user not found")
+
+        bot_message = self._post_and_get_bot_reply('Test Bot Chat 401', 401)
+
+        self.assertTrue(bot_message, "El bot debe responder al 401")
+        body = bot_message.body.lower()
+        self.assertIn('sesión de odoo expiró', body)
+        self.assertIn('recargá odoo', body)
+        self.assertNotIn('token del webhook', body)
+
+    def test_validation_unavailable_is_not_reported_as_agent_crash(self):
+        """Un 503 (no se pudo validar la sesión) se distingue de un 5xx del agente."""
+        if not self.BotUser:
+            self.skipTest("Bot user not found")
+
+        bot_message = self._post_and_get_bot_reply('Test Bot Chat 503', 503)
+
+        self.assertTrue(bot_message, "El bot debe responder al 503")
+        body = bot_message.body.lower()
+        self.assertIn('no se pudo validar', body)
+        self.assertNotIn('error del servidor del agente', body)
