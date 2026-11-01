@@ -15,13 +15,14 @@ Comando oficial de tests (única fuente del conteo):
       Hecho cuando: la captura del `sid` va en `try/except`, tolera `request` nulo, sin `session` o con `sid` vacío; sin `session_id` se registra un warning y se publica «🔐 Sesión no detectada. Por favor, recargá Odoo e intentá de nuevo.» sin llamar al agente; tests `test_no_http_context_posts_friendly_session_message` y `test_unbound_request_does_not_raise` en verde.
       Cerrada: `0 failed, 0 error(s) of 342 tests`.
 
-- [ ] **T2. _(propuesta; requiere elección del usuario)_ Sesión expirada o inválida: mensaje accionable en el canal.** RF-5
-      Hecho cuando: un `401`/`403` del agente ya no se reporta como «token del webhook» sino como sesión expirada/ inválida con instrucción de recargar Odoo; se distingue `503` (Odoo no disponible al validar la sesión) del resto de 5xx; tests para 401 y 503.
+- [x] **T2. Sesión expirada o inválida: mensaje accionable en el canal.** RF-5
+      Hecho cuando: un `401`/`403` del agente ya no se reporta como «token del webhook» sino como sesión expirada/inválida con instrucción de recargar Odoo; se distingue `503` (Odoo no disponible al validar la sesión) del resto de 5xx; tests para 401 y 503.
+      Cerrada: `401/403` → «🔐 Tu sesión de Odoo expiró o no es válida. Recargá Odoo e intentá de nuevo.»; `503` → «🔄 No se pudo validar tu sesión en este momento…»; el resto de `5xx` conserva el mensaje genérico. Las cinco ramas de error usan `_post_bot_error` (se eliminaron ~40 líneas repetidas). Tests `test_expired_session_is_reported_as_session_error` y `test_validation_unavailable_is_not_reported_as_agent_crash`. `0 failed, 0 error(s) of 344 tests`.
 
-## Candidatos de T2 (elegir uno antes de implementar)
+## Candidatos de T2 considerados (elegido: T2-A)
 
-| ID | Alcance | Coste | Por qué |
-|----|---------|-------|---------|
-| **T2-A (recomendado)** | Mapear `401/403` → «Tu sesión de Odoo expiró o no es válida. Recargá Odoo e intentá de nuevo.» y `503` → «No se pudo validar la sesión ahora mismo, reintentá en unos minutos.» Distinguir de 5xx genérico. Tests de 401 y 503. | ~25 líneas + 2 tests | Es la deuda real que dejó T1: el mensaje actual habla de «token del webhook», concepto que ya no aplica al flujo por sesión. |
-| T2-B | Test de contrato Odoo↔agente con `HttpCase`: publicar en el canal por HTTP, assertar que el agente recibe `X-Odoo-Session` no vacío y que la respuesta queda con disclaimer. | ~60 líneas + 1 test HTTP | Verifica de punta a punta lo que hoy solo está mockeado. Requiere backend levantado en CI. |
-| T2-C | No bloquear el hilo web: enviar el webhook fuera de la transacción (thread/cron), recortar `timeout`, y dejar de loguear el `sid`. | ~80 líneas | El `message_post` actual puede colgar la UI hasta 60 s y el `sid` aparece en logs INFO. |
+| ID | Alcance | Estado |
+|----|---------|--------|
+| **T2-A** | Mapear `401/403` → sesión expirada y `503` → validación no disponible, distinguiéndolos del 5xx genérico. | **Elegido e implementado.** |
+| T2-B | Test de contrato Odoo↔agente con `HttpCase` (requiere backend vivo en CI). | No elegido. |
+| T2-C | Sacar el webhook del hilo web, recortar `timeout` y no loguear el `sid`. | No elegido: queda como deuda abierta (ver `plan.md`, riesgos). |
