@@ -1,7 +1,7 @@
 # Plan 007 - Wizard de Digitalización
 
 Spec: `specs/007-digitalizacion/spec.md`
-Baseline: `0 failed, 0 error(s) of 344 tests` (rama `19.0`, commit `2ddf9aa`).
+Baseline: `0 failed, 0 error(s) of 362 tests` (rama `19.0`, commit `fd0d781`, tras T1).
 
 ## 1. Arquitectura
 
@@ -71,8 +71,8 @@ volver a adjuntar (RF-12).
 | `security/ir.model.access.csv` | ACL de `l10n.ve.digitize.wizard` y `l10n.ve.digitize.line` (patrón user + manager + contador). |
 | `views/menu.xml` | Menú "Digitalizar Factura" bajo `menu_l10n_ve_compliance_taxes`, sequence 60. |
 | `models/__init__.py` | Imports nuevos. |
-| `views/physical_invoice_wizard_views.xml` | Campo `digitized_document_type` + `digitize_confidence` (invisibles cuando no aplican) y aviso de descuadre. |
-| `models/physical_invoice_wizard.py` | Campos `digitized_document_type`, `digitize_confidence`; selección de `move_type` (nota de crédito) y narración de procedencia en `action_create_and_post`. Aditivo, sin cambiar el comportamiento actual cuando los campos están vacíos. |
+| `views/physical_invoice_wizard_views.xml` | Campos `digitized_document_type`, `digitize_confidence` y `digitized_document_ref` (invisibles cuando no aplican) y aviso de descuadre. |
+| `models/physical_invoice_wizard.py` | Campos `digitized_document_type`, `digitize_confidence`, `digitized_document_ref`; selección de `move_type` (nota de crédito) y narración de procedencia en `action_create_and_post`. Aditivo, sin cambiar el comportamiento actual cuando los campos están vacíos. |
 | `__manifest__.py` | Registrar vista antes de `views/menu.xml`; versión `19.0.1.4.0`. |
 
 ## 3. Contrato técnico del método que llama a `/digitize`
