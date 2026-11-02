@@ -375,3 +375,10 @@ El agente IA opera Odoo 19 (DB `contea`) vía MCP `FGRibreau/mcp-odoo` v0.2.1
   confirmación explícita al usuario.
 - Si el working tree tiene cambios no commiteados, tratarlos como trabajo del
   usuario hasta demostrar lo contrario.
+
+## Pull Requests
+
+- El título del PR debe ser descriptivo y seguir Conventional Commits.
+- Formato: `<type>(<scope>): <descripción corta>` (ej. `feat(spec-007): implement digitize wizard`).
+- Si el PR contiene varias tareas (T1-T3), indicarlo en el título (ej. `feat(spec-007): T1-T3 digitize wizard complete`).
+- El cuerpo del PR debe referenciar las tareas completadas y el conteo de tests.
