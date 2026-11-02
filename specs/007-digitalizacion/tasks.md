@@ -14,7 +14,7 @@ docker compose run --rm web odoo -d contea -u l10n_ve_compliance_manager \
   --test-tags /l10n_ve_compliance_manager
 ```
 
-Baseline: `0 failed, 0 error(s) of 344 tests`.
+Baseline: `0 failed, 0 error(s) of 362 tests` (tras T1, commit `fd0d781`: 344 + 18 de T1).
 
 ---
 
@@ -70,7 +70,7 @@ Baseline: `0 failed, 0 error(s) of 344 tests`.
       `.gif` se rechazan antes de llamar al servicio; el log no contiene el base64
       ni el `sid`; `0 failed, 0 error(s) of N` con `N > 344`.
 
-- [ ] **T2. Mapeo `extracted` → defaults del wizard de Factura Física Rápida.**
+- [x] **T2. Mapeo `extracted` → defaults del wizard de Factura Física Rápida.**
       RF-09, RF-10, RF-11, RF-17
 
       Alcance:
@@ -99,11 +99,26 @@ Baseline: `0 failed, 0 error(s) of 344 tests`.
       `test_missing_amounts_do_not_raise`.
       Fixture compartido: `tests/fixtures/digitize_response_200.json`.
 
-      Hecho cuando: desde `done`, el botón abre el wizard de factura física con RIF,
-      razón social, número, control, fechas, moneda, base, total y concepto
-      cargados; el RIF válido resuelve el partner existente; un RIF inválido o un
-      dato ausente quedan vacíos y advertidos sin bloquear; `0 failed of N` con
-      `N` mayor al de T1.
+      Tests añadidos al cerrar la revisión: `test_digitize_persists_local_warnings`,
+      `test_apply_does_not_default_invoice_date_to_today`,
+      `test_partner_from_other_company_is_not_reused`,
+      `test_parse_response_tolerates_malformed_optional_parts`.
+      Deuda de T1 pagada en T2: `test_timeout_is_floored_to_one_second` y
+      `test_get_image_base64_encodes_raw_bytes` (+2 tests, no estaban en la lista
+      original). Total T2: 16 tests nuevos → 362 + 16 = **378**.
+
+      Hecho cuando: desde `done`, la acción `action_apply_to_invoice` devuelve el
+      wizard de factura física con RIF, razón social, número, control, fechas,
+      moneda, base, total y concepto cargados; el RIF válido resuelve el partner
+      existente; un RIF inválido o un dato ausente quedan vacíos y advertidos sin
+      bloquear; las advertencias locales se persisten en `warnings_json` (servicio
+      primero, dedupe por código+campo); una `invoice_date` ausente **no** cae en la
+      fecha de hoy del wizard destino; `0 failed, 0 error(s) of 378 tests`.
+
+      Cierre: el botón "Usar datos…" de la vista es T3 (la vista sigue igual que
+      T1); T2 entrega la acción y sus tests de modelo. El `onchange` del wizard
+      destino **no** se dispara al abrirlo con `default_*` (verificado en
+      `relational_model/record.js`: solo `_update(changes)` invoca `_onchange`).
 
 - [ ] **T3. UI de confianza, advertencias y líneas extraídas.**
       RF-06, RF-07, RF-08 · RNF-04
@@ -134,16 +149,22 @@ Baseline: `0 failed, 0 error(s) of 344 tests`.
       RF-13, RF-14
 
       Alcance:
-      1. Campo `digitized_document_type` (Selection `factura_z`/`nota_credito`/
-         `nota_debito`) y `digitize_confidence` en
-         `l10n.ve.physical.invoice.wizard` (aditivo, default `False`/`0.0`), pasados
-         por `context` desde el wizard de digitalización.
+      1. Campos `digitized_document_type` (Selection `factura_z`/`nota_credito`/
+         `nota_debito`), `digitize_confidence` y `digitized_document_ref` (Char) en
+         `l10n.ve.physical.invoice.wizard` (aditivo, default `False`/`0.0`/`False`),
+         pasados por `context` desde el wizard de digitalización. T4 extiende
+         `_map_extracted_to_invoice_defaults` (creada en T2) con las claves
+         `default_digitized_document_type`, `default_digitize_confidence` y
+         `default_digitized_document_ref` (este último = `credit_note_ref` o
+         `debit_note_ref` según el tipo detectado); T2 no emite claves `default_*`
+         sin campo destino.
       2. En `action_create_and_post`: `move_type` según la tabla del plan §3
          (`in_refund`/`out_refund` para nota de crédito; factura normal para nota de
          débito). Comportamiento actual intacto cuando
          `digitized_document_type` está vacío (guardia de no regresión).
-      3. `ref` = `credit_note_ref` / `debit_note_ref` cuando existan; si no, se
-         mantiene `control_number` (comportamiento actual).
+      3. `ref` = `digitized_document_ref` (alimentado desde `credit_note_ref` o
+         `debit_note_ref` según el tipo detectado) cuando exista; si no, se mantiene
+         `control_number` (comportamiento actual).
       4. Narración: prefijo `[Digitalizado] tipo=... confianza=... advertencias=...`
          antepuesto al concepto, solo en el flujo digitalizado.
 
@@ -171,6 +192,12 @@ Baseline: `0 failed, 0 error(s) of 344 tests`.
          que la narración contiene la procedencia.
       4. Segunda compañía en el test: el partner de la compañía A no se reutiliza
          para el asiento de la compañía B; el wizard no necesita `sudo()`.
+         Además, `_onchange_partner_vat` y `action_create_and_post` del wizard
+         físico buscan el partner **sin** filtro de compañía; T2 solo filtra en
+         `_map_extracted_to_invoice_defaults`. T5 debe agregar
+         `('company_id', 'in', [False, self.env.company.id])` a ambas búsquedas para
+         que RF-17 se cumpla de punta a punta (hoy una coincidencia de RIF de otra
+         compañía podría reutilizarse al crear el asiento).
       5. Ajustes mínimos que aparezcan necesarios (sin cambiar el comportamiento
          manual); si el cambio supera 60 líneas, detenerse y reportar.
 
@@ -206,7 +233,7 @@ Baseline: `0 failed, 0 error(s) of 344 tests`.
       Tests: ninguno nuevo; se re-corre la suite completa.
 
       Hecho cuando: capturas de los tres estados y del prellenado; `0 failed,
-      0 error(s) of N` con `N` = 344 + tests de T1–T5; docs actualizadas; un commit
+      0 error(s) of N` con `N` = 362 + tests de T2–T5; docs actualizadas; un commit
       `docs(spec): close phase 007-digitalizacion` con los artefactos de la spec en
       verde.
 

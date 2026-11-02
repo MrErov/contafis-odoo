@@ -1,13 +1,24 @@
 import base64
+import json
+from datetime import date
+from pathlib import Path
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import odoo.addons.l10n_ve_compliance_manager.models.digitize_client as digitize_client_module
 import requests
 from odoo.addons.l10n_ve_compliance_manager.models.digitize_client import post_digitize
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.tests import TransactionCase, tagged
 
 DIGITIZE_URL = 'http://digitize.test/digitize'
+FIXTURES_DIR = Path(__file__).parent / 'fixtures'
+
+
+def _load_fixture(name='digitize_response_200.json'):
+    """Carga una respuesta realista del servicio desde ``tests/fixtures``."""
+    with (FIXTURES_DIR / name).open(encoding='utf-8') as handle:
+        return json.load(handle)
+
 
 VALID_RESPONSE = {
     'document_type': 'factura_z',
@@ -108,6 +119,22 @@ class TestDigitizeClient(DigitizeTestMixin, TransactionCase):
                 post_digitize(
                     DIGITIZE_URL, 'sid-abc', {'filename': 'factura.jpg'}, timeout=1
                 )
+
+    def test_timeout_is_floored_to_one_second(self):
+        """Un timeout configurado en 0 o negativo se eleva a 1 segundo."""
+        wizard = self._create_wizard()
+        for configured in ('0', '-5'):
+            self.config.set_param('l10n_ve_digitize.timeout_seconds', configured)
+            self.assertEqual(wizard._get_timeout(), 1.0)
+
+    def test_get_image_base64_encodes_raw_bytes(self):
+        """Bytes no-ASCII (JPEG crudo) se codifican en base64, no se descartan."""
+        raw = b'\xff\xd8\xff\xe0\x00\x10JFIF'
+        wizard = self._create_wizard(image=raw)
+
+        self.assertEqual(
+            wizard._get_image_base64(), base64.b64encode(raw).decode('ascii')
+        )
 
 
 @tagged('post_install', '-at_install')
@@ -238,6 +265,26 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
         self.assertEqual(wizard.state, 'error')
         self.assertIn('no es JSON', wizard.error_message)
 
+    def test_parse_response_tolerates_malformed_optional_parts(self):
+        """`_parse_response` tolera `confidence` inválida y `warnings` no-lista."""
+        wizard = self._run_with_response(
+            200,
+            {
+                'document_type': 'factura_z',
+                'confidence': None,
+                'extracted': [],
+            },
+        )
+        self.assertEqual(wizard.state, 'error')
+        self.assertIn('incompleta', wizard.error_message)
+
+        payload = _load_fixture()
+        payload['warnings'] = {'code': 'missing_field'}
+        wizard = self._run_with_response(200, payload)
+
+        self.assertEqual(wizard.state, 'done')
+        self.assertEqual(wizard.warnings_json, '[]')
+
     def test_action_digitize_rejects_oversized_image(self):
         """Una imagen de 6 MB se rechaza antes de llamar al servicio."""
         large_image = base64.b64encode(b'x' * (6 * 1024 * 1024)).decode()
@@ -302,3 +349,294 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
             self.env.ref('l10n_ve_compliance_manager.menu_l10n_ve_compliance_taxes'),
         )
         self.assertEqual(menu.sequence, 60)
+
+
+@tagged('post_install', '-at_install')
+class TestDigitizeMapping(DigitizeTestMixin, TransactionCase):
+    """Mapeo de datos extraídos al wizard de Factura Física Rápida (RF-09/10/11/17)."""
+
+    def setUp(self):
+        super().setUp()
+        self.config = self.env['ir.config_parameter'].sudo()
+        self.config.set_param('l10n_ve_digitize.url', DIGITIZE_URL)
+        self.config.set_param('l10n_ve_digitize.timeout_seconds', '30')
+        self.config.set_param('l10n_ve_digitize.max_image_mb', '5')
+
+    def _done_wizard(self, payload=None):
+        """Ejecuta la digitalización con una respuesta simulada y la deja en `done`."""
+        wizard = self._create_wizard()
+        with patch(
+            'requests.post',
+            return_value=_make_response(200, payload or _load_fixture()),
+        ), self._patch_session():
+            wizard.action_digitize()
+        self.assertEqual(wizard.state, 'done')
+        return wizard
+
+    def _map(self, extracted):
+        return self._create_wizard()._map_extracted_to_invoice_defaults(extracted)
+
+    def _warning_keys(self, extracted):
+        wizard = self._create_wizard()
+        return [
+            (warning['code'], warning['field'])
+            for warning in wizard._build_local_warnings(extracted)
+        ]
+
+    def test_apply_returns_physical_wizard_action_with_defaults(self):
+        """RF-09: desde `done` el botón abre el wizard de factura física prellenado."""
+        wizard = self._done_wizard()
+        action = wizard.action_apply_to_invoice()
+
+        self.assertEqual(action['type'], 'ir.actions.act_window')
+        self.assertEqual(action['name'], 'Factura Física Rápida')
+        self.assertEqual(action['res_model'], 'l10n.ve.physical.invoice.wizard')
+        self.assertEqual(action['target'], 'new')
+        self.assertEqual(action['view_mode'], 'form')
+
+        context = action['context']
+        self.assertEqual(context['default_type'], 'purchase')
+        self.assertEqual(context['default_partner_vat'], 'J-31527189-4')
+        self.assertEqual(context['default_invoice_number'], 'FAC-000123')
+        self.assertEqual(context['default_control_number'], '00-000456')
+        self.assertEqual(context['default_base_general'], 1000.0)
+        self.assertEqual(context['default_physical_total'], 1160.0)
+
+        # Vista previa persistida en `done` (RF-06).
+        self.assertEqual(wizard.supplier_name, 'Distribuidora Andina, C.A.')
+        self.assertEqual(wizard.supplier_rif, 'J-31527189-4')
+        self.assertEqual(wizard.invoice_number, 'FAC-000123')
+        self.assertEqual(wizard.currency_code, 'VES')
+        self.assertEqual(wizard.subtotal, 1000.0)
+        self.assertEqual(wizard.iva_rate, 0.16)
+        self.assertEqual(wizard.iva_amount, 160.0)
+        self.assertEqual(wizard.igtf_amount, 0.0)
+        self.assertEqual(wizard.total, 1160.0)
+        self.assertEqual(
+            json.loads(wizard.extracted_json)['supplier_rif'], 'J-31527189-4'
+        )
+
+        draft_wizard = self._create_wizard()
+        with self.assertRaises(UserError):
+            draft_wizard.action_apply_to_invoice()
+
+    def test_maps_general_rate_to_base_general(self):
+        """RF-10: IVA 16 % llena `base_general` con el subtotal."""
+        defaults = self._map({'subtotal': 1000.0, 'iva_rate': 0.16})
+
+        self.assertEqual(defaults['default_base_general'], 1000.0)
+        self.assertNotIn('default_base_reduced', defaults)
+        self.assertNotIn('default_base_additional', defaults)
+        self.assertNotIn('default_base_not_taxed', defaults)
+
+        additional = self._map({'subtotal': 100.0, 'iva_rate': 0.2})
+        self.assertEqual(additional['default_base_additional'], 100.0)
+
+        odd_rate = self._map({'subtotal': 100.0, 'iva_rate': 0.1})
+        self.assertNotIn('default_base_general', odd_rate)
+        self.assertNotIn('default_base_reduced', odd_rate)
+        self.assertIn(('parsing_error', 'iva_rate'), self._warning_keys({'iva_rate': 0.1}))
+
+        over_hundred = self._map({'subtotal': 100.0, 'iva_rate': 1.2})
+        self.assertNotIn('default_base_additional', over_hundred)
+        self.assertIn(('parsing_error', 'iva_rate'), self._warning_keys({'iva_rate': 1.2}))
+
+    def test_maps_reduced_rate_to_base_reduced(self):
+        """RF-10: IVA 8 % llena `base_reduced` con el subtotal."""
+        defaults = self._map({'subtotal': 500.0, 'iva_rate': 0.08})
+
+        self.assertEqual(defaults['default_base_reduced'], 500.0)
+        self.assertNotIn('default_base_general', defaults)
+
+    def test_maps_zero_rate_to_base_not_taxed(self):
+        """RF-10: IVA 0 % llena `base_not_taxed`, no `base_general`."""
+        defaults = self._map({'subtotal': 250.0, 'iva_rate': 0.0})
+
+        self.assertEqual(defaults['default_base_not_taxed'], 250.0)
+        self.assertNotIn('default_base_general', defaults)
+
+        zero_subtotal = self._map({'subtotal': 0.0, 'iva_rate': 0.16})
+        self.assertNotIn('default_base_general', zero_subtotal)
+
+    def test_maps_usd_currency(self):
+        """RF-10: VES usa la moneda de la compañía y USD el dólar configurado."""
+        usd = self.env['res.currency'].search(
+            [('name', '=', 'USD'), ('active', 'in', [True, False])], limit=1
+        )
+        if not usd:
+            usd = self.env['res.currency'].create({'name': 'USD', 'symbol': '$'})
+
+        self.assertEqual(self._map({'currency': 'USD'})['default_currency_id'], usd.id)
+        self.assertEqual(
+            self._map({'currency': 'VES'})['default_currency_id'],
+            self.env.company.currency_id.id,
+        )
+
+    def test_maps_dates_and_numbers(self):
+        """RF-10: fechas como `date`, números y RIF copiados tal cual."""
+        extracted = _load_fixture()['extracted']
+        defaults = self._map(extracted)
+
+        self.assertIsInstance(defaults['default_invoice_date'], date)
+        self.assertIsInstance(defaults['default_invoice_date_due'], date)
+        self.assertEqual(defaults['default_invoice_date'], date(2026, 8, 15))
+        self.assertEqual(defaults['default_invoice_date_due'], date(2026, 9, 15))
+        self.assertEqual(defaults['default_invoice_number'], 'FAC-000123')
+        self.assertEqual(defaults['default_control_number'], '00-000456')
+        self.assertEqual(defaults['default_partner_vat'], 'J-31527189-4')
+        self.assertEqual(
+            defaults['default_new_partner_name'], 'Distribuidora Andina, C.A.'
+        )
+
+        invalid = self._map({'invoice_date': 'not-a-date'})
+        self.assertFalse(invalid['default_invoice_date'])
+        self.assertIn(
+            ('parsing_error', 'invoice_date'),
+            self._warning_keys({'invoice_date': 'not-a-date'}),
+        )
+
+        # `invoice_date_due` no es obligatoria: ausente no advierte, inválida sí.
+        no_due = self._map({'due_date': None})
+        self.assertFalse(no_due['default_invoice_date_due'])
+        self.assertNotIn(
+            ('missing_field', 'due_date'), self._warning_keys({'due_date': None})
+        )
+        self.assertIn(
+            ('parsing_error', 'due_date'),
+            self._warning_keys({'due_date': 'not-a-date'}),
+        )
+
+    def test_apply_does_not_default_invoice_date_to_today(self):
+        """RF-11: sin fecha extraída no se hereda la fecha de hoy del destino."""
+        payload = _load_fixture()
+        payload['extracted'].pop('invoice_date')
+        wizard = self._done_wizard(payload)
+
+        action = wizard.action_apply_to_invoice()
+        self.assertFalse(action['context']['default_invoice_date'])
+
+        defaults = self.env['l10n.ve.physical.invoice.wizard'].with_context(
+            **action['context']
+        ).default_get(['invoice_date'])
+        self.assertFalse(defaults['invoice_date'])
+
+    def test_maps_concept_from_lines(self):
+        """RF-10: las descripciones se unen y se recortan a 255 caracteres."""
+        defaults = self._map(
+            {'lines': [{'description': 'A'}, {'description': 'B'}]}
+        )
+        self.assertEqual(defaults['default_concept'], 'A / B')
+
+        truncated = self._map({'lines': [{'description': 'x' * 300}]})
+        self.assertEqual(len(truncated['default_concept']), 255)
+
+        empty = self._map({'lines': []})
+        self.assertNotIn('default_concept', empty)
+
+    def test_matches_existing_partner_by_rif(self):
+        """RF-17: un RIF válido de la compañía activa resuelve el partner."""
+        rif = 'V-12345678-5'
+        partner = self.env['res.partner'].create(
+            {'name': 'Proveedor Mapeo', 'vat': rif}
+        )
+
+        defaults = self._map({'supplier_rif': rif, 'supplier_name': 'Proveedor Mapeo'})
+
+        self.assertEqual(defaults['default_partner_id'], partner.id)
+        self.assertEqual(defaults['default_partner_vat'], rif)
+        self.assertEqual(defaults['default_new_partner_name'], 'Proveedor Mapeo')
+
+        # RIF válido sin partner: se carga el RIF pero no se inventa el partner.
+        unmatched = self._map({'supplier_rif': 'J-98765432-5'})
+        self.assertNotIn('default_partner_id', unmatched)
+        self.assertEqual(unmatched['default_partner_vat'], 'J-98765432-5')
+
+    def test_partner_from_other_company_is_not_reused(self):
+        """RF-17: un partner de otra compañía no se reutiliza por coincidencia de RIF."""
+        rif = 'G-87654321-4'  # RIF válido (módulo 11).
+        other_company = self.env['res.company'].sudo().create(
+            {'name': 'Otra Compañía Digitalización'}
+        )
+        self.env['res.partner'].sudo().create(
+            {
+                'name': 'Proveedor Otra Compañía',
+                'vat': rif,
+                'company_id': other_company.id,
+            }
+        )
+
+        defaults = self._map({'supplier_rif': rif})
+
+        self.assertNotIn('default_partner_id', defaults)
+        self.assertEqual(defaults['default_partner_vat'], rif)
+
+    def test_invalid_rif_is_warned_and_partner_left_empty(self):
+        """RF-11: RIF inválido se conserva como dato y se advierte, sin partner."""
+        rif = 'J-12345678-9'  # Dígito de control incorrecto.
+
+        defaults = self._map({'supplier_rif': rif, 'supplier_name': 'Proveedor Inválido'})
+
+        self.assertNotIn('default_partner_id', defaults)
+        self.assertEqual(defaults['default_partner_vat'], rif)
+        self.assertEqual(defaults['default_new_partner_name'], 'Proveedor Inválido')
+
+        invalid = [
+            warning
+            for warning in self._create_wizard()._build_local_warnings(
+                {'supplier_rif': rif}
+            )
+            if warning['code'] == 'invalid_rif'
+        ]
+        self.assertEqual(len(invalid), 1)
+        self.assertEqual(invalid[0]['field'], 'supplier_rif')
+        self.assertEqual(invalid[0]['extracted_value'], rif)
+
+    def test_missing_amounts_do_not_raise(self):
+        """RF-11: sin subtotal ni tasa no se emiten bases y se advierte."""
+        extracted = {'subtotal': None, 'iva_rate': None}
+        defaults = self._map(extracted)
+
+        for key in (
+            'default_base_general',
+            'default_base_reduced',
+            'default_base_additional',
+            'default_base_not_taxed',
+        ):
+            self.assertNotIn(key, defaults)
+
+        warning_keys = self._warning_keys(extracted)
+        self.assertIn(('missing_field', 'subtotal'), warning_keys)
+        self.assertIn(('missing_field', 'iva_rate'), warning_keys)
+        self.assertIn(('missing_field', 'supplier_name'), warning_keys)
+
+    def test_digitize_persists_local_warnings(self):
+        """`action_digitize` persiste las advertencias locales fusionadas (RF-11)."""
+        payload = {
+            'document_type': 'factura_z',
+            'confidence': 0.9,
+            'extracted': {'supplier_name': 'Proveedor Sin RIF'},
+            'warnings': [
+                {
+                    'code': 'missing_field',
+                    'field': 'supplier_rif',
+                    'message': 'Advertencia del servicio',
+                }
+            ],
+        }
+        wizard = self._done_wizard(payload)
+
+        warnings = json.loads(wizard.warnings_json)
+        warning_keys = [(warning['code'], warning['field']) for warning in warnings]
+
+        # La colisión (missing_field, supplier_rif) conserva la del servicio.
+        self.assertEqual(warning_keys.count(('missing_field', 'supplier_rif')), 1)
+        service_warning = next(
+            warning
+            for warning in warnings
+            if (warning['code'], warning['field'])
+            == ('missing_field', 'supplier_rif')
+        )
+        self.assertEqual(service_warning['message'], 'Advertencia del servicio')
+
+        # Una advertencia solo local también queda persistida.
+        self.assertIn(('missing_field', 'invoice_number'), warning_keys)
