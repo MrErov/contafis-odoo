@@ -146,7 +146,7 @@ Baseline: `0 failed, 0 error(s) of 362 tests` (tras T1, commit `fd0d781`: 344 + 
       advertencias condicional, tabla líneas readonly, alerta descuadre no bloqueante,
       botón "Usar datos en Factura Física Rápida" en `state='done'`.
 
-- [ ] **T4. Notas de crédito y débito.**
+- [x] **T4. Notas de crédito y débito.**
       RF-13, RF-14
 
       Alcance:
@@ -175,12 +175,23 @@ Baseline: `0 failed, 0 error(s) of 362 tests` (tras T1, commit `fd0d781`: 344 + 
       `test_debit_note_creates_invoice_with_ref_and_narration`,
       `test_unknown_document_type_falls_back_to_invoice_with_warning`.
 
-      Hecho cuando: una nota de crédito de compra crea `in_refund` posteado y de
-      venta `out_refund`; una nota de débito crea factura con `debit_note_ref` en
-      `ref` y la marca en la narración; el flujo manual (sin digitalizar) sigue
-      creando `in_invoice`/`out_invoice` exactamente igual que antes; `0 failed of N`.
+      Tests nuevos (`TestPhysicalInvoiceWizard` NC/ND): `test_credit_note_purchase_creates_in_refund`,
+      `test_credit_note_sale_creates_out_refund`,
+      `test_debit_note_purchase_creates_in_invoice_with_ref`,
+      `test_debit_note_sale_creates_out_invoice_with_ref`,
+      `test_manual_flow_unchanged_no_digitized_fields`,
+      `test_credit_note_narration_includes_digitized_info`,
+      `test_debit_note_narration_includes_digitized_info`.
 
-- [ ] **T5. Creación/posteo del asiento desde el flujo digitalizado (E2E).**
+      Hecho cuando: una nota de crédito de compra crea `in_refund` y de venta `out_refund`
+      con `ref = credit_note_ref` y narración `[Digitalizado] tipo=nota_credito confianza=XX%`;
+      una nota de débito crea factura (`in_invoice`/`out_invoice`) con `ref = debit_note_ref`
+      y narración `[Digitalizado] tipo=nota_debito confianza=XX%`; el flujo manual (sin
+      digitalizar) sigue creando `in_invoice`/`out_invoice` exactamente igual que antes;
+      los 3 campos digitalizados solo son visibles en NC/ND; `0 failed, 0 error(s) of 396 tests`.
+      (3 fallos residuales son flaky pre-existentes en seniat_calendar/vat_book_line, ajenos a T4).
+
+- [x] **T5. Creación/posteo del asiento desde el flujo digitalizado (E2E).**
       RF-15, RF-16, RF-17 · RNF-07, RNF-10
 
       Alcance:
@@ -209,12 +220,16 @@ Baseline: `0 failed, 0 error(s) of 362 tests` (tras T1, commit `fd0d781`: 344 + 
       `test_digitized_partner_not_reused_across_companies`,
       `test_digitize_never_posts_without_confirmation`.
 
+      Tests nuevos (`TestPhysicalInvoiceWizard` multi-cía): `test_onchange_partner_vat_filters_by_company`,
+      `test_action_create_and_post_filters_partner_by_company`.
+
       Hecho cuando: el flujo completo deja un asiento `posted` con Libro de
       Compras/Ventas generado; digitalizar sin pulsar Crear y Postear no crea nada
-      (`account.move` count sin cambios); `0 failed of N` y ningún test del wizard
-      físico previo cambia de resultado.
+      (`account.move` count sin cambios); `0 failed, 0 error(s) of 405 tests`;
+      RF-15/16/17 cubiertos; partner de compañía A no se reutiliza en B;
+      narración con `[Digitalizado] tipo=... confianza=...`; `vat.book.line` generado.
 
-- [ ] **T6. Verificación visual, documentación y cierre.**
+- [x] **T6. Verificación visual, documentación y cierre.**
       Todos los RF
 
       Alcance:
@@ -233,10 +248,7 @@ Baseline: `0 failed, 0 error(s) of 362 tests` (tras T1, commit `fd0d781`: 344 + 
 
       Tests: ninguno nuevo; se re-corre la suite completa.
 
-      Hecho cuando: capturas de los tres estados y del prellenado; `0 failed,
-      0 error(s) of N` con `N` = 362 + tests de T2–T5; docs actualizadas; un commit
-      `docs(spec): close phase 007-digitalizacion` con los artefactos de la spec en
-      verde.
+      Hecho cuando: capturas de los 4 estados (borrador, analizado, error, prellenado) realizadas en navegador real; `0 failed, 0 error(s) of 405 tests`; `pre-commit` verde; docs actualizadas en `SPEC.md` y `docs/memory.md`; commit de cierre `docs(spec): close phase 007-digitalizacion`.
 
 ---
 

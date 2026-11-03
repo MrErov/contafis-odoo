@@ -1,6 +1,10 @@
 
+import logging
+
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
+
+_logger = logging.getLogger(__name__)
 
 
 class PhysicalInvoiceWizard(models.TransientModel):
@@ -41,6 +45,29 @@ class PhysicalInvoiceWizard(models.TransientModel):
 
     fiscal_machine_serial = fields.Char(string='Serial Máquina Fiscal')
     fiscal_machine_report_z = fields.Char(string='N° Reporte Z')
+
+    # T4: trazabilidad de documento digitalizado (NC/ND)
+    digitized_document_type = fields.Selection(
+        [
+            ('factura_z', 'Factura'),
+            ('nota_credito', 'Nota de Crédito'),
+            ('nota_debito', 'Nota de Débito'),
+        ],
+        string='Tipo Documento Digitalizado',
+        readonly=True,
+        help='Tipo de documento detectado por la digitalización (trazabilidad).',
+    )
+    digitize_confidence = fields.Float(
+        string='Confianza Digitalización',
+        readonly=True,
+        digits=(3, 2),
+        help='Nivel de confianza del proceso de digitalización (0.00-1.00).',
+    )
+    digitized_document_ref = fields.Char(
+        string='Ref. Documento Digitalizado',
+        readonly=True,
+        help='Referencia al documento original (nota crédito/débito).',
+    )
 
     # Bases e IVA
     currency_id = fields.Many2one(
@@ -101,10 +128,11 @@ class PhysicalInvoiceWizard(models.TransientModel):
         if not self._validate_rif_module_11(self.partner_vat):
             raise ValidationError(_('RIF inválido (dígito de control incorrecto)'))
 
-        # Buscar partner por RIF (case-insensitive, sin guiones)
+        # Buscar partner por RIF (case-insensitive, sin guiones) filtrando por compañía activa
         rif_clean = self._clean_rif(self.partner_vat)
         partner = self.env['res.partner'].search([
-            '|', ('vat', '=', self.partner_vat), ('vat', '=', rif_clean)
+            '|', ('vat', '=', self.partner_vat), ('vat', '=', rif_clean),
+            ('company_id', 'in', [False, self.env.company.id])
         ], limit=1)
 
         if partner:
@@ -282,10 +310,11 @@ class PhysicalInvoiceWizard(models.TransientModel):
         if not self._validate_rif_module_11(self.partner_vat):
             raise ValidationError(_('RIF inválido (dígito de control incorrecto)'))
 
-        # Buscar o crear partner
+        # Buscar o crear partner (filtrando por compañía activa - RF-17)
         rif_clean = self._clean_rif(self.partner_vat)
         partner = self.env['res.partner'].search([
-            '|', ('vat', '=', self.partner_vat), ('vat', '=', rif_clean)
+            '|', ('vat', '=', self.partner_vat), ('vat', '=', rif_clean),
+            ('company_id', 'in', [False, self.env.company.id])
         ], limit=1)
 
         if not partner:
@@ -315,16 +344,40 @@ class PhysicalInvoiceWizard(models.TransientModel):
         # Construir líneas
         move_lines = self._build_move_lines_from_bases()
 
+        # --- T4: selección de move_type según documento digitalizado ---
+        digitized_type = self.digitized_document_type or False
+        if digitized_type == 'nota_credito':
+            move_type = 'in_refund' if self.type == 'purchase' else 'out_refund'
+        elif digitized_type == 'nota_debito':
+            move_type = 'in_invoice' if self.type == 'purchase' else 'out_invoice'
+        else:
+            # Comportamiento actual intacto (guardia de no regresión)
+            move_type = 'in_invoice' if self.type == 'purchase' else 'out_invoice'
+
+        # --- T4: ref = digitized_document_ref si existe, si no control_number ---
+        ref_value = self.digitized_document_ref or self.control_number
+
+        # --- T4: narración con procedencia ---
+        narration_parts = []
+        if self.digitized_document_type:
+            narration_parts.append(
+                f"[Digitalizado] tipo={self.digitized_document_type} "
+                f"confianza={self.digitize_confidence:.0%}"
+            )
+
+        narration = self.concept or ''
+        if narration_parts:
+            narration = ' '.join(narration_parts) + ' — ' + narration
+
         # Crear factura
-        move_type = 'in_invoice' if self.type == 'purchase' else 'out_invoice'
         move = self.env['account.move'].create({
             'move_type': move_type,
             'partner_id': partner.id,
             'journal_id': journal.id,
             'invoice_date': self.invoice_date,
             'invoice_date_due': self.invoice_date_due,
-            'ref': self.control_number,
-            'narration': self.concept,
+            'ref': ref_value,
+            'narration': narration,
             'line_ids': move_lines,
             'emission_type': self.emission_type,
             'fiscal_machine_serial': self.fiscal_machine_serial,

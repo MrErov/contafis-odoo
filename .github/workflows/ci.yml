@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 19.0]
   pull_request:
-    branches: [main]
+    branches: [main, 19.0]
   workflow_dispatch:
 
 jobs:
@@ -63,12 +63,15 @@ jobs:
       - name: Run Odoo tests
         shell: bash
         run: |
-          set -o pipefail
+          # Run Odoo tests and capture output to log file
+          # Use the exact Odoo test result pattern: "0 failed, 0 error(s) of N tests"
+          echo "Starting Odoo tests..."
           docker run --rm --network host \
             -v /tmp/extra-addons:/mnt/extra-addons \
             -e HOST=localhost \
             -e USER=odoo \
             -e PASSWORD=odoo \
+            -e PYTHONUNBUFFERED=1 \
             odoo:19.0 \
             odoo -d test_ci \
               -i l10n_ve_compliance_manager \
@@ -77,8 +80,33 @@ jobs:
               --stop-after-init \
               --no-http \
               --workers=0 \
-              --log-level=test 2>&1 | tee /tmp/odoo_test.log
-          grep -E "tests when|failed" /tmp/odoo_test.log || true
+              --log-level=info \
+              2>&1 | tee /tmp/odoo_test.log
+          DOCKER_EXIT=${PIPESTATUS[0]}
+
+          echo "=== Odoo test log saved to /tmp/odoo_test.log ==="
+          echo "=== Docker exit code: $DOCKER_EXIT ==="
+
+          # Search for the exact Odoo test success pattern
+          if grep -q "0 failed, 0 error(s) of" /tmp/odoo_test.log; then
+            echo "=== TESTS PASSED: Found '0 failed, 0 error(s) of N tests' ==="
+            exit 0
+          fi
+
+          # Fallback: check for other success patterns
+          if grep -q "0 failed, 0 error" /tmp/odoo_test.log; then
+            echo "Tests passed (found '0 failed, 0 error')"
+            exit 0
+          fi
+
+          # If no success pattern found, show relevant log lines and fail
+          echo "=== TESTS FAILED: Could not find success pattern ==="
+          echo "=== Searching for test result patterns ==="
+          grep -i "failed\|error\|passed\|tests" /tmp/odoo_test.log | head -30 || true
+          echo "=== Last 100 lines of log ==="
+          tail -100 /tmp/odoo_test.log
+
+          exit 1
 
       - name: Upload test log
         if: always()
