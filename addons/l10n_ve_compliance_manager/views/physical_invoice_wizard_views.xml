@@ -28,6 +28,16 @@
                                    invisible="emission_type != 'maquina_fiscal'"/>
                             <field name="fiscal_machine_report_z"
                                    invisible="emission_type != 'maquina_fiscal'"/>
+                            <!-- T4: campos de trazabilidad digitalizada (solo si != factura_z) -->
+                            <field name="digitized_document_type"
+                                   invisible="digitized_document_type == 'factura_z' or not digitized_document_type"
+                                   readonly="1"/>
+                            <field name="digitize_confidence"
+                                   invisible="digitized_document_type == 'factura_z' or not digitized_document_type"
+                                   readonly="1"/>
+                            <field name="digitized_document_ref"
+                                   invisible="digitized_document_type == 'factura_z' or not digitized_document_type"
+                                   readonly="1"/>
                         </group>
                         <group>
                             <field name="concept"/>

@@ -308,6 +308,18 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
         mock_post.assert_not_called()
         self.assertEqual(wizard.state, 'draft')
 
+    def test_action_digitize_accepts_uppercase_extension(self):
+        """Extensiones en mayúsculas (JPG, JPEG, PNG, WEBP) se aceptan."""
+        for ext in ('JPG', 'JPEG', 'PNG', 'WEBP'):
+            with self.subTest(ext=ext):
+                wizard = self._create_wizard(filename=f'factura.{ext}')
+                with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
+                        self._patch_session():
+                    wizard.action_digitize()
+                # El servicio se llama (no hay error de validación)
+                mock_post.assert_called_once()
+                self.assertEqual(wizard.state, 'done')
+
     def test_action_digitize_does_not_log_image_or_session(self):
         """El log registra metadatos, nunca el base64 ni el sid (RNF-04)."""
         secret_sid = 'SECRET-SESSION-DO-NOT-LOG'
@@ -740,3 +752,108 @@ class TestDigitizeWarningsUi(DigitizeTestMixin, TransactionCase):
         payload['extracted']['total'] = 1190.0  # subtotal + iva + igtf
         wizard = self._done_wizard(payload)
         self.assertFalse(wizard.total_mismatch)
+
+
+@tagged('post_install', '-at_install')
+class TestDigitizeDocumentTypes(DigitizeTestMixin, TransactionCase):
+    """Propagación de tipo de documento digitalizado (NC/ND) al wizard físico (RF-13, RF-14)."""
+
+    def setUp(self):
+        super().setUp()
+        self.config = self.env['ir.config_parameter'].sudo()
+        self.config.set_param('l10n_ve_digitize.url', DIGITIZE_URL)
+        self.config.set_param('l10n_ve_digitize.timeout_seconds', '30')
+        self.config.set_param('l10n_ve_digitize.max_image_mb', '5')
+
+    def _map_defaults(self, extracted, type='purchase'):
+        """Helper: llama al método de mapeo y retorna los defaults."""
+        wizard = self._create_wizard(type=type)
+        return wizard._map_extracted_to_invoice_defaults(extracted)
+
+    def test_credit_note_purchase_creates_refund(self):
+        """NC de compra -> default_digitized_document_type='nota_credito', confidence, ref."""
+        extracted = {
+            'document_type': 'nota_credito',
+            'confidence': 0.92,
+            'supplier_rif': 'J-31527189-4',
+            'supplier_name': 'Proveedor NC',
+            'invoice_number': 'NC-001',
+            'control_number': 'CTRL-NC-001',
+            'credit_note_ref': 'FAC-ORIGINAL-001',
+            'currency': 'VES',
+            'subtotal': 500.0,
+            'iva_rate': 0.16,
+            'total': 580.0,
+        }
+        defaults = self._map_defaults(extracted, type='purchase')
+
+        self.assertEqual(defaults.get('default_digitized_document_type'), 'nota_credito')
+        self.assertEqual(defaults.get('default_digitize_confidence'), 0.92)
+        self.assertEqual(defaults.get('default_digitized_document_ref'), 'FAC-ORIGINAL-001')
+
+    def test_credit_note_sale_creates_refund(self):
+        """NC de venta -> mismo tipo, misma ref."""
+        extracted = {
+            'document_type': 'nota_credito',
+            'confidence': 0.88,
+            'supplier_rif': 'J-31527189-4',
+            'supplier_name': 'Cliente NC',
+            'invoice_number': 'NC-002',
+            'control_number': 'CTRL-NC-002',
+            'credit_note_ref': 'FAC-VENTA-005',
+            'currency': 'VES',
+            'subtotal': 300.0,
+            'iva_rate': 0.16,
+            'total': 348.0,
+        }
+        defaults = self._map_defaults(extracted, type='sale')
+
+        self.assertEqual(defaults.get('default_digitized_document_type'), 'nota_credito')
+        self.assertEqual(defaults.get('default_digitize_confidence'), 0.88)
+        self.assertEqual(defaults.get('default_digitized_document_ref'), 'FAC-VENTA-005')
+
+    def test_credit_note_uses_credit_note_ref(self):
+        """NC usa credit_note_ref, no debit_note_ref."""
+        extracted = {
+            'document_type': 'nota_credito',
+            'confidence': 0.90,
+            'credit_note_ref': 'FAC-CREDITO-123',
+            'debit_note_ref': 'FAC-DEBITO-456',  # no debe usarse
+        }
+        defaults = self._map_defaults(extracted)
+
+        self.assertEqual(defaults.get('default_digitized_document_ref'), 'FAC-CREDITO-123')
+
+    def test_debit_note_creates_invoice_with_ref(self):
+        """ND -> default_digitized_document_type='nota_debito', usa debit_note_ref."""
+        extracted = {
+            'document_type': 'nota_debito',
+            'confidence': 0.91,
+            'supplier_rif': 'J-31527189-4',
+            'supplier_name': 'Proveedor ND',
+            'invoice_number': 'ND-001',
+            'control_number': 'CTRL-ND-001',
+            'debit_note_ref': 'FAC-ORIGINAL-002',
+            'currency': 'VES',
+            'subtotal': 200.0,
+            'iva_rate': 0.16,
+            'total': 232.0,
+        }
+        defaults = self._map_defaults(extracted)
+
+        self.assertEqual(defaults.get('default_digitized_document_type'), 'nota_debito')
+        self.assertEqual(defaults.get('default_digitize_confidence'), 0.91)
+        self.assertEqual(defaults.get('default_digitized_document_ref'), 'FAC-ORIGINAL-002')
+
+    def test_unknown_document_type_falls_back(self):
+        """Tipo desconocido -> no emite defaults digitalizados (guarda compatibilidad)."""
+        extracted = {
+            'document_type': 'otro_documento',
+            'confidence': 0.50,
+            'credit_note_ref': 'REF-XXX',
+        }
+        defaults = self._map_defaults(extracted)
+
+        self.assertNotIn('default_digitized_document_type', defaults)
+        self.assertNotIn('default_digitize_confidence', defaults)
+        self.assertNotIn('default_digitized_document_ref', defaults)
