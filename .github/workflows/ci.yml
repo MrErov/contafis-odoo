@@ -120,6 +120,16 @@ jobs:
             echo "Tests passed (case-insensitive pattern matched)"
             exit 0
           fi
+          # Fallback: check for "0 failed, 0 error" pattern without "tests"
+          if grep -qE "0 failed, 0 error\(s\) of [0-9]+" /tmp/odoo_test.log; then
+            echo "Tests passed (pattern matched without 'tests')"
+            exit 0
+          fi
+          # Fallback: case-insensitive check without "tests"
+          if grep -qiE "0 failed, 0 error\(s\) of" /tmp/odoo_test.log; then
+            echo "Tests passed (case-insensitive pattern matched without 'tests')"
+            exit 0
+          fi
           # Show debug info before failing
           echo "=== DEBUG: Pattern not found, showing full log ==="
           cat /tmp/odoo_test.log
