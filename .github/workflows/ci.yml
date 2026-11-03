@@ -98,22 +98,24 @@ jobs:
           grep -n -i "error" /tmp/odoo_test.log | tail -10
           echo "=== DEBUG: Last 500 lines of log ==="
           tail -500 /tmp/odoo_test.log
+          echo "=== DEBUG: Full log (first 5000 chars) ==="
+          head -c 10000 /tmp/odoo_test.log
+          echo "=== DEBUG: Searching for '0 failed' ==="
+          grep -n -i "0 failed" /tmp/odoo_test.log || echo "NOT FOUND: '0 failed'"
+          echo "=== DEBUG: Searching for '0 error' ==="
+          grep -n -i "0 error" /tmp/odoo_test.log || echo "NOT FOUND: '0 error'"
+          echo "=== DEBUG: Searching for 'tests' ==="
+          grep -n "tests" /tmp/odoo_test.log | head -5
+          echo "=== DEBUG: Searching for 'failed' ==="
+          grep -n -i "failed" /tmp/odoo_test.log | head -5
+          echo "=== DEBUG: Searching for 'error' ==="
+          grep -n -i "error" /tmp/odoo_test.log | head -5
           # Check if tests passed - Odoo standard pattern: "0 failed, 0 error(s) of N tests"
           if grep -qE "0 failed, 0 error\(s\) of [0-9]+ tests" /tmp/odoo_test.log; then
             echo "Tests passed (standard Odoo success pattern matched)"
             exit 0
           fi
-          # Fallback: check for "0 failed, 0 error" pattern
-          if grep -qE "0 failed, 0 error\(s\) of [0-9]+ tests" /tmp/odoo_test.log; then
-            echo "Tests passed (pattern matched)"
-            exit 0
-          fi
-          # Fallback: check for "0 failed, 0 error(s) of N tests" in any case
-          if grep -qiE "0 failed, 0 error\(s\) of [0-9]+ tests" /tmp/odoo_test.log; then
-            echo "Tests passed (case-insensitive pattern matched)"
-            exit 0
-          fi
-          # Fallback: check for "0 failed, 0 error(s) of" pattern
+          # Fallback: case-insensitive check
           if grep -qiE "0 failed, 0 error\(s\) of [0-9]+ tests" /tmp/odoo_test.log; then
             echo "Tests passed (case-insensitive pattern matched)"
             exit 0
