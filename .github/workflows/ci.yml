@@ -108,7 +108,9 @@ jobs:
             echo "Tests passed (pattern matched)"
             exit 0
           fi
-          echo "=== DEBUG: Tests failed or no result found ==="
+          # Show debug info before failing
+          echo "=== DEBUG: Pattern not found, showing full log ==="
+          cat /tmp/odoo_test.log
           exit 1
 
       - name: Upload test log
