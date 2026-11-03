@@ -1,0 +1,35 @@
+{
+  "document_type": "factura_z",
+  "confidence": 0.87,
+  "extracted": {
+    "supplier_name": "Distribuidora Andina, C.A.",
+    "supplier_rif": "J-31527189-4",
+    "invoice_number": "FAC-000123",
+    "control_number": "00-000456",
+    "invoice_date": "2026-08-15",
+    "due_date": "2026-09-15",
+    "currency": "VES",
+    "subtotal": 1000.0,
+    "iva_rate": 0.16,
+    "iva_amount": 160.0,
+    "igtf_amount": 0.0,
+    "total": 1160.0,
+    "credit_note_ref": "",
+    "debit_note_ref": "",
+    "lines": [
+      {
+        "description": "Servicio de consultoría",
+        "quantity": 1,
+        "unit_price": 600.0,
+        "total": 600.0
+      },
+      {
+        "description": "Soporte técnico",
+        "quantity": 2,
+        "unit_price": 200.0,
+        "total": 400.0
+      }
+    ]
+  },
+  "warnings": []
+}

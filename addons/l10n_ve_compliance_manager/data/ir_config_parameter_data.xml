@@ -12,5 +12,17 @@
             <field name="key">l10n_ve_chat.auth_token</field>
             <field name="value"/>
         </record>
+        <record id="l10n_ve_digitize_url" model="ir.config_parameter">
+            <field name="key">l10n_ve_digitize.url</field>
+            <field name="value"/>
+        </record>
+        <record id="l10n_ve_digitize_timeout_seconds" model="ir.config_parameter">
+            <field name="key">l10n_ve_digitize.timeout_seconds</field>
+            <field name="value">30</field>
+        </record>
+        <record id="l10n_ve_digitize_max_image_mb" model="ir.config_parameter">
+            <field name="key">l10n_ve_digitize.max_image_mb</field>
+            <field name="value">5</field>
+        </record>
     </data>
 </odoo>

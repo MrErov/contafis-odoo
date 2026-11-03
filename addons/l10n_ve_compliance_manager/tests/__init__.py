@@ -4,6 +4,8 @@ from . import (
     test_cartelera_status,
     test_chat_history,
     test_compliance_client,
+    test_digitize_wizard,
+    test_discuss_bot,
     test_document_types,
     test_export_regression,
     test_import_cartelera,

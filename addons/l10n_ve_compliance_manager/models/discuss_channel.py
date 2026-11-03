@@ -3,9 +3,17 @@ import time
 
 import requests
 from odoo import models
+from odoo.http import request
 from odoo.tools.translate import _
 
 _logger = logging.getLogger(__name__)
+
+# Disclaimer legal para respuestas del asistente
+LEGAL_DISCLAIMER = _(
+    "\n\n⚠️ Esta respuesta es generada por un asistente de IA y tiene carácter meramente informativo. "
+    "No constituye asesoría legal, fiscal ni profesional. Para decisiones importantes, "
+    "consulte a un profesional calificado."
+)
 
 
 class DiscussChannel(models.Model):
@@ -62,12 +70,6 @@ class DiscussChannel(models.Model):
             self._post_bot_error(_("⚠️ No se puede identificar tu usuario para procesar la consulta."))
             return message
 
-        # Check API token
-        _logger.info("BOT DEBUG - User ID: %s, Partner ID: %s, API Token: %s", user.id, user.partner_id.id, user.api_token)
-        if not user.api_token:
-            self._post_bot_error(_("⚠️ Por favor, configura tu Token API en tus preferencias para usar el Asistente."))
-            return message
-
         # Call the webhook with the user context
         try:
             response_data = self._call_webhook(user, body, self.id)
@@ -111,11 +113,33 @@ class DiscussChannel(models.Model):
 
         webhook_url = self.env['ir.config_parameter'].sudo().get_param('l10n_ve_chat.webhook_url', '')
 
-        # FastAPI expects: {"message": "text"} with header X-User-Token: <user.api_token>
+        # Get session ID from HTTP request context.
+        # `request` may be unbound (crons, unit tests, RPC without an HTTP
+        # request), in which case any attribute access raises. Never let that
+        # break the caller: fall back to an empty session and warn instead.
+        session_id = ''
+        try:
+            if request and hasattr(request, 'session') and request.session:
+                session_id = request.session.sid or ''
+        except Exception:
+            _logger.warning(
+                "No se pudo obtener session_id desde el request (contexto no HTTP)."
+            )
+
+        # Without a session there is nothing the external agent can authenticate
+        # against, so fail friendly instead of sending an anonymous request.
+        if not session_id:
+            _logger.warning("No hay session_id disponible: se cancela la llamada al agente.")
+            self._post_bot_error(
+                _("🔐 Sesión no detectada. Por favor, recargá Odoo e intentá de nuevo.")
+            )
+            return None
+
+        # FastAPI expects: {"message": "text"} with header X-Odoo-Session: <session_id>
         payload = {'message': question}
         headers = {
             'Content-Type': 'application/json',
-            'X-User-Token': user.api_token or '',
+            'X-Odoo-Session': session_id,
         }
 
         _logger.info("BOT WEBHOOK - URL: %s, Payload: %s, Headers: %s", webhook_url, payload, headers)
@@ -126,74 +150,41 @@ class DiscussChannel(models.Model):
         except requests.Timeout:
             elapsed = time.time() - start_time
             _logger.error("Timeout calling webhook after %.2fs: %s", elapsed, webhook_url)
-            # Post timeout error as bot
-            bot_user = self.env.ref('l10n_ve_compliance_manager.user_contafis_bot', raise_if_not_found=False)
-            if bot_user:
-                self.sudo().message_post(
-                    body=_("⏱️ Timeout al comunicarse con el agente. Reintente en unos minutos."),
-                    author_id=bot_user.partner_id.id,
-                    message_type='comment',
-                    subtype_xmlid='mail.mt_comment',
-                )
+            self._post_bot_error(_("⏱️ Timeout al comunicarse con el agente. Reintente en unos minutos."))
             return None
         except requests.RequestException as e:
             elapsed = time.time() - start_time
             _logger.error("Request error after %.2fs: %s", elapsed, e)
-            bot_user = self.env.ref('l10n_ve_compliance_manager.user_contafis_bot', raise_if_not_found=False)
-            if bot_user:
-                self.sudo().message_post(
-                    body=_("❌ Error de comunicación con el agente. Verifique la URL del webhook."),
-                    author_id=bot_user.partner_id.id,
-                    message_type='comment',
-                    subtype_xmlid='mail.mt_comment',
-                )
+            self._post_bot_error(_("❌ Error de comunicación con el agente. Verifique la URL del webhook."))
             return None
 
         elapsed = time.time() - start_time
         _logger.info("BOT WEBHOOK - Response received in %.2fs, status: %s", elapsed, response.status_code)
 
-        if response.status_code == 401 or response.status_code == 403:
-            bot_user = self.env.ref('l10n_ve_compliance_manager.user_contafis_bot', raise_if_not_found=False)
-            if bot_user:
-                self.sudo().message_post(
-                    body=_("🔐 Error de autenticación con el agente. Verifique el token del webhook."),
-                    author_id=bot_user.partner_id.id,
-                    message_type='comment',
-                    subtype_xmlid='mail.mt_comment',
-                )
+        if response.status_code in (401, 403):
+            # Session auth: 401/403 means the Odoo session is no longer valid,
+            # it is not a webhook token problem anymore.
+            self._post_bot_error(
+                _("🔐 Tu sesión de Odoo expiró o no es válida. Recargá Odoo e intentá de nuevo.")
+            )
             return None
-        elif response.status_code >= 500:
-            bot_user = self.env.ref('l10n_ve_compliance_manager.user_contafis_bot', raise_if_not_found=False)
-            if bot_user:
-                self.sudo().message_post(
-                    body=_("🔧 Error del servidor del agente. Reintente en unos minutos."),
-                    author_id=bot_user.partner_id.id,
-                    message_type='comment',
-                    subtype_xmlid='mail.mt_comment',
-                )
+        if response.status_code == 503:
+            # The agent could not validate the session against Odoo (Odoo down/slow).
+            self._post_bot_error(
+                _("🔄 No se pudo validar tu sesión en este momento. Reintentá en unos minutos.")
+            )
             return None
-        elif response.status_code >= 400:
-            bot_user = self.env.ref('l10n_ve_compliance_manager.user_contafis_bot', raise_if_not_found=False)
-            if bot_user:
-                self.sudo().message_post(
-                    body=_("❌ Error en la petición al agente. Verifique el formato del payload."),
-                    author_id=bot_user.partner_id.id,
-                    message_type='comment',
-                    subtype_xmlid='mail.mt_comment',
-                )
+        if response.status_code >= 500:
+            self._post_bot_error(_("🔧 Error del servidor del agente. Reintente en unos minutos."))
+            return None
+        if response.status_code >= 400:
+            self._post_bot_error(_("❌ Error en la petición al agente. Verifique el formato del payload."))
             return None
 
         try:
             return response.json()
         except ValueError:
-            bot_user = self.env.ref('l10n_ve_compliance_manager.user_contafis_bot', raise_if_not_found=False)
-            if bot_user:
-                self.sudo().message_post(
-                    body=_("⚠️ Respuesta inválida del agente. Se esperaba JSON."),
-                    author_id=bot_user.partner_id.id,
-                    message_type='comment',
-                    subtype_xmlid='mail.mt_comment',
-                )
+            self._post_bot_error(_("⚠️ Respuesta inválida del agente. Se esperaba JSON."))
             return None
 
     def _get_conversation_history(self, channel_id):
@@ -242,6 +233,9 @@ class DiscussChannel(models.Model):
                 formatted_warnings.append(f'\n  • {msg}')
             warning_text = ''.join(formatted_warnings)
             body += f'\n\n⚠️ Advertencias:{warning_text}'
+
+        # Add legal disclaimer
+        body += LEGAL_DISCLAIMER
 
         self.sudo().message_post(
             body=body,

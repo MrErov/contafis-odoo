@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_l10n_ve_digitize_wizard_form" model="ir.ui.view">
+        <field name="name">l10n.ve.digitize.wizard.form</field>
+        <field name="model">l10n.ve.digitize.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Digitalizar Factura">
+                <header>
+                    <button name="action_digitize" string="Analizar"
+                            type="object" class="btn-primary" invisible="state == 'done'"/>
+                    <button name="action_apply_to_invoice" string="Usar datos en Factura Física Rápida"
+                            type="object" class="btn-success" invisible="state != 'done'"/>
+                    <button name="action_digitize" string="Reanalizar"
+                            type="object" class="btn-secondary" invisible="state != 'done'"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </header>
+                <sheet>
+                    <group string="Datos de la operación">
+                        <group>
+                            <field name="type" required="true"/>
+                            <field name="document_type_hint" required="true"/>
+                        </group>
+                    </group>
+                    <group string="Imagen de la factura">
+                        <group>
+                            <field name="image" filename="filename" required="true"
+                                   help="Formatos aceptados: JPG, JPEG, PNG y WEBP."/>
+                        </group>
+                        <group>
+                            <field name="filename" readonly="1" invisible="not filename"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-danger" role="alert"
+                         invisible="state != 'error'">
+                        <field name="error_message" readonly="1"/>
+                    </div>
+                    <group string="Resultado" invisible="state != 'done'">
+                        <group>
+                            <field name="detected_document_type" readonly="1"/>
+                            <field name="confidence_pct" readonly="1"
+                                   widget="progressbar"
+                                   decoration-success="confidence_pct >= 85"
+                                   decoration-warning="confidence_pct >= 60 and confidence_pct &lt; 85"
+                                   decoration-danger="confidence_pct &lt; 60"/>
+                        </group>
+
+                        <!-- 14 campos preview readonly -->
+                        <group>
+                            <field name="supplier_name" readonly="1"/>
+                            <field name="supplier_rif" readonly="1"/>
+                            <field name="invoice_number" readonly="1"/>
+                            <field name="control_number" readonly="1"/>
+                            <field name="invoice_date" readonly="1"/>
+                            <field name="due_date" readonly="1"/>
+                            <field name="currency_code" readonly="1"/>
+                            <field name="subtotal" readonly="1"/>
+                            <field name="iva_rate" readonly="1"/>
+                            <field name="iva_amount" readonly="1"/>
+                            <field name="igtf_amount" readonly="1"/>
+                            <field name="total" readonly="1"/>
+                            <field name="credit_note_ref" readonly="1" invisible="not credit_note_ref"/>
+                            <field name="debit_note_ref" readonly="1" invisible="not debit_note_ref"/>
+                        </group>
+
+                        <!-- Bloque advertencias: solo si has_warnings -->
+                        <div class="alert alert-warning" role="alert"
+                             invisible="not has_warnings">
+                            <field name="warnings_text" readonly="1" nolabel="1"/>
+                        </div>
+
+                        <!-- Tabla líneas One2many readonly -->
+                        <field name="digitize_line_ids" invisible="not digitize_line_ids" readonly="1">
+                            <list>
+                                <field name="description"/>
+                                <field name="quantity"/>
+                                <field name="unit_price"/>
+                                <field name="total"/>
+                            </list>
+                        </field>
+
+                        <!-- Alerta descuadre: no bloqueante -->
+                        <div class="alert alert-info" role="alert"
+                             invisible="not total_mismatch">
+                            <span class="fa fa-exclamation-triangle"/>
+                            El total extraído no coincide con la suma de subtotal + IVA.
+                        </div>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_l10n_ve_digitize_wizard" model="ir.actions.act_window">
+        <field name="name">Digitalizar Factura</field>
+        <field name="res_model">l10n.ve.digitize.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>
