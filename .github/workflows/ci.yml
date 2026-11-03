@@ -65,13 +65,16 @@ jobs:
         run: |
           # Run Odoo tests - ignore Docker exit code (Odoo exits 1 on demo data warnings)
           # Tests pass if log contains test success indicators
+          # Force unbuffered I/O to ensure test results are written to log
           echo "Starting Odoo tests..."
           docker run --rm --network host \
             -v /tmp/extra-addons:/mnt/extra-addons \
             -e HOST=localhost \
             -e USER=odoo \
             -e PASSWORD=odoo \
+            -e PYTHONUNBUFFERED=1 \
             odoo:19.0 \
+            stdbuf -oL -eL \
             odoo -d test_ci \
               -i l10n_ve_compliance_manager \
               --test-tags /l10n_ve_compliance_manager \
