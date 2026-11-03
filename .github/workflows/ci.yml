@@ -65,9 +65,8 @@ jobs:
         run: |
           # Run Odoo tests - ignore Docker exit code (Odoo exits 1 on demo data warnings)
           # Tests pass if log contains test success indicators
-          # Force fully unbuffered I/O to ensure test output is written to log immediately
           # Use --log-level=info (not 'test') to ensure test results are logged
-          # Add PYTHONUNBUFFERED=1 for extra safety
+          # Force fully unbuffered I/O to ensure test output is written to log immediately
           echo "Starting Odoo tests..."
           docker run --rm --network host \
             -v /tmp/extra-addons:/mnt/extra-addons \
@@ -99,24 +98,17 @@ jobs:
           grep -n -i "error" /tmp/odoo_test.log | tail -10
           echo "=== DEBUG: Last 500 lines of log ==="
           tail -500 /tmp/odoo_test.log
-          # Check if tests passed (multiple success indicators)
-          if grep -q -i "0 failed" /tmp/odoo_test.log; then
-            echo "Tests passed (found '0 failed' case-insensitive)"
+          # Check if tests passed - Odoo standard pattern: "0 failed, 0 error(s) of N tests"
+          if grep -qE "0 failed, 0 error\(s\) of [0-9]+ tests" /tmp/odoo_test.log; then
+            echo "Tests passed (standard Odoo success pattern matched)"
             exit 0
-          elif grep -q "tests when" /tmp/odoo_test.log; then
-            echo "Tests passed (found 'tests when')"
-            exit 0
-          elif grep -q -i "0 error" /tmp/odoo_test.log; then
-            echo "Tests passed (found '0 error' case-insensitive)"
-            exit 0
-          elif grep -q "odoo.tests.result" /tmp/odoo_test.log; then
-            # Check if the result line indicates success
-            if grep -A2 "odoo.tests.result" /tmp/odoo_test.log | grep -q -i "0 failed\|0 error"; then
-              echo "Tests passed (found success in odoo.tests.result)"
-              exit 0
-            fi
           fi
-          echo "Tests failed or no result found"
+          # Fallback: check for "0 failed, 0 error" pattern
+          if grep -qE "0 failed, 0 error\(s\) of [0-9]+ tests" /tmp/odoo_test.log; then
+            echo "Tests passed (pattern matched)"
+            exit 0
+          fi
+          echo "=== DEBUG: Tests failed or no result found ==="
           exit 1
 
       - name: Upload test log
