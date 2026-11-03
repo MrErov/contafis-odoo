@@ -640,3 +640,103 @@ class TestDigitizeMapping(DigitizeTestMixin, TransactionCase):
 
         # Una advertencia solo local también queda persistida.
         self.assertIn(('missing_field', 'invoice_number'), warning_keys)
+
+
+@tagged('post_install', '-at_install', 'digitize_warnings_ui')
+class TestDigitizeWarningsUi(DigitizeTestMixin, TransactionCase):
+    """UI de confianza, advertencias y líneas extraídas (T3 - RF-06, RF-07, RF-08)."""
+
+    def setUp(self):
+        super().setUp()
+        self.config = self.env['ir.config_parameter'].sudo()
+        self.config.set_param('l10n_ve_digitize.url', DIGITIZE_URL)
+        self.config.set_param('l10n_ve_digitize.timeout_seconds', '30')
+        self.config.set_param('l10n_ve_digitize.max_image_mb', '5')
+
+    def _done_wizard(self, payload=None):
+        """Ejecuta la digitalización con una respuesta simulada y la deja en `done`."""
+        wizard = self._create_wizard()
+        with patch(
+            'requests.post',
+            return_value=_make_response(200, payload or _load_fixture()),
+        ), self._patch_session():
+            wizard.action_digitize()
+        self.assertEqual(wizard.state, 'done')
+        return wizard
+
+    def test_confidence_pct_computed(self):
+        """confidence_pct = confidence * 100 redondeado a int (ej: 0.87 -> 87)."""
+        base_payload = _load_fixture()
+        for conf, expected in [(0.87, 87), (0.60, 60), (0.50, 50), (0.0, 0)]:
+            payload = dict(base_payload)
+            payload['confidence'] = conf
+            w = self._done_wizard(payload)
+            self.assertEqual(w.confidence_pct, expected, f"confidence={conf}")
+
+    def test_has_warnings_flag(self):
+        """has_warnings = True cuando hay warnings; False cuando no."""
+        wizard = self._done_wizard()  # fixture sin warnings
+        self.assertFalse(wizard.has_warnings)
+
+        payload = _load_fixture()
+        payload['warnings'] = [{'code': 'missing_field', 'field': 'supplier_rif', 'message': 'Falta RIF'}]
+        wizard = self._done_wizard(payload)
+        self.assertTrue(wizard.has_warnings)
+
+    def test_warnings_text_lists_every_code(self):
+        """Los 6 códigos del contrato aparecen en warnings_text."""
+        base_payload = _load_fixture()
+        payload = dict(base_payload)
+        payload['warnings'] = [
+            {'code': 'low_confidence', 'message': 'msg1', 'field': 'control_number'},
+            {'code': 'invalid_rif', 'message': 'msg2', 'field': 'supplier_rif'},
+            {'code': 'amount_mismatch', 'message': 'msg3', 'field': 'total'},
+            {'code': 'missing_field', 'message': 'msg4', 'field': 'invoice_date'},
+            {'code': 'unknown_document_type', 'message': 'msg5', 'field': None},
+            {'code': 'parsing_error', 'message': 'msg6', 'field': 'subtotal'},
+        ]
+        wizard = self._done_wizard(payload)
+        text = wizard.warnings_text
+        for code in ('low_confidence', 'invalid_rif', 'amount_mismatch',
+                     'missing_field', 'unknown_document_type', 'parsing_error'):
+            self.assertIn(f'{code}:', text)
+
+    def test_warning_text_is_plain_text(self):
+        """warnings_text no contiene markup HTML (ni < ni > sin escapar)."""
+        base_payload = _load_fixture()
+        payload = dict(base_payload)
+        payload['warnings'] = [
+            {'code': 'low_confidence', 'message': '<script>alert(1)</script>', 'field': 'x'},
+        ]
+        wizard = self._done_wizard(payload)
+        text = wizard.warnings_text
+        self.assertNotIn('<', text)
+        self.assertNotIn('>', text)
+        self.assertIn('low_confidence:', text)
+
+    def test_line_preview_rows_created(self):
+        """Dos líneas en la respuesta -> dos registros digitize_line_ids."""
+        payload = _load_fixture()  # tiene 2 líneas
+        wizard = self._done_wizard(payload)
+        self.assertEqual(len(wizard.digitize_line_ids), 2)
+        self.assertEqual(wizard.digitize_line_ids[0].description, 'Servicio de consultoría')
+        self.assertEqual(wizard.digitize_line_ids[1].quantity, 2)
+
+    def test_total_mismatch_flag_true_when_difference(self):
+        """total_mismatch = True cuando total != subtotal + iva_amount (tolerancia 0.01)."""
+        # Caso OK: 1000 + 160 = 1160
+        wizard = self._done_wizard()
+        self.assertFalse(wizard.total_mismatch)
+
+        # Caso descuadre: 1000 + 160 != 1200
+        payload = _load_fixture()
+        payload['extracted']['total'] = 1200.0
+        wizard = self._done_wizard(payload)
+        self.assertTrue(wizard.total_mismatch)
+
+        # IGTF NO cuenta para mismatch: 1000 + 160 + 30(IGTF) = 1190 != 1160 -> mismatch por IGTF no debe activarse
+        payload = _load_fixture()
+        payload['extracted']['igtf_amount'] = 30.0
+        payload['extracted']['total'] = 1190.0  # subtotal + iva + igtf
+        wizard = self._done_wizard(payload)
+        self.assertFalse(wizard.total_mismatch)

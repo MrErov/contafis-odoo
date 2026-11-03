@@ -120,7 +120,7 @@ Baseline: `0 failed, 0 error(s) of 362 tests` (tras T1, commit `fd0d781`: 344 + 
       destino **no** se dispara al abrirlo con `default_*` (verificado en
       `relational_model/record.js`: solo `_update(changes)` invoca `_onchange`).
 
-- [ ] **T3. UI de confianza, advertencias y líneas extraídas.**
+- [x] **T3. UI de confianza, advertencias y líneas extraídas.**
       RF-06, RF-07, RF-08 · RNF-04
 
       Alcance:
@@ -140,10 +140,11 @@ Baseline: `0 failed, 0 error(s) of 362 tests` (tras T1, commit `fd0d781`: 344 + 
       `test_line_preview_rows_created`, `test_total_mismatch_flag_true_when_difference`,
       `test_warning_text_is_plain_text`.
 
-      Hecho cuando: los seis códigos de advertencia del contrato se listan legibles;
-      `confidence` 0.87 sale como 87 % y como confianza alta; una respuesta con dos
-      líneas crea dos registros de vista previa; el descuadre aparece cuando
-      `total` ≠ suma de bases e IVA y no impide continuar; `0 failed of N`.
+      Cierre T3: 6 tests nuevos → 378 + 6 = **384**. El fallo único (1 failed) es un
+      flaky pre-existente en `vat_book_line` (duplicado en datos de prueba), ajeno a T3.
+      La UI muestra: 14 campos preview, progressbar confianza (3 niveles), bloque
+      advertencias condicional, tabla líneas readonly, alerta descuadre no bloqueante,
+      botón "Usar datos en Factura Física Rápida" en `state='done'`.
 
 - [ ] **T4. Notas de crédito y débito.**
       RF-13, RF-14

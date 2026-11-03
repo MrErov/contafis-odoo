@@ -80,3 +80,6 @@ access_l10n_ve_chat_history_accountant,l10n.ve.chat.history.accountant,model_l10
 access_l10n_ve_digitize_wizard_user,l10n.ve.digitize.wizard.user,model_l10n_ve_digitize_wizard,base.group_user,1,1,1,1
 access_l10n_ve_digitize_wizard_manager,l10n.ve.digitize.wizard.manager,model_l10n_ve_digitize_wizard,account.group_account_manager,1,1,1,1
 access_l10n_ve_digitize_wizard_accountant,l10n.ve.digitize.wizard.accountant,model_l10n_ve_digitize_wizard,l10n_ve_compliance_accountant,1,1,1,1
+access_l10n_ve_digitize_line_user,l10n.ve.digitize.line.user,model_l10n_ve_digitize_line,base.group_user,1,1,1,1
+access_l10n_ve_digitize_line_manager,l10n.ve.digitize.line.manager,model_l10n_ve_digitize_line,account.group_account_manager,1,1,1,1
+access_l10n_ve_digitize_line_accountant,l10n.ve.digitize.line.accountant,model_l10n_ve_digitize_line,l10n_ve_compliance_accountant,1,1,1,1

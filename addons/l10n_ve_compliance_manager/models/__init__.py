@@ -9,6 +9,7 @@ from . import (
     chat_history,
     compliance_client,
     digitize_client,
+    digitize_line,
     digitize_wizard,
     discuss_channel,
     document,

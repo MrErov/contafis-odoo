@@ -1,10 +1,11 @@
 import base64
+import html
 import json
 import logging
 import time
 
 import requests
-from odoo import _, fields, models
+from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from .digitize_client import DIGITIZE_ALLOWED_EXTENSIONS, _get_session_id, post_digitize
@@ -14,28 +15,28 @@ _logger = logging.getLogger(__name__)
 
 class DigitizeWizard(models.TransientModel):
     _name = 'l10n.ve.digitize.wizard'
-    _description = 'Wizard de digitalización de facturas'
+    _description = 'Wizard de digitalizaci\xf3n de facturas'
 
     type = fields.Selection(
         [
             ('purchase', 'Compra'),
             ('sale', 'Venta'),
         ],
-        string='Tipo de Operación',
+        string='Tipo de Operaci\xf3n',
         required=True,
         default='purchase',
     )
     document_type_hint = fields.Selection(
         [
-            ('auto', 'Automático'),
+            ('auto', 'Autom\xe1tico'),
             ('factura_z', 'Factura'),
-            ('nota_credito', 'Nota de Crédito'),
-            ('nota_debito', 'Nota de Débito'),
+            ('nota_credito', 'Nota de Cr\xe9dito'),
+            ('nota_debito', 'Nota de D\xe9bito'),
         ],
         string='Tipo de Documento',
         required=True,
         default='auto',
-        help="Tipo de documento esperado. 'Automático' deja que el servicio lo detecte.",
+        help="Tipo de documento esperado. 'Autom\xe1tico' deja que el servicio lo detecte.",
     )
     image = fields.Binary(string='Imagen de la factura', attachment=True)
     filename = fields.Char(string='Nombre del archivo')
@@ -53,24 +54,126 @@ class DigitizeWizard(models.TransientModel):
     detected_document_type = fields.Char(string='Tipo de Documento Detectado', readonly=True)
     error_message = fields.Char(string='Mensaje de Error', readonly=True)
 
-    # Vista previa de los datos extraídos (RF-06/RF-10). Solo lectura: el
-    # contador los revisa antes de pasarlos al wizard de factura física.
-    supplier_name = fields.Char(string='Razón Social Extraída', readonly=True)
-    supplier_rif = fields.Char(string='RIF Extraído', readonly=True)
-    invoice_number = fields.Char(string='N° Factura Extraído', readonly=True)
-    control_number = fields.Char(string='N° Control Extraído', readonly=True)
-    invoice_date = fields.Date(string='Fecha de Emisión Extraída', readonly=True)
-    due_date = fields.Date(string='Fecha de Vencimiento Extraída', readonly=True)
-    currency_code = fields.Char(string='Moneda Extraída', readonly=True)
-    subtotal = fields.Float(string='Subtotal Extraído', readonly=True)
-    iva_rate = fields.Float(string='Tasa IVA Extraída', readonly=True)
-    iva_amount = fields.Float(string='IVA Extraído', readonly=True)
-    igtf_amount = fields.Float(string='IGTF Extraído', readonly=True)
-    total = fields.Float(string='Total Extraído', readonly=True)
-    credit_note_ref = fields.Char(string='Referencia Nota de Crédito', readonly=True)
-    debit_note_ref = fields.Char(string='Referencia Nota de Débito', readonly=True)
-    extracted_json = fields.Text(string='Datos Extraídos (JSON)', readonly=True)
+    # Vista previa de los datos extra\xeddos (RF-06/RF-10). Solo lectura: el
+    # contador los revisa antes de pasarlos al wizard de factura f\xedsica.
+    supplier_name = fields.Char(string='Raz\xf3n Social Extra\xedda', readonly=True)
+    supplier_rif = fields.Char(string='RIF Extra\xeddo', readonly=True)
+    invoice_number = fields.Char(string='N\xb0 Factura Extra\xeddo', readonly=True)
+    control_number = fields.Char(string='N\xb0 Control Extra\xeddo', readonly=True)
+    invoice_date = fields.Date(string='Fecha de Emisi\xf3n Extra\xedda', readonly=True)
+    due_date = fields.Date(string='Fecha de Vencimiento Extra\xedda', readonly=True)
+    currency_code = fields.Char(string='Moneda Extra\xedda', readonly=True)
+    subtotal = fields.Float(string='Subtotal Extra\xeddo', readonly=True)
+    iva_rate = fields.Float(string='Tasa IVA Extra\xedda', readonly=True)
+    iva_amount = fields.Float(string='IVA Extra\xeddo', readonly=True)
+    igtf_amount = fields.Float(string='IGTF Extra\xeddo', readonly=True)
+    total = fields.Float(string='Total Extra\xeddo', readonly=True)
+    credit_note_ref = fields.Char(string='Referencia Nota de Cr\xe9dito', readonly=True)
+    debit_note_ref = fields.Char(string='Referencia Nota de D\xe9bito', readonly=True)
+    extracted_json = fields.Text(string='Datos Extra\xeddos (JSON)', readonly=True)
     warnings_json = fields.Text(string='Advertencias (JSON)', readonly=True)
+
+    # L\xedneas extra\xeddas (T3 - RF-08)
+    digitize_line_ids = fields.One2many(
+        'l10n.ve.digitize.line',
+        'wizard_id',
+        string='L\xedneas Extra\xeddas',
+        readonly=True,
+    )
+
+    # UI de confianza y advertencias (T3 - RF-07, RF-08)
+    confidence_pct = fields.Integer(
+        string='Confianza (%)', compute='_compute_confidence_pct', readonly=True,
+    )
+    has_warnings = fields.Boolean(
+        string='Tiene Advertencias', compute='_compute_has_warnings', readonly=True,
+    )
+    warnings_text = fields.Text(
+        string='Advertencias', compute='_compute_warnings_text', readonly=True,
+    )
+    total_mismatch = fields.Boolean(
+        string='Descuadre de Total', compute='_compute_total_mismatch', readonly=True,
+    )
+
+    # ------------------------------------------------------------------
+    # Compute methods (T3 - RF-07, RF-08)
+    # ------------------------------------------------------------------
+    @api.depends('confidence')
+    def _compute_confidence_pct(self):
+        """Convert confidence (0.0\u20131.0) to percentage (0\u2013100)."""
+        for wizard in self:
+            wizard.confidence_pct = int(round(wizard.confidence * 100)) if wizard.confidence else 0
+
+    @api.depends('warnings_json')
+    def _compute_has_warnings(self):
+        """True when there is at least one warning."""
+        for wizard in self:
+            try:
+                wizard.has_warnings = bool(json.loads(wizard.warnings_json or '[]'))
+            except (TypeError, ValueError):
+                wizard.has_warnings = False
+
+    @api.depends('warnings_json')
+    def _compute_warnings_text(self):
+        """Build plain-text warnings from warnings_json.
+
+        Format: "code: message\n" per warning. Never markup/HTML.
+        HTML entities in messages are escaped to prevent XSS.
+        """
+        for wizard in self:
+            text = ''
+            if wizard.warnings_json:
+                try:
+                    warnings = json.loads(wizard.warnings_json)
+                except (TypeError, ValueError):
+                    warnings = []
+                if isinstance(warnings, list):
+                    lines = []
+                    for w in warnings:
+                        if not isinstance(w, dict):
+                            continue
+                        code = w.get('code') or ''
+                        message = w.get('message') or ''
+                        # Escape HTML entities to ensure plain text output
+                        message = html.escape(message)
+                        if code or message:
+                            lines.append(f'{code}: {message}')
+                    text = '\n'.join(lines) if lines else ''
+            wizard.warnings_text = text
+
+    @api.depends('total', 'subtotal', 'iva_amount', 'iva_rate', 'igtf_amount')
+    def _compute_total_mismatch(self):
+        """True when extracted total differs from subtotal + iva_amount (tolerance 0.01).
+
+        IGTF is excluded from the calculation (informational only).
+        If the difference equals IGTF amount (within tolerance), it's not a mismatch.
+        If iva_amount is missing but iva_rate is known, recalculate.
+        """
+        for wizard in self:
+            mismatch = False
+            total = wizard.total or 0.0
+            subtotal = wizard.subtotal or 0.0
+            iva_amount = wizard.iva_amount          # None if not provided by service
+            igtf_amount = wizard.igtf_amount or 0.0
+
+            # Recalculate iva_amount only if NOT provided by service
+            if iva_amount is None and subtotal:
+                rate = wizard.iva_rate or 0.0
+                if abs(rate - 0.16) < 1e-6 or abs(rate - 0.08) < 1e-6:
+                    iva_amount = subtotal * rate
+                elif abs(rate) < 1e-6:
+                    iva_amount = 0.0
+                else:
+                    iva_amount = 0.0  # unknown rate -> cannot validate
+
+            if total and subtotal and iva_amount is not None:
+                calculated = subtotal + iva_amount
+                diff = abs(total - calculated)
+                if diff > 0.01:
+                    # If the difference equals IGTF amount (within tolerance), it's not a mismatch
+                    if abs(diff - igtf_amount) > 0.01:
+                        mismatch = True
+            wizard.total_mismatch = mismatch
 
     # ------------------------------------------------------------------
     # Configuration helpers
@@ -140,15 +243,15 @@ class DigitizeWizard(models.TransientModel):
         extension = self._get_extension()
         if extension not in DIGITIZE_ALLOWED_EXTENSIONS:
             raise ValidationError(
-                _("Formato no soportado. Se aceptan imágenes JPG, JPEG, PNG o WEBP.")
+                _("Formato no soportado. Se aceptan im\xe1genes JPG, JPEG, PNG o WEBP.")
             )
         size_mb = self._get_image_size_mb()
         max_mb = self._get_max_image_mb()
         if size_mb > max_mb:
             raise ValidationError(
                 _(
-                    "La imagen pesa %.1f MB y supera el límite de %.1f MB. "
-                    "Reduzca su tamaño antes de analizar."
+                    "La imagen pesa %.1f MB y supera el l\xedmite de %.1f MB. "
+                    "Reduzca su tama\xf1o antes de analizar."
                 )
                 % (size_mb, max_mb)
             )
@@ -184,15 +287,15 @@ class DigitizeWizard(models.TransientModel):
         if not url:
             return self._set_error(
                 _(
-                    "La digitalización no está configurada. "
-                    "Configure la URL en Ajustes → ContaFis AI."
+                    "La digitalizaci\xf3n no est\xe1 configurada. "
+                    "Configure la URL en Ajustes \u2192 ContaFis AI."
                 )
             )
 
         session_id = _get_session_id()
         if not session_id:
             return self._set_error(
-                _("🔐 Sesión no detectada. Recargá Odoo e intentá de nuevo.")
+                _("\U0001f510 Sesión no detectada. Recarg\xe1 Odoo e intent\xe1 de nuevo.")
             )
 
         payload = {
@@ -213,7 +316,7 @@ class DigitizeWizard(models.TransientModel):
                 time.time() - start_time,
             )
             return self._set_error(
-                _("⏱️ El servicio de digitalización tardó demasiado. Reintentá en unos minutos.")
+                _("\u23f1\ufe0f El servicio de digitalizaci\xf3n tard\xe3 demasiado. Reintent\xe1 en unos minutos.")
             )
         except requests.RequestException as error:
             _logger.error(
@@ -224,7 +327,7 @@ class DigitizeWizard(models.TransientModel):
             )
             return self._set_error(
                 _(
-                    "❌ No se pudo conectar con el servicio de digitalización. "
+                    "\u274c No se pudo conectar con el servicio de digitalizaci\xf3n. "
                     "Verifique la URL configurada."
                 )
             )
@@ -242,21 +345,21 @@ class DigitizeWizard(models.TransientModel):
 
         if status in (401, 403):
             return self._set_error(
-                _("🔐 Tu sesión de Odoo expiró o no es válida. Recargá Odoo e intentá de nuevo.")
+                _("\U0001f510 Tu sesi\xf3n de Odoo expir\xf3 o no es v\xe1lida. Recarg\xe1 Odoo e intent\xe1 de nuevo.")
             )
         if status == 503:
             return self._set_error(
-                _("🔄 El servicio de digitalización no está disponible ahora. Reintentá en unos minutos.")
+                _("\U0001f504 El servicio de digitalizaci\xf3n no est\xe1 disponible ahora. Reintent\xe1 en unos minutos.")
             )
         if status >= 500:
             return self._set_error(
-                _("🔧 Error del servidor de digitalización. Reintentá en unos minutos.")
+                _("\U0001f527 Error del servidor de digitalizaci\xf3n. Reintent\xe1 en unos minutos.")
             )
         if status >= 400:
             return self._set_error(
                 _(
                     "La imagen o el formato fue rechazado por el servicio. "
-                    "Verifique extensión y tamaño."
+                    "Verifique extensi\xf3n y tama\xf1o."
                 )
             )
 
@@ -264,15 +367,15 @@ class DigitizeWizard(models.TransientModel):
             data = response.json()
         except ValueError:
             return self._set_error(
-                _("⚠️ El servicio devolvió una respuesta que no es JSON.")
+                _("\u26a0\ufe0f El servicio devolvi\xf3 una respuesta que no es JSON.")
             )
 
         parsed = self._parse_response(data)
         if parsed is None:
             return self._set_error(
                 _(
-                    "⚠️ La respuesta del servicio está incompleta. "
-                    "Reintentá o cargue la factura a mano."
+                    "\u26a0\ufe0f La respuesta del servicio est\xe1 incompleta. "
+                    "Reintent\xe1 o cargue la factura a mano."
                 )
             )
 
@@ -280,6 +383,16 @@ class DigitizeWizard(models.TransientModel):
         merged_warnings = self._merge_warnings(
             parsed['warnings'], self._build_local_warnings(extracted)
         )
+        # Recreate extracted lines (T3 - RF-08)
+        lines_vals = []
+        for line in extracted.get('lines') or []:
+            if isinstance(line, dict):
+                lines_vals.append((0, 0, {
+                    'description': line.get('description') or '',
+                    'quantity': float(line.get('quantity') or 0.0),
+                    'unit_price': float(line.get('unit_price') or 0.0),
+                    'total': float(line.get('total') or 0.0),
+                }))
         values = {
             'state': 'done',
             'error_message': False,
@@ -289,6 +402,7 @@ class DigitizeWizard(models.TransientModel):
             'warnings_json': json.dumps(
                 merged_warnings, ensure_ascii=False, default=str
             ),
+            'digitize_line_ids': lines_vals,
         }
         values.update(self._get_preview_values(extracted))
         self.write(values)
@@ -487,9 +601,9 @@ class DigitizeWizard(models.TransientModel):
 
         required = (
             ('supplier_rif', 'RIF del proveedor'),
-            ('supplier_name', 'nombre o razón social del proveedor'),
-            ('invoice_number', 'número de factura'),
-            ('control_number', 'número de control'),
+            ('supplier_name', 'nombre o raz\xf3n social del proveedor'),
+            ('invoice_number', 'n\xfamero de factura'),
+            ('control_number', 'n\xfamero de control'),
         )
         for field, label in required:
             if not extracted.get(field):
@@ -506,13 +620,13 @@ class DigitizeWizard(models.TransientModel):
             add(
                 'missing_field',
                 'invoice_date',
-                _("Falta la fecha de emisión en la respuesta del servicio."),
+                _("Falta la fecha de emisi\xf3n en la respuesta del servicio."),
             )
         elif self._coerce_date(value) is None:
             add(
                 'parsing_error',
                 'invoice_date',
-                _("La fecha de emisión no tiene un formato válido (AAAA-MM-DD)."),
+                _("La fecha de emisi\xf3n no tiene un formato v\xe1lido (AAAA-MM-DD)."),
                 value,
             )
 
@@ -521,7 +635,7 @@ class DigitizeWizard(models.TransientModel):
             add(
                 'parsing_error',
                 'due_date',
-                _("La fecha de vencimiento no tiene un formato válido (AAAA-MM-DD)."),
+                _("La fecha de vencimiento no tiene un formato v\xe1lido (AAAA-MM-DD)."),
                 value,
             )
 
@@ -536,7 +650,7 @@ class DigitizeWizard(models.TransientModel):
             add(
                 'parsing_error',
                 'subtotal',
-                _("El subtotal extraído no es un número válido."),
+                _("El subtotal extra\xeddo no es un n\xfamero v\xe1lido."),
                 subtotal,
             )
 
@@ -553,14 +667,14 @@ class DigitizeWizard(models.TransientModel):
                 add(
                     'parsing_error',
                     'iva_rate',
-                    _("La tasa de IVA extraída no es un número válido."),
+                    _("La tasa de IVA extra\xedda no es un n\xfamero v\xe1lido."),
                     iva_rate,
                 )
             elif rate < 0:
                 add(
                     'parsing_error',
                     'iva_rate',
-                    _("La tasa de IVA extraída no puede ser negativa."),
+                    _("La tasa de IVA extra\xedda no puede ser negativa."),
                     iva_rate,
                 )
             elif 0 < rate < 0.16 and abs(rate - 0.08) >= 1e-6:
@@ -568,7 +682,7 @@ class DigitizeWizard(models.TransientModel):
                     'parsing_error',
                     'iva_rate',
                     _(
-                        "La tasa de IVA extraída no corresponde a 16 %, 8 % "
+                        "La tasa de IVA extra\xedda no corresponde a 16 %, 8 % "
                         "ni 0 %; revise las bases manualmente."
                     ),
                     iva_rate,
@@ -577,7 +691,7 @@ class DigitizeWizard(models.TransientModel):
                 add(
                     'parsing_error',
                     'iva_rate',
-                    _("La tasa de IVA extraída supera el 100 %; verifique el dato."),
+                    _("La tasa de IVA extra\xedda supera el 100 %; verifique el dato."),
                     iva_rate,
                 )
 
@@ -586,7 +700,7 @@ class DigitizeWizard(models.TransientModel):
             add(
                 'invalid_rif',
                 'supplier_rif',
-                _("El RIF extraído no es válido (dígito de control incorrecto)."),
+                _("El RIF extra\xeddo no es v\xe1lido (d\xedgito de control incorrecto)."),
                 rif,
             )
 
@@ -635,7 +749,7 @@ class DigitizeWizard(models.TransientModel):
         defaults = self._map_extracted_to_invoice_defaults(extracted)
         return {
             'type': 'ir.actions.act_window',
-            'name': _('Factura Física Rápida'),
+            'name': _('Factura F\xedsica R\xe1pida'),
             'res_model': 'l10n.ve.physical.invoice.wizard',
             'view_mode': 'form',
             'target': 'new',
