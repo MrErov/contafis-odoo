@@ -316,7 +316,7 @@ class DigitizeWizard(models.TransientModel):
                 time.time() - start_time,
             )
             return self._set_error(
-                _("\u23f1\ufe0f El servicio de digitalizaci\xf3n tard\xe3 demasiado. Reintent\xe1 en unos minutos.")
+                _("⏱️ El servicio de digitalización tardó demasiado. Reintentá en unos minutos.")
             )
         except requests.RequestException as error:
             _logger.error(
@@ -327,7 +327,7 @@ class DigitizeWizard(models.TransientModel):
             )
             return self._set_error(
                 _(
-                    "\u274c No se pudo conectar con el servicio de digitalizaci\xf3n. "
+                    "❌ No se pudo conectar con el servicio de digitalización. "
                     "Verifique la URL configurada."
                 )
             )
