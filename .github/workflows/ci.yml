@@ -96,8 +96,8 @@ jobs:
           grep -n -i "failed" /tmp/odoo_test.log | tail -10
           echo "=== DEBUG: Searching for 'error' (case-insensitive) ==="
           grep -n -i "error" /tmp/odoo_test.log | tail -10
-          echo "=== DEBUG: Last 300 lines of log ==="
-          tail -300 /tmp/odoo_test.log
+          echo "=== DEBUG: Last 500 lines of log ==="
+          tail -500 /tmp/odoo_test.log
           # Check if tests passed (multiple success indicators)
           if grep -q -i "0 failed" /tmp/odoo_test.log; then
             echo "Tests passed (found '0 failed' case-insensitive)"
