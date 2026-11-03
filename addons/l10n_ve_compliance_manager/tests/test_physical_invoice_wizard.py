@@ -385,3 +385,163 @@ class TestPhysicalInvoiceWizard(TaxGroupMixin, TransactionCase):
         move = self.env['account.move'].browse(move_id)
         self.assertEqual(move.amount_total, 1160.0)  # Se crea con el calculado
         # physical_total se guarda pero no bloquea
+
+    # --- T4: Notas de crédito y débito (RF-13, RF-14) ---
+    def test_credit_note_purchase_creates_in_refund(self):
+        """Wizard con digitized_document_type='nota_credito' (compra) -> in_refund."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'NC-001',
+            'control_number': 'CTRL-NC-001',
+            'invoice_date': '2026-08-15',
+            'base_general': 500.0,
+            'currency_id': self.env.company.currency_id.id,
+            'digitized_document_type': 'nota_credito',
+            'digitize_confidence': 0.92,
+            'digitized_document_ref': 'FAC-ORIGINAL-001',
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        self.assertEqual(move.move_type, 'in_refund')
+        self.assertEqual(move.state, 'posted')
+        self.assertEqual(move.ref, 'FAC-ORIGINAL-001')
+        self.assertIn('[Digitalizado] tipo=nota_credito confianza=92%', move.narration)
+
+    def test_credit_note_sale_creates_out_refund(self):
+        """Wizard con digitized_document_type='nota_credito' (venta) -> out_refund."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'sale',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'NC-002',
+            'control_number': 'CTRL-NC-002',
+            'invoice_date': '2026-08-15',
+            'base_general': 300.0,
+            'currency_id': self.env.company.currency_id.id,
+            'digitized_document_type': 'nota_credito',
+            'digitize_confidence': 0.88,
+            'digitized_document_ref': 'FAC-VENTA-005',
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        self.assertEqual(move.move_type, 'out_refund')
+        self.assertEqual(move.state, 'posted')
+        self.assertEqual(move.ref, 'FAC-VENTA-005')
+        self.assertIn('[Digitalizado] tipo=nota_credito confianza=88%', move.narration)
+
+    def test_debit_note_purchase_creates_in_invoice_with_ref(self):
+        """Wizard con digitized_document_type='nota_debito' (compra) -> in_invoice + ref."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'ND-001',
+            'control_number': 'CTRL-ND-001',
+            'invoice_date': '2026-08-15',
+            'base_general': 200.0,
+            'currency_id': self.env.company.currency_id.id,
+            'digitized_document_type': 'nota_debito',
+            'digitize_confidence': 0.91,
+            'digitized_document_ref': 'FAC-ORIGINAL-002',
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        self.assertEqual(move.move_type, 'in_invoice')
+        self.assertEqual(move.state, 'posted')
+        self.assertEqual(move.ref, 'FAC-ORIGINAL-002')
+        self.assertIn('[Digitalizado] tipo=nota_debito confianza=91%', move.narration)
+
+    def test_debit_note_sale_creates_out_invoice_with_ref(self):
+        """Wizard con digitized_document_type='nota_debito' (venta) -> out_invoice + ref."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'sale',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'ND-002',
+            'control_number': 'CTRL-ND-002',
+            'invoice_date': '2026-08-15',
+            'base_general': 150.0,
+            'currency_id': self.env.company.currency_id.id,
+            'digitized_document_type': 'nota_debito',
+            'digitize_confidence': 0.85,
+            'digitized_document_ref': 'FAC-VENTA-010',
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        self.assertEqual(move.move_type, 'out_invoice')
+        self.assertEqual(move.state, 'posted')
+        self.assertEqual(move.ref, 'FAC-VENTA-010')
+        self.assertIn('[Digitalizado] tipo=nota_debito confianza=85%', move.narration)
+
+    def test_manual_flow_unchanged_no_digitized_fields(self):
+        """Sin campos digitalizados -> comportamiento actual intacto (in_invoice/out_invoice)."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'FAC-MANUAL-001',
+            'control_number': 'CTRL-MANUAL-001',
+            'invoice_date': '2026-08-15',
+            'base_general': 1000.0,
+            'currency_id': self.env.company.currency_id.id,
+            # Sin digitized_document_type, digitize_confidence, digitized_document_ref
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        self.assertEqual(move.move_type, 'in_invoice')
+        self.assertEqual(move.state, 'posted')
+        self.assertEqual(move.ref, 'CTRL-MANUAL-001')
+        # Narración no debe tener prefijo [Digitalizado]
+        self.assertNotIn('[Digitalizado]', move.narration or '')
+
+    def test_credit_note_narration_includes_digitized_info(self):
+        """Narración de NC incluye tipo y confianza formateada."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'NC-003',
+            'control_number': 'CTRL-NC-003',
+            'invoice_date': '2026-08-15',
+            'base_general': 100.0,
+            'currency_id': self.env.company.currency_id.id,
+            'concept': 'Devolución mercancía',
+            'digitized_document_type': 'nota_credito',
+            'digitize_confidence': 0.92,
+            'digitized_document_ref': 'FAC-ORIGINAL-003',
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        # Prefijo [Digitalizado] + tipo + confianza + separador + concept
+        self.assertIn('[Digitalizado] tipo=nota_credito confianza=92%', move.narration)
+        self.assertIn(' — Devolución mercancía', move.narration)
+
+    def test_debit_note_narration_includes_digitized_info(self):
+        """Narración de ND incluye tipo y confianza formateada."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'ND-003',
+            'control_number': 'CTRL-ND-003',
+            'invoice_date': '2026-08-15',
+            'base_general': 100.0,
+            'currency_id': self.env.company.currency_id.id,
+            'concept': 'Ajuste por diferencia',
+            'digitized_document_type': 'nota_debito',
+            'digitize_confidence': 0.87,
+            'digitized_document_ref': 'FAC-ORIGINAL-004',
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        self.assertIn('[Digitalizado] tipo=nota_debito confianza=87%', move.narration)
+        self.assertIn(' — Ajuste por diferencia', move.narration)
