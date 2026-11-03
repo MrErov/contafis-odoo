@@ -545,3 +545,84 @@ class TestPhysicalInvoiceWizard(TaxGroupMixin, TransactionCase):
         move = self.env['account.move'].browse(move_id)
         self.assertIn('[Digitalizado] tipo=nota_debito confianza=87%', move.narration)
         self.assertIn(' — Ajuste por diferencia', move.narration)
+
+    # --- T5: RF-17 filtro por compañía ---
+    def test_onchange_partner_vat_filters_by_company(self):
+        """RF-17: _onchange_partner_vat no reutiliza partner de otra compañía."""
+        rif = 'G-87654321-4'  # RIF válido
+        partner_a = self.env['res.partner'].create({'name': 'Prov A', 'vat': rif})
+
+        # Partner en otra compañía con mismo RIF
+        company_b = self.env['res.company'].sudo().create({'name': 'Cía B'})
+        self.env['res.partner'].sudo().create({
+            'name': 'Prov B', 'vat': rif, 'company_id': company_b.id
+        })
+
+        # En compañía actual, onchange debe encontrar partner_a (no el de company_b)
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': rif,
+            'invoice_number': 'FAC-ONCHANGE-001',
+            'control_number': 'CTRL-ONCHANGE-001',
+            'invoice_date': '2026-08-15',
+            'base_general': 1000.0,
+        })
+        wizard._onchange_partner_vat()
+        self.assertEqual(wizard.partner_id, partner_a)
+
+        # Si no hay partner en la compañía actual, no debe encontrar el de otra compañía
+        partner_a.unlink()
+        wizard2 = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': rif,
+            'invoice_number': 'FAC-ONCHANGE-002',
+            'control_number': 'CTRL-ONCHANGE-002',
+            'invoice_date': '2026-08-15',
+            'base_general': 1000.0,
+        })
+        wizard2._onchange_partner_vat()
+        self.assertFalse(wizard2.partner_id, "No debe reutilizar partner de otra compañía")
+
+    def test_action_create_and_post_filters_partner_by_company(self):
+        """RF-17: action_create_and_post no reutiliza partner de otra compañía."""
+        rif = 'G-87654321-4'
+        partner_a = self.env['res.partner'].create({'name': 'Prov A', 'vat': rif})
+
+        # Partner en otra compañía con mismo RIF
+        company_b = self.env['res.company'].sudo().create({'name': 'Cía B'})
+        self.env['res.partner'].sudo().create({'name': 'Prov B', 'vat': rif, 'company_id': company_b.id})
+
+        # En compañía actual, crea move con partner_a
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': rif,
+            'invoice_number': 'FAC-001',
+            'control_number': 'CTRL-001',
+            'invoice_date': '2026-08-15',
+            'base_general': 1000.0,
+        })
+        wizard._onchange_partner_vat()
+        result = wizard.action_create_and_post()
+        move = self.env['account.move'].browse(result['res_id'])
+        self.assertEqual(move.partner_id, partner_a)
+
+        # Usar un RIF diferente para probar creación automática sin partner existente
+        rif2 = 'V-12345678-5'  # RIF válido diferente
+        # Partner en otra compañía con este RIF
+        self.env['res.partner'].sudo().create({'name': 'Prov C', 'vat': rif2, 'company_id': company_b.id})
+
+        # En compañía actual, sin partner con rif2, debe crear uno nuevo (no usar el de company_b)
+        wizard2 = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': rif2,
+            'invoice_number': 'FAC-002',
+            'control_number': 'CTRL-002',
+            'invoice_date': '2026-08-15',
+            'base_general': 1000.0,
+            'new_partner_name': 'Nuevo Prov Auto',
+        })
+        result2 = wizard2.action_create_and_post()
+        move2 = self.env['account.move'].browse(result2['res_id'])
+        # Debe crear un partner nuevo, no usar el de company_b
+        self.assertNotEqual(move2.partner_id.company_id, company_b)
+        self.assertEqual(move2.partner_id.name, 'Nuevo Prov Auto')

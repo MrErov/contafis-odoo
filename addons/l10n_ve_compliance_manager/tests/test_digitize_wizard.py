@@ -9,6 +9,9 @@ import requests
 from odoo.addons.l10n_ve_compliance_manager.models.digitize_client import post_digitize
 from odoo.exceptions import UserError, ValidationError
 from odoo.tests import TransactionCase, tagged
+from odoo.tools import html2plaintext
+
+from .common import TaxGroupMixin
 
 DIGITIZE_URL = 'http://digitize.test/digitize'
 FIXTURES_DIR = Path(__file__).parent / 'fixtures'
@@ -768,8 +771,9 @@ class TestDigitizeDocumentTypes(DigitizeTestMixin, TransactionCase):
     def _map_defaults(self, extracted, type='purchase'):
         """Helper: llama al método de mapeo y retorna los defaults."""
         wizard = self._create_wizard(type=type)
-        # Set confidence on wizard (normally set by action_digitize)
+        # Set fields normally set by action_digitize
         wizard.confidence = extracted.get('confidence', 0.0)
+        wizard.detected_document_type = extracted.get('document_type', 'factura_z')
         return wizard._map_extracted_to_invoice_defaults(extracted)
 
     def test_credit_note_purchase_creates_refund(self):
@@ -859,3 +863,164 @@ class TestDigitizeDocumentTypes(DigitizeTestMixin, TransactionCase):
         self.assertNotIn('default_digitized_document_type', defaults)
         self.assertNotIn('default_digitize_confidence', defaults)
         self.assertNotIn('default_digitized_document_ref', defaults)
+
+
+@tagged('post_install', '-at_install')
+class TestDigitizeEndToEnd(DigitizeTestMixin, TaxGroupMixin, TransactionCase):
+    """Flujo E2E: mock 200 -> prellenado -> action_create_and_post -> posted."""
+
+    def setUp(self):
+        super().setUp()
+        self.config = self.env['ir.config_parameter'].sudo()
+        self.config.set_param('l10n_ve_digitize.url', DIGITIZE_URL)
+        self.config.set_param('l10n_ve_digitize.timeout_seconds', '30')
+        self.config.set_param('l10n_ve_digitize.max_image_mb', '5')
+
+    def _full_flow(self, payload, type='purchase'):
+        """Ejecuta flujo completo: mock -> digitize -> apply -> create_and_post."""
+        wizard = self._create_wizard(type=type)
+        with patch('requests.post', return_value=_make_response(200, payload)), \
+                self._patch_session():
+            wizard.action_digitize()
+        self.assertEqual(wizard.state, 'done')
+
+        action = wizard.action_apply_to_invoice()
+        phys_wizard = self.env['l10n.ve.physical.invoice.wizard'].with_context(
+            **action['context']
+        ).create({})
+
+        return phys_wizard.action_create_and_post()
+
+    def test_digitized_flow_creates_posted_move(self):
+        """RF-15: flujo completo crea asiento posted con datos correctos."""
+        payload = _load_fixture()
+        action_result = self._full_flow(payload)
+
+        move_id = action_result['res_id']
+        move = self.env['account.move'].browse(move_id)
+
+        self.assertEqual(move.state, 'posted')
+        self.assertEqual(move.company_id, self.env.company)
+        self.assertEqual(move.ref, '00-000456')  # control_number del fixture
+        self.assertEqual(move.invoice_date, date(2026, 8, 15))
+        self.assertEqual(move.move_type, 'in_invoice')
+
+    def test_digitized_move_uses_active_company(self):
+        """El move usa la compañía activa del usuario."""
+        payload = _load_fixture()
+        action_result = self._full_flow(payload)
+
+        move = self.env['account.move'].browse(action_result['res_id'])
+        self.assertEqual(move.company_id, self.env.company)
+
+    def test_digitized_move_narration_has_provenance(self):
+        """RF-16: narración incluye [Digitalizado] tipo=... confianza=..."""
+        payload = _load_fixture()
+        action_result = self._full_flow(payload)
+
+        move = self.env['account.move'].browse(action_result['res_id'])
+        # narration es HTML, convertir a texto plano
+        narration_text = html2plaintext(move.narration or '')
+        self.assertIn('[Digitalizado] tipo=factura_z', narration_text)
+        self.assertIn('confianza=', narration_text)
+
+    def test_digitized_move_generates_vat_book_line(self):
+        """Override _post genera l10n.ve.vat.book.line."""
+        payload = _load_fixture()
+        action_result = self._full_flow(payload)
+
+        move = self.env['account.move'].browse(action_result['res_id'])
+
+        book_lines = self.env['l10n.ve.vat.book.line'].search([
+            ('account_move_id', '=', move.id)
+        ])
+
+        self.assertEqual(len(book_lines), 1)
+        line = book_lines[0]
+        self.assertEqual(line.book_type, 'purchase')
+        self.assertEqual(line.source, 'odoo_invoice')
+        self.assertEqual(line.operation_code, '33')
+        self.assertGreater(line.base_general, 0)
+        self.assertGreater(line.vat_general, 0)
+
+    def test_digitized_partner_not_reused_across_companies(self):
+        """RF-17: partner de otra compañía no se reutiliza en flujo digitalizado."""
+        rif = 'V-12345678-5'
+        partner_a = self.env['res.partner'].create({
+            'name': 'Proveedor Cía A', 'vat': rif
+        })
+
+        # Partner en otra compañía con mismo RIF
+        company_b = self.env['res.company'].sudo().create({'name': 'Cía B Test'})
+        self.env['res.partner'].sudo().create({
+            'name': 'Proveedor Cía B', 'vat': rif, 'company_id': company_b.id
+        })
+
+        # Flujo en compañía actual (A) - debe usar partner_a, no partner_b
+        payload = _load_fixture()
+        payload['extracted']['supplier_rif'] = rif
+        payload['extracted']['supplier_name'] = 'Proveedor Cía A'
+
+        wizard = self._create_wizard()
+        with patch('requests.post', return_value=_make_response(200, payload)), \
+                self._patch_session():
+            wizard.action_digitize()
+
+        self.assertEqual(wizard.state, 'done')
+        action = wizard.action_apply_to_invoice()
+        phys_wizard = self.env['l10n.ve.physical.invoice.wizard'].with_context(
+            **action['context']
+        ).create({})
+
+        result = phys_wizard.action_create_and_post()
+        move = self.env['account.move'].browse(result['res_id'])
+
+        # Verifica que usa partner_a (no partner_b de company_b)
+        self.assertEqual(move.partner_id, partner_a)
+        self.assertEqual(move.company_id, self.env.company)
+
+        # Usar un RIF diferente para probar creación automática sin partner existente
+        rif2 = 'G-87654321-4'  # RIF válido diferente
+        # Partner en otra compañía con este RIF
+        self.env['res.partner'].sudo().create({
+            'name': 'Proveedor Cía C', 'vat': rif2, 'company_id': company_b.id
+        })
+
+        payload2 = _load_fixture()
+        payload2['extracted']['supplier_rif'] = rif2
+        payload2['extracted']['supplier_name'] = 'Proveedor Nuevo'
+
+        wizard2 = self._create_wizard()
+        with patch('requests.post', return_value=_make_response(200, payload2)), \
+                self._patch_session():
+            wizard2.action_digitize()
+
+        action2 = wizard2.action_apply_to_invoice()
+        phys_wizard2 = self.env['l10n.ve.physical.invoice.wizard'].with_context(
+            **action2['context']
+        ).create({})
+        phys_wizard2.new_partner_name = 'Proveedor Nuevo Auto'
+
+        result2 = phys_wizard2.action_create_and_post()
+        move2 = self.env['account.move'].browse(result2['res_id'])
+
+        # Debe crear partner nuevo, no usar el de company_b
+        self.assertNotEqual(move2.partner_id.company_id, company_b)
+        self.assertEqual(move2.partner_id.name, 'Proveedor Nuevo Auto')
+
+    def test_digitize_never_posts_without_confirmation(self):
+        """Solo digitalizar + apply sin create_and_post -> 0 moves nuevos."""
+        payload = _load_fixture()
+        wizard = self._create_wizard()
+
+        initial_count = self.env['account.move'].search_count([])
+
+        with patch('requests.post', return_value=_make_response(200, payload)), \
+                self._patch_session():
+            wizard.action_digitize()
+
+        wizard.action_apply_to_invoice()
+        # NO llamamos action_create_and_post
+
+        final_count = self.env['account.move'].search_count([])
+        self.assertEqual(final_count, initial_count)
