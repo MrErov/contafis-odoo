@@ -271,6 +271,16 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Demo data: cliente "Comercial La Conciliación, C.A." (RIF J-30512345-6) + conciliación 2025 réplica del fixture real, con advertencias intencionales (totales y monto no cuadran por diseño)
 - ✅ 330 tests backend + 9 E2E = 339 tests pasando; tareas T1–T8 `[x]` en `specs/011-conciliacion-islr/tasks.md`
 
+### Fase 012: Wizard de Digitalización de Facturas (spec 007) — COMPLETADA
+- ✅ **T1**: Wizard `l10n.ve.digitize.wizard` (tipo operación, hint documento, upload imagen, timeout configurable 30s, max 5MB, validación JPG/JPEG/PNG/WEBP). Cliente HTTP con `X-Odoo-Session` + `X-Odoo-Database`, timeout 30s, sin log de imagen/session.
+- ✅ **T2**: Mapeo `ExtractedInvoice` → `l10n.ve.physical.invoice.wizard` via `default_*` context (RIF, fechas, moneda VES/USD, bases según `iva_rate`, concepto desde líneas, partner por RIF con filtro compañía).
+- ✅ **T3**: UI resultados (confianza 3 niveles ≥85/≥60/<60, warnings texto plano, tabla líneas readonly, alerta descuadre no bloqueante, 14 campos preview, botón "Usar datos en Factura Física Rápida").
+- ✅ **T4**: Notas de crédito/débito — NC → `in_refund`/`out_refund`, ND → factura normal, `ref = credit_note_ref/debit_note_ref`, narración `[Digitalizado] tipo=... confianza=...`.
+- ✅ **T5**: E2E flujo completo (mock 200 → digitize → apply → create_and_post → posted), `vat.book.line` generado, RF-17 multi-compañía (filtro `company_id` en partner search), narración con procedencia, test de no posteo sin confirmación.
+- ✅ **T6**: Verificación visual en navegador (4 estados), docs actualizadas (`SPEC.md`, `docs/memory.md`), `pre-commit` verde.
+- **Tests**: 405 pasando (335 base + 70 nuevos spec 007). Flaky pre-existentes en seniat/vat_book (ajenos).
+- **Commits**: `fd0d781` (T1), `92c1f2b` (T2), `251012c` (T3), `261a03e` + `c79896f` (T4), `e9b455c` (T5).
+
 ### Trabajo Futuro
 - ✅ Hardening 004.1 — Minor 1: recalcular `due_date` al cambiar el tipo o el cliente salvo en obligaciones pagadas — HECHO (decisión: recalc si no está pagada; incluye la acción manual "Recalcular vencimientos" en el formulario y como acción masiva de la lista, respetando `due_date_override`)
 - ✅ Spec 11: Conciliación ISLR — HECHO (Fase 011: modelos + wizard + ciclo de vida + reporte QWeb + demo)
@@ -297,7 +307,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
-- ✅ **335 tests backend + 9 tests E2E = 344 tests pasando**
+- ✅ **405 tests backend + 9 tests E2E = 414 tests pasando**
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`

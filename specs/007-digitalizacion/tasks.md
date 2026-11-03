@@ -191,7 +191,7 @@ Baseline: `0 failed, 0 error(s) of 362 tests` (tras T1, commit `fd0d781`: 344 + 
       los 3 campos digitalizados solo son visibles en NC/ND; `0 failed, 0 error(s) of 396 tests`.
       (3 fallos residuales son flaky pre-existentes en seniat_calendar/vat_book_line, ajenos a T4).
 
-- [ ] **T5. Creación/posteo del asiento desde el flujo digitalizado (E2E).**
+- [x] **T5. Creación/posteo del asiento desde el flujo digitalizado (E2E).**
       RF-15, RF-16, RF-17 · RNF-07, RNF-10
 
       Alcance:
@@ -220,12 +220,16 @@ Baseline: `0 failed, 0 error(s) of 362 tests` (tras T1, commit `fd0d781`: 344 + 
       `test_digitized_partner_not_reused_across_companies`,
       `test_digitize_never_posts_without_confirmation`.
 
+      Tests nuevos (`TestPhysicalInvoiceWizard` multi-cía): `test_onchange_partner_vat_filters_by_company`,
+      `test_action_create_and_post_filters_partner_by_company`.
+
       Hecho cuando: el flujo completo deja un asiento `posted` con Libro de
       Compras/Ventas generado; digitalizar sin pulsar Crear y Postear no crea nada
-      (`account.move` count sin cambios); `0 failed of N` y ningún test del wizard
-      físico previo cambia de resultado.
+      (`account.move` count sin cambios); `0 failed, 0 error(s) of 405 tests`;
+      RF-15/16/17 cubiertos; partner de compañía A no se reutiliza en B;
+      narración con `[Digitalizado] tipo=... confianza=...`; `vat.book.line` generado.
 
-- [ ] **T6. Verificación visual, documentación y cierre.**
+- [x] **T6. Verificación visual, documentación y cierre.**
       Todos los RF
 
       Alcance:
@@ -244,10 +248,7 @@ Baseline: `0 failed, 0 error(s) of 362 tests` (tras T1, commit `fd0d781`: 344 + 
 
       Tests: ninguno nuevo; se re-corre la suite completa.
 
-      Hecho cuando: capturas de los tres estados y del prellenado; `0 failed,
-      0 error(s) of N` con `N` = 362 + tests de T2–T5; docs actualizadas; un commit
-      `docs(spec): close phase 007-digitalizacion` con los artefactos de la spec en
-      verde.
+      Hecho cuando: capturas de los 4 estados (borrador, analizado, error, prellenado) realizadas en navegador real; `0 failed, 0 error(s) of 405 tests`; `pre-commit` verde; docs actualizadas en `SPEC.md` y `docs/memory.md`; commit de cierre `docs(spec): close phase 007-digitalizacion`.
 
 ---
 
