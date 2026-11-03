@@ -63,10 +63,8 @@ jobs:
       - name: Run Odoo tests
         shell: bash
         run: |
-          # Run Odoo tests - ignore Docker exit code (Odoo exits 1 on demo data warnings)
-          # Tests pass if log contains test success indicators
-          # Use --log-level=info (not 'test') to ensure test results are logged
-          # Force fully unbuffered I/O to ensure test output is written to log immediately
+          # Run Odoo tests and capture output to log file
+          # Use the exact Odoo test result pattern: "0 failed, 0 error(s) of N tests"
           echo "Starting Odoo tests..."
           docker run --rm --network host \
             -v /tmp/extra-addons:/mnt/extra-addons \
@@ -75,7 +73,6 @@ jobs:
             -e PASSWORD=odoo \
             -e PYTHONUNBUFFERED=1 \
             odoo:19.0 \
-            stdbuf -o0 -e0 \
             odoo -d test_ci \
               -i l10n_ve_compliance_manager \
               --test-tags /l10n_ve_compliance_manager \
@@ -83,56 +80,32 @@ jobs:
               --stop-after-init \
               --no-http \
               --workers=0 \
-              --log-level=info 2>&1 | tee /tmp/odoo_test.log
+              --log-level=info \
+              2>&1 | tee /tmp/odoo_test.log
           DOCKER_EXIT=${PIPESTATUS[0]}
-          echo "=== DEBUG: Docker exit code: $DOCKER_EXIT ==="
-          echo "=== DEBUG: Log file size: $(wc -c /tmp/odoo_test.log) ==="
-          echo "=== DEBUG: Searching for success patterns ==="
-          grep -n -i "0 failed" /tmp/odoo_test.log && echo "FOUND: '0 failed' (case-insensitive)" || echo "NOT FOUND: '0 failed' (case-insensitive)"
-          grep -n "tests when" /tmp/odoo_test.log && echo "FOUND: 'tests when'" || echo "NOT FOUND: 'tests when'"
-          grep -n -i "0 error" /tmp/odoo_test.log && echo "FOUND: '0 error' (case-insensitive)" || echo "NOT FOUND: '0 error' (case-insensitive)"
-          grep -n "odoo.tests.result" /tmp/odoo_test.log && echo "FOUND: 'odoo.tests.result'" || echo "NOT FOUND: 'odoo.tests.result'"
-          echo "=== DEBUG: Searching for 'failed' (case-insensitive) ==="
-          grep -n -i "failed" /tmp/odoo_test.log | tail -10
-          echo "=== DEBUG: Searching for 'error' (case-insensitive) ==="
-          grep -n -i "error" /tmp/odoo_test.log | tail -10
-          echo "=== DEBUG: Last 500 lines of log ==="
-          tail -500 /tmp/odoo_test.log
-          echo "=== DEBUG: Full log (first 5000 chars) ==="
-          head -c 10000 /tmp/odoo_test.log
-          echo "=== DEBUG: Searching for '0 failed' ==="
-          grep -n -i "0 failed" /tmp/odoo_test.log || echo "NOT FOUND: '0 failed'"
-          echo "=== DEBUG: Searching for '0 error' ==="
-          grep -n -i "0 error" /tmp/odoo_test.log || echo "NOT FOUND: '0 error'"
-          echo "=== DEBUG: Searching for 'tests' ==="
-          grep -n "tests" /tmp/odoo_test.log | head -5
-          echo "=== DEBUG: Searching for 'failed' ==="
-          grep -n -i "failed" /tmp/odoo_test.log | head -5
-          echo "=== DEBUG: Searching for 'error' ==="
-          grep -n -i "error" /tmp/odoo_test.log | head -5
-          # Check if tests passed - Odoo standard pattern: "0 failed, 0 error(s) of N tests"
-          if grep -qE "0 failed, 0 error\(s\) of [0-9]+ tests" /tmp/odoo_test.log; then
-            echo "Tests passed (standard Odoo success pattern matched)"
+
+          echo "=== Odoo test log saved to /tmp/odoo_test.log ==="
+          echo "=== Docker exit code: $DOCKER_EXIT ==="
+
+          # Search for the exact Odoo test success pattern
+          if grep -q "0 failed, 0 error(s) of" /tmp/odoo_test.log; then
+            echo "=== TESTS PASSED: Found '0 failed, 0 error(s) of N tests' ==="
             exit 0
           fi
-          # Fallback: case-insensitive check
-          if grep -qiE "0 failed, 0 error\(s\) of [0-9]+ tests" /tmp/odoo_test.log; then
-            echo "Tests passed (case-insensitive pattern matched)"
+
+          # Fallback: check for other success patterns
+          if grep -q "0 failed, 0 error" /tmp/odoo_test.log; then
+            echo "Tests passed (found '0 failed, 0 error')"
             exit 0
           fi
-          # Fallback: check for "0 failed, 0 error" pattern without "tests"
-          if grep -qE "0 failed, 0 error\(s\) of [0-9]+" /tmp/odoo_test.log; then
-            echo "Tests passed (pattern matched without 'tests')"
-            exit 0
-          fi
-          # Fallback: case-insensitive check without "tests"
-          if grep -qiE "0 failed, 0 error\(s\) of" /tmp/odoo_test.log; then
-            echo "Tests passed (case-insensitive pattern matched without 'tests')"
-            exit 0
-          fi
-          # Show debug info before failing
-          echo "=== DEBUG: Pattern not found, showing full log ==="
-          cat /tmp/odoo_test.log
+
+          # If no success pattern found, show relevant log lines and fail
+          echo "=== TESTS FAILED: Could not find success pattern ==="
+          echo "=== Searching for test result patterns ==="
+          grep -i "failed\|error\|passed\|tests" /tmp/odoo_test.log | head -30 || true
+          echo "=== Last 100 lines of log ==="
+          tail -100 /tmp/odoo_test.log
+
           exit 1
 
       - name: Upload test log
