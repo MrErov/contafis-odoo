@@ -65,8 +65,9 @@ jobs:
         run: |
           # Run Odoo tests - ignore Docker exit code (Odoo exits 1 on demo data warnings)
           # Tests pass if log contains test success indicators
-          # Use --log-level=info (not 'test') to ensure test results are logged
           # Force fully unbuffered I/O to ensure test output is written to log immediately
+          # Use --log-level=info (not 'test') to ensure test results are logged
+          # Add PYTHONUNBUFFERED=1 for extra safety
           echo "Starting Odoo tests..."
           docker run --rm --network host \
             -v /tmp/extra-addons:/mnt/extra-addons \
