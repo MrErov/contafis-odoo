@@ -65,7 +65,8 @@ jobs:
         run: |
           # Run Odoo tests - ignore Docker exit code (Odoo exits 1 on demo data warnings)
           # Tests pass if log contains test success indicators
-          # Force unbuffered I/O to ensure test results are written to log
+          # Use --log-level=info (not 'test') to ensure test results are logged
+          # Force fully unbuffered I/O to ensure test output is written to log immediately
           echo "Starting Odoo tests..."
           docker run --rm --network host \
             -v /tmp/extra-addons:/mnt/extra-addons \
@@ -74,7 +75,7 @@ jobs:
             -e PASSWORD=odoo \
             -e PYTHONUNBUFFERED=1 \
             odoo:19.0 \
-            stdbuf -oL -eL \
+            stdbuf -o0 -e0 \
             odoo -d test_ci \
               -i l10n_ve_compliance_manager \
               --test-tags /l10n_ve_compliance_manager \
@@ -82,7 +83,7 @@ jobs:
               --stop-after-init \
               --no-http \
               --workers=0 \
-              --log-level=test 2>&1 | tee /tmp/odoo_test.log
+              --log-level=info 2>&1 | tee /tmp/odoo_test.log
           DOCKER_EXIT=${PIPESTATUS[0]}
           echo "=== DEBUG: Docker exit code: $DOCKER_EXIT ==="
           echo "=== DEBUG: Log file size: $(wc -c /tmp/odoo_test.log) ==="
