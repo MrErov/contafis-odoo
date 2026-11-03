@@ -81,17 +81,20 @@ jobs:
               --workers=0 \
               --log-level=test 2>&1 | tee /tmp/odoo_test.log
           DOCKER_EXIT=${PIPESTATUS[0]}
-          echo "Docker exit code: $DOCKER_EXIT"
-          echo "Log file size: $(wc -c /tmp/odoo_test.log)"
-          echo "Last 50 lines of log:"
-          tail -50 /tmp/odoo_test.log
+          echo "=== DEBUG: Docker exit code: $DOCKER_EXIT ==="
+          echo "=== DEBUG: Log file size: $(wc -c /tmp/odoo_test.log) ==="
+          echo "=== DEBUG: Searching for '0 failed' ==="
+          grep -n "0 failed" /tmp/odoo_test.log || echo "NOT FOUND: '0 failed'"
+          echo "=== DEBUG: Searching for 'failed' ==="
+          grep -n "failed" /tmp/odoo_test.log | tail -5
+          echo "=== DEBUG: Last 100 lines of log ==="
+          tail -100 /tmp/odoo_test.log
           # Check if tests passed (Odoo logs "0 failed" at the end)
           if grep -q "0 failed" /tmp/odoo_test.log; then
             echo "Tests passed (0 failed)"
             exit 0
           else
             echo "Tests failed or no result found"
-            grep -E "failed|error" /tmp/odoo_test.log | tail -10
             exit 1
           fi
 
