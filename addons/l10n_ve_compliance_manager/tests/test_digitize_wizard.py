@@ -768,6 +768,8 @@ class TestDigitizeDocumentTypes(DigitizeTestMixin, TransactionCase):
     def _map_defaults(self, extracted, type='purchase'):
         """Helper: llama al método de mapeo y retorna los defaults."""
         wizard = self._create_wizard(type=type)
+        # Set confidence on wizard (normally set by action_digitize)
+        wizard.confidence = extracted.get('confidence', 0.0)
         return wizard._map_extracted_to_invoice_defaults(extracted)
 
     def test_credit_note_purchase_creates_refund(self):
