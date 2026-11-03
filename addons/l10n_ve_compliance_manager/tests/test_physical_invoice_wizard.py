@@ -385,3 +385,244 @@ class TestPhysicalInvoiceWizard(TaxGroupMixin, TransactionCase):
         move = self.env['account.move'].browse(move_id)
         self.assertEqual(move.amount_total, 1160.0)  # Se crea con el calculado
         # physical_total se guarda pero no bloquea
+
+    # --- T4: Notas de crédito y débito (RF-13, RF-14) ---
+    def test_credit_note_purchase_creates_in_refund(self):
+        """Wizard con digitized_document_type='nota_credito' (compra) -> in_refund."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'NC-001',
+            'control_number': 'CTRL-NC-001',
+            'invoice_date': '2026-08-15',
+            'base_general': 500.0,
+            'currency_id': self.env.company.currency_id.id,
+            'digitized_document_type': 'nota_credito',
+            'digitize_confidence': 0.92,
+            'digitized_document_ref': 'FAC-ORIGINAL-001',
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        self.assertEqual(move.move_type, 'in_refund')
+        self.assertEqual(move.state, 'posted')
+        self.assertEqual(move.ref, 'FAC-ORIGINAL-001')
+        self.assertIn('[Digitalizado] tipo=nota_credito confianza=92%', move.narration)
+
+    def test_credit_note_sale_creates_out_refund(self):
+        """Wizard con digitized_document_type='nota_credito' (venta) -> out_refund."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'sale',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'NC-002',
+            'control_number': 'CTRL-NC-002',
+            'invoice_date': '2026-08-15',
+            'base_general': 300.0,
+            'currency_id': self.env.company.currency_id.id,
+            'digitized_document_type': 'nota_credito',
+            'digitize_confidence': 0.88,
+            'digitized_document_ref': 'FAC-VENTA-005',
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        self.assertEqual(move.move_type, 'out_refund')
+        self.assertEqual(move.state, 'posted')
+        self.assertEqual(move.ref, 'FAC-VENTA-005')
+        self.assertIn('[Digitalizado] tipo=nota_credito confianza=88%', move.narration)
+
+    def test_debit_note_purchase_creates_in_invoice_with_ref(self):
+        """Wizard con digitized_document_type='nota_debito' (compra) -> in_invoice + ref."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'ND-001',
+            'control_number': 'CTRL-ND-001',
+            'invoice_date': '2026-08-15',
+            'base_general': 200.0,
+            'currency_id': self.env.company.currency_id.id,
+            'digitized_document_type': 'nota_debito',
+            'digitize_confidence': 0.91,
+            'digitized_document_ref': 'FAC-ORIGINAL-002',
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        self.assertEqual(move.move_type, 'in_invoice')
+        self.assertEqual(move.state, 'posted')
+        self.assertEqual(move.ref, 'FAC-ORIGINAL-002')
+        self.assertIn('[Digitalizado] tipo=nota_debito confianza=91%', move.narration)
+
+    def test_debit_note_sale_creates_out_invoice_with_ref(self):
+        """Wizard con digitized_document_type='nota_debito' (venta) -> out_invoice + ref."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'sale',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'ND-002',
+            'control_number': 'CTRL-ND-002',
+            'invoice_date': '2026-08-15',
+            'base_general': 150.0,
+            'currency_id': self.env.company.currency_id.id,
+            'digitized_document_type': 'nota_debito',
+            'digitize_confidence': 0.85,
+            'digitized_document_ref': 'FAC-VENTA-010',
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        self.assertEqual(move.move_type, 'out_invoice')
+        self.assertEqual(move.state, 'posted')
+        self.assertEqual(move.ref, 'FAC-VENTA-010')
+        self.assertIn('[Digitalizado] tipo=nota_debito confianza=85%', move.narration)
+
+    def test_manual_flow_unchanged_no_digitized_fields(self):
+        """Sin campos digitalizados -> comportamiento actual intacto (in_invoice/out_invoice)."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'FAC-MANUAL-001',
+            'control_number': 'CTRL-MANUAL-001',
+            'invoice_date': '2026-08-15',
+            'base_general': 1000.0,
+            'currency_id': self.env.company.currency_id.id,
+            # Sin digitized_document_type, digitize_confidence, digitized_document_ref
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        self.assertEqual(move.move_type, 'in_invoice')
+        self.assertEqual(move.state, 'posted')
+        self.assertEqual(move.ref, 'CTRL-MANUAL-001')
+        # Narración no debe tener prefijo [Digitalizado]
+        self.assertNotIn('[Digitalizado]', move.narration or '')
+
+    def test_credit_note_narration_includes_digitized_info(self):
+        """Narración de NC incluye tipo y confianza formateada."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'NC-003',
+            'control_number': 'CTRL-NC-003',
+            'invoice_date': '2026-08-15',
+            'base_general': 100.0,
+            'currency_id': self.env.company.currency_id.id,
+            'concept': 'Devolución mercancía',
+            'digitized_document_type': 'nota_credito',
+            'digitize_confidence': 0.92,
+            'digitized_document_ref': 'FAC-ORIGINAL-003',
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        # Prefijo [Digitalizado] + tipo + confianza + separador + concept
+        self.assertIn('[Digitalizado] tipo=nota_credito confianza=92%', move.narration)
+        self.assertIn(' — Devolución mercancía', move.narration)
+
+    def test_debit_note_narration_includes_digitized_info(self):
+        """Narración de ND incluye tipo y confianza formateada."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': 'J-31527189-4',
+            'invoice_number': 'ND-003',
+            'control_number': 'CTRL-ND-003',
+            'invoice_date': '2026-08-15',
+            'base_general': 100.0,
+            'currency_id': self.env.company.currency_id.id,
+            'concept': 'Ajuste por diferencia',
+            'digitized_document_type': 'nota_debito',
+            'digitize_confidence': 0.87,
+            'digitized_document_ref': 'FAC-ORIGINAL-004',
+        })
+        action = wizard.action_create_and_post()
+
+        move_id = action.get('res_id')
+        move = self.env['account.move'].browse(move_id)
+        self.assertIn('[Digitalizado] tipo=nota_debito confianza=87%', move.narration)
+        self.assertIn(' — Ajuste por diferencia', move.narration)
+
+    # --- T5: RF-17 filtro por compañía ---
+    def test_onchange_partner_vat_filters_by_company(self):
+        """RF-17: _onchange_partner_vat no reutiliza partner de otra compañía."""
+        rif = 'G-87654321-4'  # RIF válido
+        partner_a = self.env['res.partner'].create({'name': 'Prov A', 'vat': rif})
+
+        # Partner en otra compañía con mismo RIF
+        company_b = self.env['res.company'].sudo().create({'name': 'Cía B'})
+        self.env['res.partner'].sudo().create({
+            'name': 'Prov B', 'vat': rif, 'company_id': company_b.id
+        })
+
+        # En compañía actual, onchange debe encontrar partner_a (no el de company_b)
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': rif,
+            'invoice_number': 'FAC-ONCHANGE-001',
+            'control_number': 'CTRL-ONCHANGE-001',
+            'invoice_date': '2026-08-15',
+            'base_general': 1000.0,
+        })
+        wizard._onchange_partner_vat()
+        self.assertEqual(wizard.partner_id, partner_a)
+
+        # Si no hay partner en la compañía actual, no debe encontrar el de otra compañía
+        partner_a.unlink()
+        wizard2 = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': rif,
+            'invoice_number': 'FAC-ONCHANGE-002',
+            'control_number': 'CTRL-ONCHANGE-002',
+            'invoice_date': '2026-08-15',
+            'base_general': 1000.0,
+        })
+        wizard2._onchange_partner_vat()
+        self.assertFalse(wizard2.partner_id, "No debe reutilizar partner de otra compañía")
+
+    def test_action_create_and_post_filters_partner_by_company(self):
+        """RF-17: action_create_and_post no reutiliza partner de otra compañía."""
+        rif = 'G-87654321-4'
+        partner_a = self.env['res.partner'].create({'name': 'Prov A', 'vat': rif})
+
+        # Partner en otra compañía con mismo RIF
+        company_b = self.env['res.company'].sudo().create({'name': 'Cía B'})
+        self.env['res.partner'].sudo().create({'name': 'Prov B', 'vat': rif, 'company_id': company_b.id})
+
+        # En compañía actual, crea move con partner_a
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': rif,
+            'invoice_number': 'FAC-001',
+            'control_number': 'CTRL-001',
+            'invoice_date': '2026-08-15',
+            'base_general': 1000.0,
+        })
+        wizard._onchange_partner_vat()
+        result = wizard.action_create_and_post()
+        move = self.env['account.move'].browse(result['res_id'])
+        self.assertEqual(move.partner_id, partner_a)
+
+        # Usar un RIF diferente para probar creación automática sin partner existente
+        rif2 = 'V-12345678-5'  # RIF válido diferente
+        # Partner en otra compañía con este RIF
+        self.env['res.partner'].sudo().create({'name': 'Prov C', 'vat': rif2, 'company_id': company_b.id})
+
+        # En compañía actual, sin partner con rif2, debe crear uno nuevo (no usar el de company_b)
+        wizard2 = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': rif2,
+            'invoice_number': 'FAC-002',
+            'control_number': 'CTRL-002',
+            'invoice_date': '2026-08-15',
+            'base_general': 1000.0,
+            'new_partner_name': 'Nuevo Prov Auto',
+        })
+        result2 = wizard2.action_create_and_post()
+        move2 = self.env['account.move'].browse(result2['res_id'])
+        # Debe crear un partner nuevo, no usar el de company_b
+        self.assertNotEqual(move2.partner_id.company_id, company_b)
+        self.assertEqual(move2.partner_id.name, 'Nuevo Prov Auto')
