@@ -85,10 +85,14 @@ jobs:
           echo "=== DEBUG: Log file size: $(wc -c /tmp/odoo_test.log) ==="
           echo "=== DEBUG: Searching for '0 failed' ==="
           grep -n "0 failed" /tmp/odoo_test.log || echo "NOT FOUND: '0 failed'"
+          echo "=== DEBUG: Searching for 'tests when' ==="
+          grep -n "tests when" /tmp/odoo_test.log || echo "NOT FOUND: 'tests when'"
           echo "=== DEBUG: Searching for 'failed' ==="
-          grep -n "failed" /tmp/odoo_test.log | tail -5
-          echo "=== DEBUG: Last 100 lines of log ==="
-          tail -100 /tmp/odoo_test.log
+          grep -n "failed" /tmp/odoo_test.log | tail -10
+          echo "=== DEBUG: Searching for 'error' ==="
+          grep -n "error" /tmp/odoo_test.log | tail -10
+          echo "=== DEBUG: Last 200 lines of log ==="
+          tail -200 /tmp/odoo_test.log
           # Check if tests passed (Odoo logs "0 failed" at the end)
           if grep -q "0 failed" /tmp/odoo_test.log; then
             echo "Tests passed (0 failed)"
