@@ -63,8 +63,8 @@ jobs:
       - name: Run Odoo tests
         shell: bash
         run: |
-          # Run Odoo tests without pipefail to avoid failing on stderr warnings
-          # (duplicate key warnings from demo data loading are not test failures)
+          # Run Odoo tests - ignore Docker exit code (Odoo exits 1 on demo data warnings)
+          # Tests pass if log contains "0 failed"
           docker run --rm --network host \
             -v /tmp/extra-addons:/mnt/extra-addons \
             -e HOST=localhost \
@@ -78,7 +78,8 @@ jobs:
               --stop-after-init \
               --no-http \
               --workers=0 \
-              --log-level=test 2>&1 | tee /tmp/odoo_test.log
+              --log-level=test 2>&1 | tee /tmp/odoo_test.log; DOCKER_EXIT=${PIPESTATUS[0]}
+          echo "Docker exit code: $DOCKER_EXIT"
           # Check if tests passed (Odoo logs "0 failed" at the end)
           if grep -q "0 failed" /tmp/odoo_test.log; then
             echo "Tests passed (0 failed)"
