@@ -265,6 +265,13 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Menú "Análisis" con vistas graph + pivot de obligaciones y alertas
 - ✅ 245 tests pasando; tareas T1–T5 `[x]` en `specs/005-bandeja-acciones-kpis/tasks.md`
 
+### Fase 006: Session Auth para asistente de IA (spec 006) — COMPLETADA
+- ✅ **T1**: Autenticación por `X-Odoo-Session` (sid de la sesión web) en lugar de `X-User-Token` (API key personal). Elimina requisito de `res.users.api_token`.
+- ✅ **T1b**: Blindaje de `request.session` fuera de contexto HTTP (crons, shell, tests). Sin sesión → warning + mensaje amigable «🔐 Sesión no detectada...», no se llama al agente.
+- ✅ **T2-A**: Mapeo de errores del agente: `401/403` → «Tu sesión de Odoo expiró...»; `503` → «No se pudo validar la sesión...»; `5xx` genérico conservado. Elimina ~40 líneas duplicadas.
+- ✅ **Docker fix**: `command: odoo --workers=2` habilita longpolling/WebSocket (puerto 8072); mensajes aparecen en vivo sin recargar.
+- ✅ 344 tests pasando (340 base + 2 T1b + 2 T2-A); tareas `[x]` en `specs/006-session-auth/tasks.md`
+
 ### Fase 011: Conciliación ISLR (spec 011) — COMPLETADA
 - ✅ Modelos `l10n.ve.islr.reconciliation` y `l10n.ve.islr.reconciliation.line`: 10 rubros (ingresos/costos/deducciones), identidad contab = fiscal + no deducible (tolerancia 0.01) y constraint único cliente + compañía + año
 - ✅ Wizard "Importar desde Excel": parser de la hoja CONCILIACIÓN (case-insensitive, bloque B12:F46), RIF sanitizado con desambiguación por compañía, duplicados y celdas de texto reportadas, totales y monto a pagar recalculados del lado del sistema
@@ -300,7 +307,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
-- ✅ 330 tests backend + 9 tests E2E = 339 tests pasando
+- ✅ **335 tests backend + 9 tests E2E = 344 tests pasando**
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`
