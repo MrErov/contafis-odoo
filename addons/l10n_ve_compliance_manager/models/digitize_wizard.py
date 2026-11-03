@@ -578,9 +578,9 @@ class DigitizeWizard(models.TransientModel):
                     if 'default_new_partner_name' not in defaults:
                         defaults['default_new_partner_name'] = partner.name
 
-        # --- T4: propagar tipo documento digitalizado ---
-        doc_type = str(extracted.get('document_type') or '').strip()
-        if doc_type in ('nota_credito', 'nota_debito'):
+        # --- T4: propagar tipo documento digitalizado (desde campos del wizard) ---
+        doc_type = (self.detected_document_type or '').strip()
+        if doc_type in ('factura_z', 'nota_credito', 'nota_debito'):
             defaults['default_digitized_document_type'] = doc_type
             defaults['default_digitize_confidence'] = float(self.confidence or 0.0)
 

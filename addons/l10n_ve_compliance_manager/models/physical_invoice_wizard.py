@@ -128,10 +128,11 @@ class PhysicalInvoiceWizard(models.TransientModel):
         if not self._validate_rif_module_11(self.partner_vat):
             raise ValidationError(_('RIF inválido (dígito de control incorrecto)'))
 
-        # Buscar partner por RIF (case-insensitive, sin guiones)
+        # Buscar partner por RIF (case-insensitive, sin guiones) filtrando por compañía activa
         rif_clean = self._clean_rif(self.partner_vat)
         partner = self.env['res.partner'].search([
-            '|', ('vat', '=', self.partner_vat), ('vat', '=', rif_clean)
+            '|', ('vat', '=', self.partner_vat), ('vat', '=', rif_clean),
+            ('company_id', 'in', [False, self.env.company.id])
         ], limit=1)
 
         if partner:
@@ -309,10 +310,11 @@ class PhysicalInvoiceWizard(models.TransientModel):
         if not self._validate_rif_module_11(self.partner_vat):
             raise ValidationError(_('RIF inválido (dígito de control incorrecto)'))
 
-        # Buscar o crear partner
+        # Buscar o crear partner (filtrando por compañía activa - RF-17)
         rif_clean = self._clean_rif(self.partner_vat)
         partner = self.env['res.partner'].search([
-            '|', ('vat', '=', self.partner_vat), ('vat', '=', rif_clean)
+            '|', ('vat', '=', self.partner_vat), ('vat', '=', rif_clean),
+            ('company_id', 'in', [False, self.env.company.id])
         ], limit=1)
 
         if not partner:
