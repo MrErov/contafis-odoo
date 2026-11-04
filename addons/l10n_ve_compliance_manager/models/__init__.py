@@ -1,4 +1,5 @@
 from . import (
+    account_chart_template,
     account_move,
     account_tax,
     alert,
