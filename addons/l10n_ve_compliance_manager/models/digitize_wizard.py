@@ -208,8 +208,42 @@ class DigitizeWizard(models.TransientModel):
     def _get_extension(self):
         filename = (self.filename or '').strip()
         if '.' not in filename:
-            return ''
+            # Sin nombre utilizable: deducir el formato del contenido.
+            return self._get_extension_from_bytes()
         return '.' + filename.rsplit('.', 1)[-1].lower()
+
+    def _get_image_bytes(self):
+        """Devuelve los bytes crudos de la imagen.
+
+        ``fields.Binary`` se lee como ``bytes`` que contienen el texto
+        base64 (o, si el cliente envió binario crudo, los bytes reales);
+        ``_get_image_base64`` ya cubre ambos casos.
+        """
+        if not self.image:
+            return b''
+        try:
+            return base64.b64decode(self._get_image_base64(), validate=False)
+        except (ValueError, TypeError):
+            return b''
+
+    def _get_extension_from_bytes(self):
+        """Deduce la extensión a partir de los magic bytes de la imagen.
+
+        El cliente no siempre envía ``filename`` (en Odoo 19 el campo binario
+        lo rellena solo cuando la subida pasa por el diálogo de archivo), así
+        que validar contra el contenido real es más robusto que depender del
+        nombre.
+        """
+        data = self._get_image_bytes()[:12]
+        if not data:
+            return ''
+        if data.startswith(b'\xff\xd8\xff'):
+            return '.jpg'
+        if data.startswith(b'\x89PNG\r\n\x1a\n'):
+            return '.png'
+        if data.startswith(b'RIFF') and data[8:12] == b'WEBP':
+            return '.webp'
+        return ''
 
     def _get_image_base64(self):
         """Normalize the Binary value to a plain base64 string (no ``data:`` prefix)."""
