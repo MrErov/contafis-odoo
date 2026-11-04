@@ -323,6 +323,42 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
                 mock_post.assert_called_once()
                 self.assertEqual(wizard.state, 'done')
 
+    def test_action_digitize_detects_format_without_filename(self):
+        """Sin filename (caso real en Odoo 19), el formato se deduce del contenido."""
+        jpeg_bytes = b'\xff\xd8\xff\xe0' + b'\x00\x10JFIF' + b'\xff' * 64
+        wizard = self._create_wizard(
+            filename='',
+            image=base64.b64encode(jpeg_bytes).decode(),
+        )
+
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
+                self._patch_session():
+            wizard.action_digitize()
+
+        mock_post.assert_called_once()
+        self.assertEqual(wizard.state, 'done')
+        self.assertEqual(wizard._get_extension(), '.jpg')
+
+    def test_action_digitize_detects_webp_without_filename(self):
+        """WEBP sin nombre también se acepta (magic bytes RIFF....WEBP)."""
+        webp_bytes = b'RIFF' + b'\x00' * 4 + b'WEBP' + b'\xff' * 32
+        wizard = self._create_wizard(
+            filename='',
+            image=base64.b64encode(webp_bytes).decode(),
+        )
+        self.assertEqual(wizard._get_extension(), '.webp')
+
+    def test_action_digitize_rejects_unknown_content_without_filename(self):
+        """Contenido que no es imagen soportada se rechaza aunque no haya nombre."""
+        wizard = self._create_wizard(
+            filename='',
+            image=base64.b64encode(b'\x00\x01\x02\x03-not-an-image').decode(),
+        )
+        with patch('requests.post') as mock_post:
+            with self.assertRaises(ValidationError):
+                wizard.action_digitize()
+        mock_post.assert_not_called()
+
     def test_action_digitize_does_not_log_image_or_session(self):
         """El log registra metadatos, nunca el base64 ni el sid (RNF-04)."""
         secret_sid = 'SECRET-SESSION-DO-NOT-LOG'
