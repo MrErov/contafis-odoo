@@ -875,6 +875,19 @@ class TestDigitizeEndToEnd(DigitizeTestMixin, TaxGroupMixin, TransactionCase):
         self.config.set_param('l10n_ve_digitize.url', DIGITIZE_URL)
         self.config.set_param('l10n_ve_digitize.timeout_seconds', '30')
         self.config.set_param('l10n_ve_digitize.max_image_mb', '5')
+        # El wizard físico necesita impuestos con l10n_ve_tax_type para
+        # construir líneas. No dependemos de los datos ambientales de la BD:
+        # en instalación limpia la plantilla contable puede haberlos borrado.
+        self.company = self.env.company
+        self.country = self.env.ref('base.ve', raise_if_not_found=False)
+        if not self.country:
+            self.country = self.env['res.country'].create(
+                {'name': 'Venezuela', 'code': 'VE'}
+            )
+        # Sin país fiscal VE, account.move rechaza impuestos con country_id=VE
+        # (_validate_taxes_country). En BD nueva la compañía puede no tenerlo.
+        self.company.account_fiscal_country_id = self.country
+        self._ensure_vat_taxes()
 
     def _full_flow(self, payload, type='purchase'):
         """Ejecuta flujo completo: mock -> digitize -> apply -> create_and_post."""
