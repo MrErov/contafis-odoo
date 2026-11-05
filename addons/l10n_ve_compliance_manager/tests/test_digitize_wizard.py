@@ -207,6 +207,38 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
             mock_post.call_args.kwargs['headers']['X-Odoo-Session'], 'sid-payload'
         )
 
+    def test_action_digitize_payload_filename_is_always_a_string(self):
+        """filename vacío/False no debe llegar al backend: Pydantic exige str (T6).
+
+        El campo binario de Odoo 19 no siempre persiste ``filename``; sin el
+        fallback el JSON llevaba ``false`` y FastAPI respondía 422.
+        """
+        jpeg_bytes = b'\xff\xd8\xff\xe0' + b'\xff' * 64
+        wizard = self._create_wizard(
+            filename='',
+            image=base64.b64encode(jpeg_bytes).decode(),
+        )
+
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
+                self._patch_session():
+            wizard.action_digitize()
+
+        payload = mock_post.call_args.kwargs['json']
+        self.assertIsInstance(payload['filename'], str)
+        self.assertTrue(payload['filename'])
+        self.assertTrue(payload['filename'].endswith('.jpg'))
+
+    def test_action_digitize_payload_keeps_real_filename(self):
+        """Si el nombre existe, se envía tal cual (no se pisa con el fallback)."""
+        wizard = self._create_wizard(filename='talonario.JPG')
+
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
+                self._patch_session():
+            wizard.action_digitize()
+
+        payload = mock_post.call_args.kwargs['json']
+        self.assertEqual(payload['filename'], 'talonario.JPG')
+
     def test_action_digitize_maps_timeout_to_error(self):
         """Un timeout del servicio deja el wizard en error, sin excepción."""
         wizard = self._create_wizard()
@@ -322,6 +354,42 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
                 # El servicio se llama (no hay error de validación)
                 mock_post.assert_called_once()
                 self.assertEqual(wizard.state, 'done')
+
+    def test_action_digitize_detects_format_without_filename(self):
+        """Sin filename (caso real en Odoo 19), el formato se deduce del contenido."""
+        jpeg_bytes = b'\xff\xd8\xff\xe0' + b'\x00\x10JFIF' + b'\xff' * 64
+        wizard = self._create_wizard(
+            filename='',
+            image=base64.b64encode(jpeg_bytes).decode(),
+        )
+
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
+                self._patch_session():
+            wizard.action_digitize()
+
+        mock_post.assert_called_once()
+        self.assertEqual(wizard.state, 'done')
+        self.assertEqual(wizard._get_extension(), '.jpg')
+
+    def test_action_digitize_detects_webp_without_filename(self):
+        """WEBP sin nombre también se acepta (magic bytes RIFF....WEBP)."""
+        webp_bytes = b'RIFF' + b'\x00' * 4 + b'WEBP' + b'\xff' * 32
+        wizard = self._create_wizard(
+            filename='',
+            image=base64.b64encode(webp_bytes).decode(),
+        )
+        self.assertEqual(wizard._get_extension(), '.webp')
+
+    def test_action_digitize_rejects_unknown_content_without_filename(self):
+        """Contenido que no es imagen soportada se rechaza aunque no haya nombre."""
+        wizard = self._create_wizard(
+            filename='',
+            image=base64.b64encode(b'\x00\x01\x02\x03-not-an-image').decode(),
+        )
+        with patch('requests.post') as mock_post:
+            with self.assertRaises(ValidationError):
+                wizard.action_digitize()
+        mock_post.assert_not_called()
 
     def test_action_digitize_does_not_log_image_or_session(self):
         """El log registra metadatos, nunca el base64 ni el sid (RNF-04)."""
@@ -875,6 +943,19 @@ class TestDigitizeEndToEnd(DigitizeTestMixin, TaxGroupMixin, TransactionCase):
         self.config.set_param('l10n_ve_digitize.url', DIGITIZE_URL)
         self.config.set_param('l10n_ve_digitize.timeout_seconds', '30')
         self.config.set_param('l10n_ve_digitize.max_image_mb', '5')
+        # El wizard físico necesita impuestos con l10n_ve_tax_type para
+        # construir líneas. No dependemos de los datos ambientales de la BD:
+        # en instalación limpia la plantilla contable puede haberlos borrado.
+        self.company = self.env.company
+        self.country = self.env.ref('base.ve', raise_if_not_found=False)
+        if not self.country:
+            self.country = self.env['res.country'].create(
+                {'name': 'Venezuela', 'code': 'VE'}
+            )
+        # Sin país fiscal VE, account.move rechaza impuestos con country_id=VE
+        # (_validate_taxes_country). En BD nueva la compañía puede no tenerlo.
+        self.company.account_fiscal_country_id = self.country
+        self._ensure_vat_taxes()
 
     def _full_flow(self, payload, type='purchase'):
         """Ejecuta flujo completo: mock -> digitize -> apply -> create_and_post."""

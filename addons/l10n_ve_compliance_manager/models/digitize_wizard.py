@@ -208,8 +208,55 @@ class DigitizeWizard(models.TransientModel):
     def _get_extension(self):
         filename = (self.filename or '').strip()
         if '.' not in filename:
-            return ''
+            # Sin nombre utilizable: deducir el formato del contenido.
+            return self._get_extension_from_bytes()
         return '.' + filename.rsplit('.', 1)[-1].lower()
+
+    def _get_payload_filename(self):
+        """Nombre de archivo a enviar al servicio: siempre un str no vacío.
+
+        El campo binario de Odoo 19 no siempre persiste ``filename`` (la BD
+        lo guarda vacío aunque la UI lo muestre). Antes el payload llevaba
+        ``False``, que FastAPI/Pydantic rechazaba con 422 al exigir ``str``.
+        Se usa un nombre derivado de la extensión detectada por contenido.
+        """
+        filename = (self.filename or '').strip()
+        if filename:
+            return filename
+        return 'invoice' + (self._get_extension() or '.jpg')
+
+    def _get_image_bytes(self):
+        """Devuelve los bytes crudos de la imagen.
+
+        ``fields.Binary`` se lee como ``bytes`` que contienen el texto
+        base64 (o, si el cliente envió binario crudo, los bytes reales);
+        ``_get_image_base64`` ya cubre ambos casos.
+        """
+        if not self.image:
+            return b''
+        try:
+            return base64.b64decode(self._get_image_base64(), validate=False)
+        except (ValueError, TypeError):
+            return b''
+
+    def _get_extension_from_bytes(self):
+        """Deduce la extensión a partir de los magic bytes de la imagen.
+
+        El cliente no siempre envía ``filename`` (en Odoo 19 el campo binario
+        lo rellena solo cuando la subida pasa por el diálogo de archivo), así
+        que validar contra el contenido real es más robusto que depender del
+        nombre.
+        """
+        data = self._get_image_bytes()[:12]
+        if not data:
+            return ''
+        if data.startswith(b'\xff\xd8\xff'):
+            return '.jpg'
+        if data.startswith(b'\x89PNG\r\n\x1a\n'):
+            return '.png'
+        if data.startswith(b'RIFF') and data[8:12] == b'WEBP':
+            return '.webp'
+        return ''
 
     def _get_image_base64(self):
         """Normalize the Binary value to a plain base64 string (no ``data:`` prefix)."""
@@ -300,7 +347,7 @@ class DigitizeWizard(models.TransientModel):
 
         payload = {
             'image_base64': self._get_image_base64(),
-            'filename': self.filename,
+            'filename': self._get_payload_filename(),
             'document_type': self.document_type_hint or 'auto',
         }
         size_mb = self._get_image_size_mb()
@@ -312,7 +359,7 @@ class DigitizeWizard(models.TransientModel):
         except requests.Timeout:
             _logger.warning(
                 "Digitize request for %s timed out after %.2fs",
-                self.filename,
+                self._get_payload_filename(),
                 time.time() - start_time,
             )
             return self._set_error(
@@ -321,7 +368,7 @@ class DigitizeWizard(models.TransientModel):
         except requests.RequestException as error:
             _logger.error(
                 "Digitize request for %s failed after %.2fs: %s",
-                self.filename,
+                self._get_payload_filename(),
                 time.time() - start_time,
                 error,
             )
@@ -337,7 +384,7 @@ class DigitizeWizard(models.TransientModel):
         # Only metadata is logged: never the base64 image nor the session id.
         _logger.info(
             "Digitize request for %s (%.2f MB) -> HTTP %s in %.2fs",
-            self.filename,
+            self._get_payload_filename(),
             size_mb,
             status,
             elapsed,
