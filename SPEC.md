@@ -277,9 +277,12 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ **T3**: UI resultados (confianza 3 niveles ≥85/≥60/<60, warnings texto plano, tabla líneas readonly, alerta descuadre no bloqueante, 14 campos preview, botón "Usar datos en Factura Física Rápida").
 - ✅ **T4**: Notas de crédito/débito — NC → `in_refund`/`out_refund`, ND → factura normal, `ref = credit_note_ref/debit_note_ref`, narración `[Digitalizado] tipo=... confianza=...`.
 - ✅ **T5**: E2E flujo completo (mock 200 → digitize → apply → create_and_post → posted), `vat.book.line` generado, RF-17 multi-compañía (filtro `company_id` en partner search), narración con procedencia, test de no posteo sin confirmación.
-- ✅ **T6**: Verificación visual en navegador (4 estados), docs actualizadas (`SPEC.md`, `docs/memory.md`), `pre-commit` verde.
-- **Tests**: 405 pasando (335 base + 70 nuevos spec 007). Flaky pre-existentes en seniat/vat_book (ajenos).
-- **Commits**: `fd0d781` (T1), `92c1f2b` (T2), `251012c` (T3), `261a03e` + `c79896f` (T4), `e9b455c` (T5).
+- ✅ **T6**: Verificación visual en navegador (4 estados), docs actualizadas (`SPEC.md`, `docs/memory.md`), `pre-commit` verde. Verificación E2E posterior con chrome-devtools (upload → Analizar) que destapó y cerró 2 bugs de producto:
+  - **Formato de imagen**: el campo binario de Odoo 19 no siempre persiste `filename`; ahora el formato se deduce de los magic bytes cuando no hay nombre utilizable (`2486629`).
+  - **Payload del backend**: con `filename` vacío se enviaba `false` y FastAPI/Pydantic respondía 422; ahora `_get_payload_filename()` garantiza un `str` no vacío (`cfef372`).
+- ⚠️ **Limitación (requisito de deployment, no del módulo)**: la digitalización necesita el backend `contafis-assistant` **no degradado**. Sin corpus ingerido (`corpus_status: missing`, sin chroma/BM25) responde 503 y el wizard muestra «El servicio de digitalización no está disponible ahora». Se resuelve en el deployment (ver `specs/004-*`), no en Odoo.
+- **Tests**: 410 pasando (335 base + 70 nuevos spec 007 + 5 de regresión de la verificación T6). Flaky pre-existentes en seniat/vat_book (ajenos).
+- **Commits**: `fd0d781` (T1), `92c1f2b` (T2), `251012c` (T3), `261a03e` + `c79896f` (T4), `e9b455c` (T5), `89d1b79` + `3768655` (fix instalación limpia: impuestos SENIAT), `2486629` + `cfef372` (fix formato y payload).
 
 ### Trabajo Futuro
 - ✅ Hardening 004.1 — Minor 1: recalcular `due_date` al cambiar el tipo o el cliente salvo en obligaciones pagadas — HECHO (decisión: recalc si no está pagada; incluye la acción manual "Recalcular vencimientos" en el formulario y como acción masiva de la lista, respetando `due_date_override`)
@@ -299,6 +302,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Fix RIF None en export XLSX cuando company.vat está vacío — HECHO (`vat_return.py` y `vat_book_export_wizard.py` ya usan `vat or ''`)
 - ⬜ DevOps.1b: ruff-format (opcional, reformatearía 30+ archivos)
 - ✅ DevOps.2: GitHub Actions CI (lint + test jobs) — HECHO (B3-e2e-ci)
+- ⬜ Deployment del backend `contafis-assistant`: ingesta del corpus normativo (PDFs + `manifest.json` → chroma + BM25) para que `/digitize` deje de responder 503. Requisito de deployment, ajeno al módulo Odoo (spec 007 T6)
 
 ### Deuda Técnica
 - ✅ Helper `_get_or_create_tax_group()` duplicado en 7 test files — extraído a `tests/common.py` (mixin `TaxGroupMixin`)
@@ -307,7 +311,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
-- ✅ **405 tests backend + 9 tests E2E = 414 tests pasando**
+- ✅ **410 tests backend + 9 tests E2E = 419 tests pasando**
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`
