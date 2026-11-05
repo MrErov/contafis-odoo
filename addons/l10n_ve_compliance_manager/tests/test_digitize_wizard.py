@@ -207,6 +207,38 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
             mock_post.call_args.kwargs['headers']['X-Odoo-Session'], 'sid-payload'
         )
 
+    def test_action_digitize_payload_filename_is_always_a_string(self):
+        """filename vacío/False no debe llegar al backend: Pydantic exige str (T6).
+
+        El campo binario de Odoo 19 no siempre persiste ``filename``; sin el
+        fallback el JSON llevaba ``false`` y FastAPI respondía 422.
+        """
+        jpeg_bytes = b'\xff\xd8\xff\xe0' + b'\xff' * 64
+        wizard = self._create_wizard(
+            filename='',
+            image=base64.b64encode(jpeg_bytes).decode(),
+        )
+
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
+                self._patch_session():
+            wizard.action_digitize()
+
+        payload = mock_post.call_args.kwargs['json']
+        self.assertIsInstance(payload['filename'], str)
+        self.assertTrue(payload['filename'])
+        self.assertTrue(payload['filename'].endswith('.jpg'))
+
+    def test_action_digitize_payload_keeps_real_filename(self):
+        """Si el nombre existe, se envía tal cual (no se pisa con el fallback)."""
+        wizard = self._create_wizard(filename='talonario.JPG')
+
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
+                self._patch_session():
+            wizard.action_digitize()
+
+        payload = mock_post.call_args.kwargs['json']
+        self.assertEqual(payload['filename'], 'talonario.JPG')
+
     def test_action_digitize_maps_timeout_to_error(self):
         """Un timeout del servicio deja el wizard en error, sin excepción."""
         wizard = self._create_wizard()

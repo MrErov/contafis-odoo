@@ -212,6 +212,19 @@ class DigitizeWizard(models.TransientModel):
             return self._get_extension_from_bytes()
         return '.' + filename.rsplit('.', 1)[-1].lower()
 
+    def _get_payload_filename(self):
+        """Nombre de archivo a enviar al servicio: siempre un str no vacío.
+
+        El campo binario de Odoo 19 no siempre persiste ``filename`` (la BD
+        lo guarda vacío aunque la UI lo muestre). Antes el payload llevaba
+        ``False``, que FastAPI/Pydantic rechazaba con 422 al exigir ``str``.
+        Se usa un nombre derivado de la extensión detectada por contenido.
+        """
+        filename = (self.filename or '').strip()
+        if filename:
+            return filename
+        return 'invoice' + (self._get_extension() or '.jpg')
+
     def _get_image_bytes(self):
         """Devuelve los bytes crudos de la imagen.
 
@@ -334,7 +347,7 @@ class DigitizeWizard(models.TransientModel):
 
         payload = {
             'image_base64': self._get_image_base64(),
-            'filename': self.filename,
+            'filename': self._get_payload_filename(),
             'document_type': self.document_type_hint or 'auto',
         }
         size_mb = self._get_image_size_mb()
@@ -346,7 +359,7 @@ class DigitizeWizard(models.TransientModel):
         except requests.Timeout:
             _logger.warning(
                 "Digitize request for %s timed out after %.2fs",
-                self.filename,
+                self._get_payload_filename(),
                 time.time() - start_time,
             )
             return self._set_error(
@@ -355,7 +368,7 @@ class DigitizeWizard(models.TransientModel):
         except requests.RequestException as error:
             _logger.error(
                 "Digitize request for %s failed after %.2fs: %s",
-                self.filename,
+                self._get_payload_filename(),
                 time.time() - start_time,
                 error,
             )
@@ -371,7 +384,7 @@ class DigitizeWizard(models.TransientModel):
         # Only metadata is logged: never the base64 image nor the session id.
         _logger.info(
             "Digitize request for %s (%.2f MB) -> HTTP %s in %.2fs",
-            self.filename,
+            self._get_payload_filename(),
             size_mb,
             status,
             elapsed,
