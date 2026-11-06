@@ -180,6 +180,34 @@ class TestCarteleraEvidence(TransactionCase):
         # El archivo guardado existe y tiene file_size_mb computado
         self.assertGreater(evidence.file_size_mb, 0.0)
 
+    def test_evidence_image_128_accepts_base64(self):
+        """Regresión: image_128 debe calcularse desde el base64 del campo image.
+
+        El campo Binary entrega el contenido en base64 (bytes); `image_process`
+        espera bytes crudos de imagen. Si se le pasa el base64 tal cual, PIL
+        falla y el flush/commit revienta.
+        """
+        if not HAS_PIL:
+            self.skipTest('PIL/Pillow no disponible, saltando test de validación de imagen')
+        from PIL import Image as PILImage
+
+        img = PILImage.new('RGB', (300, 300), color='blue')
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+        b64 = base64.b64encode(buf.getvalue()).decode()
+
+        evidence = self.Evidence.create({
+            'cartelera_status_id': self.status.id,
+            'filename': 'test_thumb.png',
+            'image': b64,
+        })
+        self.env.flush_all()
+        evidence.invalidate_recordset()
+
+        self.assertTrue(evidence.image_128, 'image_128 debe generarse desde el base64')
+        restored = PILImage.open(io.BytesIO(base64.b64decode(evidence.image_128)))
+        self.assertLessEqual(max(restored.size), 128)
+
     def test_evidence_image_compression_is_valid(self):
         """Test que verifica que la imagen comprimida es decodificable y tiene dimensiones correctas."""
         if not HAS_PIL:
