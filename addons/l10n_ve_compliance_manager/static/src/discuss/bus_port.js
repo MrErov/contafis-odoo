@@ -4,31 +4,20 @@ import { registry } from "@web/core/registry";
 import { session } from "@web/session";
 
 /**
- * Point the realtime bus to the evented (gevent) port.
+ * Expose the gevent port for websocket connections.
  *
- * Odoo builds the websocket URL from ``window.origin``. With multi-worker
- * mode the websocket handshake must reach the evented port, not the regular
- * HTTP worker. ``session.contafis_bus_port`` is emitted by the backend from
- * Odoo's ``gevent_port`` (see models/ir_http.py).
+ * The bus.parameters service should return the HTTP origin (for worker bundle).
+ * The websocket connection is patched globally in bus_websocket_port.js to use the gevent port.
  *
- * The rewrite only happens when the page is served through an explicit,
- * non-standard port. Deployments behind a reverse proxy on 80/443 keep the
- * same origin and are left untouched.
+ * We store the gevent port in session.contafis_bus_port (set by ir_http.py).
  */
-function busServerURL() {
-    const origin = new URL(window.origin);
-    const busPort = session.contafis_bus_port;
-    if (busPort && origin.port && origin.port !== String(busPort)) {
-        origin.port = String(busPort);
-    }
-    return origin.origin;
-}
-
 registry.category("services").add(
     "bus.parameters",
     {
         start() {
-            return { serverURL: busServerURL() };
+            // Return the HTTP origin (for worker bundle loading)
+            // The websocket connection is patched globally in bus_websocket_port.js
+            return { serverURL: window.origin };
         },
     },
     { force: true }

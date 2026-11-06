@@ -76,6 +76,7 @@ Incluye:
     'assets': {
         'web.assets_backend': [
             'l10n_ve_compliance_manager/static/src/discuss/bus_port.js',
+            'l10n_ve_compliance_manager/static/src/discuss/bus_websocket_port.js',
             'l10n_ve_compliance_manager/static/src/discuss/unread_banner_guard.js',
         ],
     },
