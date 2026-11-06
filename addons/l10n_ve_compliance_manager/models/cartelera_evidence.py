@@ -1,7 +1,8 @@
 import base64
+import contextlib
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 from odoo.tools import image as image_tools
 
 
@@ -52,7 +53,36 @@ class CarteleraEvidence(models.Model):
     @api.depends('image')
     def _compute_image_128(self):
         for rec in self:
-            rec.image_128 = image_tools.image_process(rec.image, size=(128, 128)) if rec.image else False
+            rec.image_128 = self._build_thumbnail(rec.image)
+
+    @api.model
+    def _build_thumbnail(self, source):
+        """Genera el thumbnail 128x128 a partir del binario del campo ``image``.
+
+        Con ``attachment=True`` el valor del campo llega como base64 (bytes),
+        pero ``image_process`` espera bytes crudos de imagen: se decodifica
+        base64 primero y, si no es base64 válido, se prueba el valor tal cual.
+        Si no es una imagen (p. ej. PDF), se devuelve ``False`` en lugar de
+        romper el guardado. El resultado se re-codifica en base64 porque el
+        campo Binary lo exige al escribir en el attachment.
+        """
+        if not source:
+            return False
+        if isinstance(source, str):
+            source = source.encode()
+        candidates = []
+        with contextlib.suppress(Exception):
+            # Ruta normal: el campo Binary entrega base64 (texto) como bytes.
+            candidates.append(base64.b64decode(source, validate=True))
+        candidates.append(source)
+        for candidate in candidates:
+            try:
+                processed = image_tools.image_process(candidate, size=(128, 128))
+            except (UserError, OSError, ValueError):
+                continue
+            # El campo Binary (attachment) espera base64 al escribir.
+            return base64.b64encode(processed)
+        return False
 
     @api.depends('image')
     def _compute_file_size_mb(self):
