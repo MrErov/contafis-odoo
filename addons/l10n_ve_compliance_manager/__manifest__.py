@@ -73,6 +73,12 @@ Incluye:
     'demo': [
         'demo/demo_data.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'l10n_ve_compliance_manager/static/src/discuss/bus_port.js',
+            'l10n_ve_compliance_manager/static/src/discuss/unread_banner_guard.js',
+        ],
+    },
     'installable': True,
     'application': True,
     'auto_install': False,
