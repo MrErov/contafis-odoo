@@ -151,6 +151,7 @@ jobs:
             -e HOST=localhost \
             -e USER=odoo \
             -e PASSWORD=odoo \
+            -e ODOO_LONGPOLLING_PORT=8072 \
             odoo:19.0 \
             odoo -d test_ci_e2e \
               -i l10n_ve_compliance_manager \
