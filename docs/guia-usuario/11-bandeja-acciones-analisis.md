@@ -94,6 +94,58 @@ La **tabla dinámica** permite reorganizar las agrupaciones (estado, período, t
 
 Las vistas de **Alertas** muestran el gráfico *estado × tipo* y la tabla dinámica con las agrupaciones *estado*, *canal* y *tipo*, útil para detectar alertas acumuladas sin enviar.
 
+## Asistente Fiscal (Chat IA)
+
+El módulo integra un **asistente conversacional (ContaFis AI)** dentro de *Discuss* (chat de Odoo). Permite hacer consultas en lenguaje natural sobre obligaciones, clientes, alertas, documentos y más.
+
+### Cómo acceder
+
+**Ruta:** *Discuss* (icono de burbuja en la barra superior) → Buscar **"ContaFis AI"** en la lista de contactos → Abrir chat.
+
+![Chat Discuss con ContaFis AI](./assets/screenshots/11-07-chat-asistente.png)
+
+### Autenticación por sesión (novedad Spec 005)
+
+El asistente **ya no requiere API key personal**. Usa su **sesión web activa de Odoo** automáticamente:
+
+1. Inicie sesión en Odoo como de costumbre (usuario no-admin, ej. `contador.demo`).
+2. Abra el chat *ContaFis AI*.
+3. Escriba su consulta; el bot valida su sesión (`X-Odoo-Session`) y responde con sus datos.
+
+> **Ventaja:** No debe generar ni guardar API keys. La sesión expira a las 24 h de inactividad; si ve *"Tu sesión de Odoo expiró"*, recargue Odoo y vuelva a intentarlo.
+
+### Ejemplos de consultas
+
+| Consulta | Qué hace el asistente |
+|----------|----------------------|
+| *"¿Qué obligaciones vencen esta semana para Servicios Andinos?"* | Busca obligaciones pendientes/vencidas de esa empresa y lista fechas, montos y tipos |
+| *"Alertas pendientes de enviar"* | Muestra alertas en estado *Pendiente* o *Enviada* sin marcar *Hecha* |
+| *"Documentos por renovar de Inversiones Maracaibo"* | Consulta la cartelera fiscal y filtra por cliente y estado *Por renovar* |
+| *"Clientes con obligaciones ISLR atrasadas"* | Cruza obligaciones ISLR vencidas y devuelve lista de clientes |
+
+### Disclaimer legal
+
+> **⚠️ Esta respuesta es generada por un asistente de IA y tiene carácter meramente informativo. No constituye asesoría legal, fiscal ni profesional. Para decisiones importantes, consulte a un profesional calificado.**
+
+Este disclaimer aparece **al final de cada respuesta del bot** en el chat.
+
+### Alcance y limitaciones
+
+- **Solo lectura:** el asistente consulta datos (obligaciones, clientes, alertas, documentos, cartelera); **no crea, edita ni borra** registros.
+- **Empresas visibles:** responde solo sobre las empresas que su usuario tiene activas en el selector de la barra superior.
+- **Fuentes:** cita la fuente de cada dato (modelo Odoo, campo, fecha de consulta).
+- **No sustituye** el juicio profesional contable/fiscal.
+
+### Solución de problemas del chat
+
+| Síntoma | Causa | Solución |
+|---------|-------|----------|
+| *"No se pudo clasificar la consulta"* | Pregunta ambigua o fuera de alcance | Reformule: sea específico (empresa, tipo de obligación, período) |
+| *"Error de comunicación con el agente"* | Asistente fiscal caído | Verifique que `contafis-assistant` corra en `http://host.docker.internal:8000` |
+| *"Sesión no detectada"* | Cookie `session_id` perdida | Recargue Odoo (F5) y vuelva a abrir el chat |
+| *"Tu sesión de Odoo expiró"* | Inactividad > 24 h | Inicie sesión de nuevo en Odoo |
+| *"La API key requiere atestación"* | (Legacy) Usó `X-User-Token` en vez de sesión | No use API key; use su sesión web normal |
+
 ## Siguiente paso
 
 > Continúa con [Exportar y respaldar datos](./12-exportar-respaldos.md).

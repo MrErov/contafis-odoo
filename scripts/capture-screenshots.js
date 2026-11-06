@@ -812,6 +812,109 @@ const specs = [
     },
     annotations: [],
   },
+  // --- Spec 007: Digitalización de facturas ---
+  {
+    name: '14-01-wizard-digitalizar',
+    url: '/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_digitize_wizard',
+    waitFor: '.o_form_view, .o_dialog .modal-content, .o_dialog .modal-dialog',
+    annotations: [],
+  },
+  {
+    name: '14-02-resultado-verde',
+    beforeGoto: async (page) => {
+      const rpc = (model, method, args, kwargs) => page.request.post(`${ODOO_URL}/web/dataset/call_kw`, {
+        data: { jsonrpc: '2.0', method: 'call', params: { model, method, args, kwargs } },
+      }).then(r => r.json()).then(j => j.result);
+      // Create a fake digitize wizard record with a "successful" result (confidence >= 0.85)
+      const wizardId = await rpc('l10n.ve.digitize.wizard', 'create', [{
+        filename: 'factura_z_001.jpg',
+        image_base64: 'base64fake',
+        document_type: 'auto',
+        state: 'done',
+        confidence: 0.92,
+        extracted: JSON.stringify({
+          document_type: 'factura_z',
+          supplier_name: 'Distribuidora El Sol C.A.',
+          supplier_rif: 'J-12345678-9',
+          invoice_number: '001-001-00001234',
+          control_number: 'ABC1234567890',
+          invoice_date: '2026-10-15',
+          due_date: '2026-11-15',
+          currency: 'USD',
+          subtotal: 100.00,
+          iva_rate: 0.16,
+          iva_amount: 16.00,
+          igtf_rate: 0.03,
+          igtf_amount: 3.00,
+          total: 119.00,
+          lines: [{ description: 'Servicios contables oct 2026', quantity: 1, unit_price: 100.00, total: 100.00 }],
+        }),
+        warnings: '[]',
+      }]);
+      await page.goto(`${ODOO_URL}/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_digitize_wizard/${wizardId}`, { waitUntil: 'domcontentloaded' });
+    },
+    waitFor: '.o_form_view',
+    annotations: [],
+  },
+  {
+    name: '14-03-boton-usar-datos',
+    beforeGoto: async (page) => {
+      const rpc = (model, method, args, kwargs) => page.request.post(`${ODOO_URL}/web/dataset/call_kw`, {
+        data: { jsonrpc: '2.0', method: 'call', params: { model, method, args, kwargs } },
+      }).then(r => r.json()).then(j => j.result);
+      const wizardId = await rpc('l10n.ve.digitize.wizard', 'create', [{
+        filename: 'factura_z_002.jpg',
+        image_base64: 'base64fake',
+        document_type: 'auto',
+        state: 'done',
+        confidence: 0.88,
+        extracted: JSON.stringify({
+          document_type: 'factura_z',
+          supplier_name: 'Inversiones Maracaibo, C.A.',
+          supplier_rif: 'J-98765432-1',
+          invoice_number: '001-001-00005678',
+          control_number: 'XYZ9876543210',
+          invoice_date: '2026-11-01',
+          due_date: '2026-12-01',
+          currency: 'USD',
+          subtotal: 250.00,
+          iva_rate: 0.16,
+          iva_amount: 40.00,
+          igtf_rate: 0.03,
+          igtf_amount: 7.50,
+          total: 297.50,
+          lines: [{ description: 'Suministro de materiales', quantity: 1, unit_price: 250.00, total: 250.00 }],
+        }),
+        warnings: '[]',
+      }]);
+      await page.goto(`${ODOO_URL}/odoo/action-l10n_ve_compliance_manager.action_l10n_ve_digitize_wizard/${wizardId}`, { waitUntil: 'domcontentloaded' });
+    },
+    waitFor: '.o_form_view',
+    annotations: [],
+  },
+  // --- Spec 005: Asistente Fiscal en Discuss ---
+  {
+    name: '11-07-chat-asistente',
+    beforeGoto: async (page) => {
+      // Open Discuss and click on ContaFis AI
+      await page.goto(`${ODOO_URL}/odoo/discuss`, { waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('.o_mail_sidebar, .o_discuss_sidebar, aside', { timeout: 20000 });
+      // Try to find and click ContaFis AI in the sidebar
+      await page.evaluate(() => {
+        const items = document.querySelectorAll('button, a, [role="button"], li');
+        for (const el of items) {
+          if (el.textContent && el.textContent.trim().includes('ContaFis AI')) {
+            el.click();
+            return true;
+          }
+        }
+        return false;
+      });
+      await page.waitForTimeout(2000);
+    },
+    waitFor: '.o_mail_thread, .o_discuss_thread, .o_composer',
+    annotations: [],
+  },
 ];
 
 // === MAIN ===
