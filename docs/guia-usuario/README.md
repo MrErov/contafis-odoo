@@ -15,9 +15,10 @@ clientes en Venezuela con Odoo 19 Community.
 8. [Calendario SENIAT e ISLR](./08-calendario-seniat.md)
 9. [Cartelera fiscal](./09-cartelera-fiscal.md)
 10. [Alertas](./10-alertas.md)
-11. [Bandeja y análisis](./11-bandeja-acciones-analisis.md)
+11. [Bandeja, análisis y Asistente IA](./11-bandeja-acciones-analisis.md)
 12. [Exportar y respaldar datos](./12-exportar-respaldos.md)
-13. [Solución de problemas y FAQ](./13-solucion-problemas-faq.md)
+13. [Digitalización de facturas (IA Vision)](./14-digitalizacion-facturas.md)
+14. [Solución de problemas y FAQ](./13-solucion-problemas-faq.md)
 
 ## Anexos
 
@@ -33,3 +34,14 @@ clientes en Venezuela con Odoo 19 Community.
     npm run build:guide
 
 El PDF se genera en `docs/guia-usuario/guia-usuario.pdf`.
+
+## Screenshots nuevos requeridos (Spec 006 / 007)
+
+| Archivo | Descripción | Capítulo |
+|---------|-------------|----------|
+| `11-07-chat-asistente.png` | Chat Discuss abierto con ContaFis AI y una respuesta visible | 11 |
+| `14-01-wizard-digitalizar.png` | Wizard de digitalización - pantalla inicial con formulario vacío | 14 |
+| `14-02-resultado-verde.png` | Resultado de digitalización con confianza verde (≥0.85) y warnings | 14 |
+| `14-03-boton-usar-datos.png` | Botón "Usar datos en Factura Física Rápida" habilitado | 14 |
+
+> **Nota:** Ejecute `npm run capture:screenshots` después de tener Odoo corriendo y el asistente fiscal accesible. El script de Playwright navegará y capturará cada pantalla automáticamente.

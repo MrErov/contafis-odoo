@@ -20,6 +20,7 @@ from . import (
     import_mapping,
     import_wizard,
     institution,
+    ir_http,
     islr_conciliation,
     obligation,
     obligation_payment_wizard,

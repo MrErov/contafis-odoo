@@ -76,6 +76,15 @@ class TestExportRegression(TaxGroupMixin, TransactionCase):
         # Usar un período único para evitar conflictos con datos existentes
         test_period = '2026-09'
 
+        # Aislar el período de datos ambientales (seed/manual): si la BD tiene
+        # líneas extra, el conteo y los totales del export dejan de ser los
+        # esperados. TransactionCase revierte este borrado al terminar.
+        self.env['l10n.ve.vat.book.line'].search([
+            ('period_month', '=', test_period),
+            ('company_id', '=', self.company_id),
+            ('book_type', '=', 'purchase'),
+        ]).unlink()
+
         # 1. Crear línea source='excel_import' (línea base)
         self._create_vat_book_line(
             source='excel_import',
