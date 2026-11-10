@@ -98,9 +98,33 @@ async function expectListShows(page, xmlid, visibleText, hiddenText) {
   const actionId = await getActionId(page, xmlid);
   await page.goto(`/odoo/action-${actionId}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.o_control_panel', { timeout: 30000 });
+
+  // Search for the visible text using the list view search box
+  // This handles pagination/virtualization where the record might not be in the first page
+  const searchInput = page.locator('.o_searchview_input, .o_search_view input, input[placeholder*="Buscar" i], input[placeholder*="Search" i]').first();
+  if (await searchInput.count() > 0) {
+    await searchInput.fill(visibleText);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(1000); // wait for search to filter
+  }
+
   const records = page.locator('.o_data_row, .o_kanban_record');
   await expect(records.filter({ hasText: visibleText })).toHaveCount(1, { timeout: 30000 });
+
+  // Clear search to check hidden text
+  if (await searchInput.count() > 0) {
+    await searchInput.fill(hiddenText);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(1000);
+  }
   await expect(records.filter({ hasText: hiddenText })).toHaveCount(0, { timeout: 30000 });
+
+  // Clear search for next test step
+  if (await searchInput.count() > 0) {
+    await searchInput.fill('');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(500);
+  }
 }
 
 test.describe('Aislamiento multi-compañía', () => {

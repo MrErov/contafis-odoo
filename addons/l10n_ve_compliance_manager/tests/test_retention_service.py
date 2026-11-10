@@ -125,6 +125,15 @@ class TestRetentionService(TaxGroupMixin, TransactionCase):
 
     def test_get_rate_configured(self):
         """Con obligation.type configurado → devuelve tasa configurada"""
+        # Aislar de tasas ambientales (seed/manual): get_rate busca la primera
+        # coincidencia del catálogo global, así que otras tasas de IVA de
+        # compra harían el resultado dependiente de los datos de la BD.
+        # TransactionCase revierte este cambio al terminar el test.
+        self.env['l10n.ve.obligation.type'].search([
+            ('tax_type', '=', 'iva'),
+            ('base_calculation', '=', 'purchase'),
+            ('rate', '>', 0),
+        ]).write({'rate': 0.0})
         inst = self.env['l10n.ve.institution'].create({'name': 'SENIAT', 'type': 'seniat'})
         self.env['l10n.ve.obligation.type'].create({
             'name': 'IVA Configurado',
