@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="l10n_ve_compliance_manager.BatchRunner">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <button type="button" class="btn btn-primary"
+                    t-on-click="onClick" t-att-disabled="state.running">
+                <i t-if="state.running" class="fa fa-spinner fa-spin me-1"
+                   role="status" aria-label="Analizando"/>
+                <t t-out="buttonLabel"/>
+            </button>
+            <span t-if="state.running" class="text-muted small">
+                No cierre esta ventana hasta que termine el lote.
+            </span>
+        </div>
+    </t>
+
+</templates>

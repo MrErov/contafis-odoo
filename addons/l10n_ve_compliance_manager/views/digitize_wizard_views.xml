@@ -10,9 +10,6 @@
                     <button name="action_digitize" string="Analizar"
                             type="object" class="btn-primary"
                             invisible="state == 'done' or line_ids"/>
-                    <button name="action_digitize_batch" string="Analizar lote"
-                            type="object" class="btn-primary"
-                            invisible="not line_ids"/>
                     <button name="action_apply_to_invoice" string="Usar datos en Factura Física Rápida"
                             type="object" class="btn-success"
                             invisible="state != 'done' or line_ids"/>
@@ -30,7 +27,8 @@
                     </group>
                     <group string="Imagen de la factura" invisible="line_ids">
                         <group>
-                            <field name="image" filename="filename" required="true"
+                            <field name="image" filename="filename"
+                                   required="not line_ids"
                                    help="Formatos aceptados: JPG, JPEG, PNG y WEBP."/>
                         </group>
                         <group>
@@ -38,6 +36,8 @@
                         </group>
                     </group>
                     <group string="Recibos del lote (máx. 20)">
+                        <field name="batch_runner" nolabel="1" colspan="2"
+                               widget="l10n_ve_batch_runner"/>
                         <field name="line_ids" nolabel="1" widget="section_and_note_one2many">
                             <list>
                                 <field name="image" widget="image" filename="filename"
