@@ -13,9 +13,11 @@ Esta función permite **extraer datos de facturas venezolanas desde una foto o e
 ![Wizard de digitalización - pantalla inicial](./assets/screenshots/14-01-wizard-digitalizar.png)
 
 El wizard presenta un formulario simple con tres campos:
-- **Imagen:** seleccione un archivo (JPG, PNG o WebP, máx. 5 MB).
+- **Imagen:** seleccione un archivo (JPG, PNG o WebP, máx. 5 MB).
 - **Tipo de documento:** `Auto` (detección automática), `Factura Z`, `Nota de crédito` o `Nota de débito`.
 - **Nombre de archivo:** se autocompleta al seleccionar la imagen.
+
+Además, incluye la sección **RECIBOS DEL LOTE (MÁX. 20)** para analizar varios recibos de una sola vez (ver *Digitalización por Lote*, más abajo).
 
 ---
 
@@ -82,6 +84,70 @@ Cuando la extracción es satisfactoria (confianza ≥ 0.60 y warnings revisados)
 </div>
 
 > **Nota:** El botón solo aparece cuando `confidence ≥ 0.60`. Si la confianza es menor, el wizard muestra el mensaje: *"Confianza insuficiente para uso automático. Revise los datos o vuelva a capturar la imagen."*
+
+---
+
+## Digitalización por Lote (hasta 20 recibos)
+
+Cuando recibe varios recibos de proveedor a la vez, puede analizarlos en un solo wizard en lugar de cargarlos uno por uno. El lote acepta **hasta 20 imágenes** y se procesa **de forma secuencial** para no saturar el servicio de visión.
+
+### Preparar el lote
+
+<div class="step">
+
+1. Abra *Cumplimiento VE → Impuestos → Digitalizar Factura*.
+2. Deje vacía la sección **Imagen de la factura** (esa sección es para el modo individual).
+3. En **RECIBOS DEL LOTE (MÁX. 20)** pulse **[Agregar una línea]**.
+4. Seleccione la imagen del recibo en la columna **Imagen del recibo**. Repita los pasos 3 y 4 por cada recibo.
+5. Elija el **Tipo de Operación** (Compra/Venta) y el **Tipo de Documento**. El tipo de documento se aplica a todas las filas; use `Automático` si no está seguro.
+6. Pulse **[Analizar lote]**.
+
+</div>
+
+![Lote de 5 recibos con estado "Analizado"](./assets/screenshots/14-04-lote-analizado.png)
+
+> **Límites por recibo:** JPG, JPEG, PNG o WebP; máximo **5 MB** por imagen y **20 filas** por lote. Si un recibo supera el límite o el formato no es válido, la fila queda en **Error** y el resto del lote continúa.
+
+### Cómo se procesa
+
+Cada fila pasa por tres estados:
+
+| Estado | Significado | Qué hacer |
+|--------|-------------|-----------|
+| **Pendiente** | El recibo está en cola | Espere; no cierre el wizard |
+| **Analizado** | El servicio devolvió los datos extraídos | Revise el resultado en la fila |
+| **Error** | El recibo no se pudo analizar | Lea el **Mensaje de Error** y corrija |
+
+El análisis es **secuencial**: cada recibo tarda aproximadamente **1 minuto**, por lo que un lote de 20 puede tardar **10–20 minutos**. Las filas se van actualizando a medida que termina cada recibo; **no cierre la ventana** hasta que todas salgan de "Pendiente".
+
+> **Un error no detiene el lote:** si un recibo falla, los demás se siguen procesando. El mensaje queda en la fila del recibo fallido, no en un aviso global.
+
+![Filas con error dentro de un lote](./assets/screenshots/14-05-lote-errores.png)
+
+### Revisar y corregir errores
+
+Los mensajes más frecuentes en la columna **Mensaje de Error** son:
+
+| Mensaje en la fila | Causa | Solución |
+|--------------------|-------|----------|
+| *La imagen pesa X MB y supera el límite de 5.0 MB* | Imagen demasiado grande | Cómprimala o reduzca la resolución y agréguela de nuevo |
+| *Formato no soportado. Se aceptan imágenes JPG, JPEG, PNG o WEBP* | Subió un PDF, TIFF o HEIC | Convierta el archivo a JPG/PNG/WebP |
+| *El servicio de digitalización tardó demasiado* | Timeout del asistente | Espere 1–2 minutos y vuelva a pulsar **[Analizar lote]** |
+| *El servicio de digitalización no está disponible ahora* | Asistente fiscal caído o saturado | Verifique que `contafis-assistant` esté corriendo y reintente |
+| *No se pudo conectar con el servicio de digitalización* | URL mal configurada o red caída | Revise la URL en *Ajustes → ContaFis AI* |
+
+Para corregir: edite la fila (o elimínela con el icono de papelera y agregue una nueva) y pulse **[Analizar lote]** de nuevo.
+
+> **Importante:** al volver a pulsar **[Analizar lote]** el wizard **reinicia y analiza todas las filas del lote**, no solo las que fallaron. Si el lote es grande, corrija primero los errores y vuelva a lanzarlo una sola vez.
+
+### Qué hacer con los resultados
+
+El resultado de cada recibo queda guardado **en su propia fila**:
+
+- El **Estado** indica si se analizó correctamente (**Analizado**) o no (**Error**).
+- Al hacer clic sobre una fila se abre el detalle **Recibos del lote**, con el campo **Resultado (JSON)** que contiene los datos extraídos (proveedor, RIF, número de factura, montos, confianza y advertencias).
+
+> **El lote no crea facturas ni tiene un botón "Usar datos" por fila.** Para pre-rellenar el wizard de *Factura Física Rápida*, digitalice ese recibo en el **modo individual** (sección **Imagen de la factura**) y use **[Usar datos en Factura Física Rápida]** como se explica arriba. Use el lote para clasificar y revisar muchos recibos rápido, y el modo individual para convertirlos en borradores.
 
 ---
 
