@@ -328,3 +328,98 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         for line in self._lines(wizard):
             self.assertEqual(line.status, 'done')
             self.assertTrue(line.result_json)
+
+    # ------------------------------------------------------------------
+    # 16-21: procesamiento linea por linea desde la UI (spec 007-C)
+    # ------------------------------------------------------------------
+    def test_single_line_processes_only_target(self):
+        """El RPC por linea procesa solo la fila pedida; las demas siguen pending."""
+        wizard = self._batch_wizard(rows=2)
+        lines = self._lines(wizard)
+
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
+                self._patch_session('sid-line'):
+            result = wizard.action_digitize_line(lines[0].id)
+
+        self.assertEqual(mock_post.call_count, 1)
+        self.assertEqual(result['status'], 'done')
+        self.assertEqual(lines[0].status, 'done')
+        self.assertEqual(lines[1].status, 'pending')
+
+    def test_single_line_returns_error_and_keeps_next_pending(self):
+        """Un timeout queda en la fila y no toca la siguiente."""
+        wizard = self._batch_wizard(rows=2)
+        lines = self._lines(wizard)
+
+        with patch('requests.post', side_effect=requests.Timeout('t')), \
+                self._patch_session('sid-line'):
+            result = wizard.action_digitize_line(lines[0].id)
+
+        self.assertEqual(result['status'], 'error')
+        self.assertIn('tardó demasiado', result['error_message'])
+        self.assertEqual(lines[0].status, 'error')
+        self.assertEqual(lines[1].status, 'pending')
+
+    def test_single_line_rejects_foreign_line(self):
+        """Una linea de otro wizard no se puede procesar."""
+        wizard = self._batch_wizard(rows=1)
+        other = self._batch_wizard(rows=1)
+
+        with patch('requests.post') as mock_post, self._patch_session('sid-line'):
+            with self.assertRaises(UserError):
+                wizard.action_digitize_line(other.line_ids.id)
+
+        mock_post.assert_not_called()
+
+    def test_single_line_requires_session(self):
+        """Sin sesion HTTP el RPC por linea aborta sin POST y deja la fila pending."""
+        wizard = self._batch_wizard(rows=1)
+
+        with patch('requests.post') as mock_post, \
+                patch.object(digitize_client_module, 'request', None):
+            with self.assertRaises(UserError) as capture:
+                wizard.action_digitize_line(wizard.line_ids.id)
+
+        mock_post.assert_not_called()
+        self.assertIn('Sesión no detectada', str(capture.exception))
+        self.assertEqual(wizard.line_ids.status, 'pending')
+
+    def test_single_line_reprocess_clears_previous_result(self):
+        """Reprocesar una fila borra su resultado anterior antes del POST."""
+        wizard = self._batch_wizard(rows=1)
+        line = self._lines(wizard)[0]
+
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)), \
+                self._patch_session('sid-line'):
+            wizard.action_digitize_line(line.id)
+        self.assertEqual(line.status, 'done')
+        self.assertTrue(line.result_json)
+
+        with patch('requests.post', return_value=_make_response(503)), \
+                self._patch_session('sid-line'):
+            result = wizard.action_digitize_line(line.id)
+
+        self.assertEqual(result['status'], 'error')
+        self.assertEqual(line.status, 'error')
+        self.assertFalse(line.result_json)
+
+    def test_single_line_rejects_more_than_twenty(self):
+        """21 filas abortan el RPC por linea antes de cualquier POST."""
+        wizard = self._batch_wizard(rows=21)
+
+        with patch('requests.post') as mock_post, self._patch_session('sid-line'):
+            with self.assertRaises(ValidationError):
+                wizard.action_digitize_line(wizard.line_ids[0].id)
+
+        mock_post.assert_not_called()
+
+    def test_get_batch_line_ids_returns_metadata(self):
+        """El runner recibe id, filename y status de cada fila."""
+        wizard = self._batch_wizard(rows=2)
+        lines = self._lines(wizard)
+
+        data = wizard.get_batch_line_ids()
+
+        self.assertEqual([row['id'] for row in data], lines.ids)
+        self.assertEqual([row['status'] for row in data], ['pending', 'pending'])
+        self.assertEqual(data[0]['filename'], 'recibo-01.jpg')

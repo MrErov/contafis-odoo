@@ -88,6 +88,9 @@ class DigitizeWizard(models.TransientModel):
         'wizard_id',
         string='Recibos del lote',
     )
+    # Ancla del widget que procesa el lote recibo por recibo desde la UI
+    # (spec 007-C): mantiene cada peticion HTTP bajo limit_time_real.
+    batch_runner = fields.Boolean(string='Ejecutar lote', default=True)
 
     # UI de confianza y advertencias (T3 - RF-07, RF-08)
     confidence_pct = fields.Integer(
@@ -882,6 +885,65 @@ class DigitizeWizard(models.TransientModel):
                 )
 
         return self._reload_action()
+
+    def get_batch_line_ids(self):
+        """Id, filename and status of every batch line (spec 007-C)."""
+        self.ensure_one()
+        return [
+            {
+                'id': line.id,
+                'filename': line.filename or '',
+                'status': line.status,
+            }
+            for line in self.line_ids
+        ]
+
+    def action_digitize_line(self, line_id):
+        """Analyze a single batch line from the web client (spec 007-C).
+
+        The client calls this method once per receipt. Keeping one HTTP
+        request per line avoids the Odoo worker timeout (``limit_time_real``)
+        and lets the list refresh as soon as each row finishes.
+        """
+        self.ensure_one()
+        line = self.line_ids.filtered(lambda item: item.id == line_id)
+        if not line:
+            raise UserError(_("El recibo no pertenece a este lote."))
+        if len(self.line_ids) > BATCH_MAX_LINES:
+            raise ValidationError(
+                _("El lote admite como m\xe1ximo %d recibos (cargados: %d).")
+                % (BATCH_MAX_LINES, len(self.line_ids))
+            )
+
+        url = self._get_url()
+        if not url:
+            raise UserError(
+                _(
+                    "La digitalizaci\xf3n no est\xe1 configurada. "
+                    "Configure la URL en Ajustes \u2192 ContaFis AI."
+                )
+            )
+        session_id = _get_session_id()
+        if not session_id:
+            raise UserError(
+                _("\U0001f510 Sesi\xf3n no detectada. Recarg\xe1 Odoo e intent\xe1 de nuevo.")
+            )
+
+        line.write(
+            {'status': 'pending', 'error_message': False, 'result_json': False}
+        )
+        self._process_batch_line(
+            line,
+            url,
+            session_id,
+            self._get_timeout(),
+            self._get_max_image_mb(),
+        )
+        return {
+            'line_id': line.id,
+            'status': line.status,
+            'error_message': line.error_message or '',
+        }
 
     def _process_batch_line(self, line, url, session_id, timeout, max_mb):
         """Analyze a single receipt: every error lives on the line, not raised."""
