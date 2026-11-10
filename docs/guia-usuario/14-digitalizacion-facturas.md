@@ -89,18 +89,18 @@ Cuando la extracción es satisfactoria (confianza ≥ 0.60 y warnings revisados)
 
 ## Digitalización por Lote (hasta 20 recibos)
 
-Cuando recibe varios recibos de proveedor a la vez, puede analizarlos en un solo wizard en lugar de cargarlos uno por uno. El lote acepta **hasta 20 imágenes** y se procesa **de forma secuencial** para no saturar el servicio de visión.
+Cuando recibe varios recibos de proveedor a la vez, puede analizarlos en un solo wizard en lugar de cargarlos uno por uno. El lote acepta **hasta 20 imágenes** y se procesa **recibo por recibo** para no saturar el servicio de visión y mostrar el avance en pantalla.
 
 ### Preparar el lote
 
 <div class="step">
 
 1. Abra *Cumplimiento VE → Impuestos → Digitalizar Factura*.
-2. Deje vacía la sección **Imagen de la factura** (esa sección es para el modo individual).
+2. No use la sección **Imagen de la factura**: se oculta en cuanto agrega la primera fila del lote.
 3. En **RECIBOS DEL LOTE (MÁX. 20)** pulse **[Agregar una línea]**.
 4. Seleccione la imagen del recibo en la columna **Imagen del recibo**. Repita los pasos 3 y 4 por cada recibo.
 5. Elija el **Tipo de Operación** (Compra/Venta) y el **Tipo de Documento**. El tipo de documento se aplica a todas las filas; use `Automático` si no está seguro.
-6. Pulse **[Analizar lote]**.
+6. Pulse **[Analizar lote]**. El botón está dentro de la sección del lote, encima de la tabla.
 
 </div>
 
@@ -118,9 +118,11 @@ Cada fila pasa por tres estados:
 | **Analizado** | El servicio devolvió los datos extraídos | Revise el resultado en la fila |
 | **Error** | El recibo no se pudo analizar | Lea el **Mensaje de Error** y corrija |
 
-El análisis es **secuencial**: cada recibo tarda aproximadamente **1 minuto**, por lo que un lote de 20 puede tardar **10–20 minutos**. Las filas se van actualizando a medida que termina cada recibo; **no cierre la ventana** hasta que todas salgan de "Pendiente".
+Al pulsar **[Analizar lote]**, el botón muestra **“Analizando X de N…”** y se deshabilita mientras trabaja. El análisis es **secuencial**: cada recibo tarda aproximadamente **1 minuto**, por lo que un lote de 20 puede tardar **10–20 minutos**. Las filas se actualizan **una por una** a medida que termina cada recibo; **no cierre la ventana** hasta que el botón vuelva a estar disponible.
 
-> **Un error no detiene el lote:** si un recibo falla, los demás se siguen procesando. El mensaje queda en la fila del recibo fallido, no en un aviso global.
+> **Si cierra la ventana antes de terminar**, el proceso se detiene y deberá volver a cargar los recibos que quedaron en **Pendiente**. Las filas ya procesadas conservan su resultado.
+
+> **Un error no detiene el lote:** si un recibo falla, los demás se siguen procesando. El detalle queda en la fila del recibo fallido y, al final, se muestra un resumen del lote.
 
 ![Filas con error dentro de un lote](./assets/screenshots/14-05-lote-errores.png)
 
@@ -132,13 +134,13 @@ Los mensajes más frecuentes en la columna **Mensaje de Error** son:
 |--------------------|-------|----------|
 | *La imagen pesa X MB y supera el límite de 5.0 MB* | Imagen demasiado grande | Cómprimala o reduzca la resolución y agréguela de nuevo |
 | *Formato no soportado. Se aceptan imágenes JPG, JPEG, PNG o WEBP* | Subió un PDF, TIFF o HEIC | Convierta el archivo a JPG/PNG/WebP |
-| *El servicio de digitalización tardó demasiado* | Timeout del asistente | Espere 1–2 minutos y vuelva a pulsar **[Analizar lote]** |
+| *El servicio de digitalización tardó demasiado* | Timeout del asistente | Espere 1–2 minutos y pulse de nuevo **[Analizar lote]**; solo se reintentarán las filas no analizadas |
 | *El servicio de digitalización no está disponible ahora* | Asistente fiscal caído o saturado | Verifique que `contafis-assistant` esté corriendo y reintente |
 | *No se pudo conectar con el servicio de digitalización* | URL mal configurada o red caída | Revise la URL en *Ajustes → ContaFis AI* |
 
-Para corregir: edite la fila (o elimínela con el icono de papelera y agregue una nueva) y pulse **[Analizar lote]** de nuevo.
+Para corregir: edite la fila (o elimínela con el icono de papelera y agregue una nueva) y pulse **[Analizar lote]** de nuevo. El botón **solo procesa las filas Pendiente o con Error**; las que ya están **Analizado** se conservan y no se vuelven a enviar.
 
-> **Importante:** al volver a pulsar **[Analizar lote]** el wizard **reinicia y analiza todas las filas del lote**, no solo las que fallaron. Si el lote es grande, corrija primero los errores y vuelva a lanzarlo una sola vez.
+> **Para reanalizar un recibo ya analizado**, elimínelo con el icono de papelera y agréguelo de nuevo. Si todas las filas ya están analizadas, **[Analizar lote]** muestra un aviso y no reprocesa nada.
 
 ### Qué hacer con los resultados
 
