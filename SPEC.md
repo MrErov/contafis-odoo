@@ -232,6 +232,16 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Demo data SPE/no-SPE + test de integración end-to-end (`TestCalendarIntegration`)
 - ✅ 193 tests pasando; tareas T1–T10 `[x]` en `specs/003-calendario-seniat/tasks.md`
 
+### Fase 003-Bis: Bot en Discuss — Asistente Fiscal Integrado (spec 003-odoo-owl-chat) — COMPLETADA
+- ✅ Pivot de OWL Widget a Discuss nativo (`discuss.channel`): bot user `contafis_bot` auto-activado
+- ✅ `discuss_channel.py`: intercepta `message_post` en 1-on-1 con bot, llama webhook FastAPI con payload `{"message": text}` + header `X-User-Token: <user.api_token>`
+- ✅ `res.users.api_token`: campo Char sin group restriction, editable en Preferencias del usuario
+- ✅ `res.config.settings`: `l10n_ve_chat.webhook_url` + `l10n_ve_chat.auth_token` bajo Configuración > General
+- ✅ Timeout 60s + logging de latencia (start_time/elapsed) + manejo robusto 401/403/5xx/4xx/timeout
+- ✅ Warnings formateados como texto plano (bullet Unicode `·`) para evitar error OWL `notIn`
+- ✅ Verificación E2E con MCP Chrome DevTools: mensaje → respuesta con 6 obligaciones reales + warnings
+- ✅ 337 tests pasando (0 failed); tareas T1–T10 `[x]` en `specs/003-odoo-owl-chat/tasks.md`
+
 ### Fase 004: Tablas de ISLR — Estimadas y Retenciones (spec 004) — COMPLETADA
 - ✅ Precarga 2026 `est_islr` (30 líneas: jun/sep/dic × 10 dígitos, sin corrimiento) y `ret_islr` (120 líneas: 12 meses × 10 dígitos, vence el mes siguiente), `noupdate="1"` y marcadas como referencia sujeta a verificación con la Gaceta
 - ✅ Tipos "Estimadas de ISLR" (`generation_months="6,9,12"`) y "Retenciones de ISLR" (`tax_type=islr`), editables y asignables por cliente
