@@ -8,6 +8,7 @@ import requests
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from .digitize_batch_line import BATCH_MAX_LINES, image_size_mb
 from .digitize_client import DIGITIZE_ALLOWED_EXTENSIONS, _get_session_id, post_digitize
 
 _logger = logging.getLogger(__name__)
@@ -79,6 +80,13 @@ class DigitizeWizard(models.TransientModel):
         'wizard_id',
         string='L\xedneas Extra\xeddas',
         readonly=True,
+    )
+
+    # Recibos del lote (spec 007 - plan B)
+    line_ids = fields.One2many(
+        'l10n.ve.digitize.batch.line',
+        'wizard_id',
+        string='Recibos del lote',
     )
 
     # UI de confianza y advertencias (T3 - RF-07, RF-08)
@@ -816,3 +824,195 @@ class DigitizeWizard(models.TransientModel):
             'target': 'new',
             'context': defaults,
         }
+
+    # ------------------------------------------------------------------
+    # Batch processing (spec 007 - plan B)
+    # ------------------------------------------------------------------
+    def action_digitize_batch(self):
+        """Analyze up to BATCH_MAX_LINES receipts in one click (plan 007-B).
+
+        Global preconditions (batch size, URL, session) abort the whole batch
+        before any POST. Everything else isolates the failure on the line.
+        """
+        self.ensure_one()
+        lines = self.line_ids
+        if not lines:
+            raise ValidationError(
+                _("Agregue al menos un recibo al lote antes de analizar.")
+            )
+        if len(lines) > BATCH_MAX_LINES:
+            raise ValidationError(
+                _("El lote admite como m\xe1ximo %d recibos (cargados: %d).")
+                % (BATCH_MAX_LINES, len(lines))
+            )
+
+        url = self._get_url()
+        if not url:
+            raise UserError(
+                _(
+                    "La digitalizaci\xf3n no est\xe1 configurada. "
+                    "Configure la URL en Ajustes \u2192 ContaFis AI."
+                )
+            )
+
+        session_id = _get_session_id()
+        if not session_id:
+            raise UserError(
+                _("\U0001f510 Sesión no detectada. Recarg\xe1 Odoo e intent\xe1 de nuevo.")
+            )
+
+        # Reset before reprocessing so the button is idempotent.
+        lines.write(
+            {'status': 'pending', 'error_message': False, 'result_json': False}
+        )
+
+        timeout = self._get_timeout()
+        max_mb = self._get_max_image_mb()
+
+        for line in lines:
+            try:
+                self._process_batch_line(line, url, session_id, timeout, max_mb)
+            except Exception:  # last-resort safety net for one item.
+                _logger.exception("Batch line %s failed unexpectedly", line.id)
+                line.write(
+                    {
+                        'status': 'error',
+                        'error_message': _("Error inesperado al procesar el recibo."),
+                    }
+                )
+
+        return self._reload_action()
+
+    def _process_batch_line(self, line, url, session_id, timeout, max_mb):
+        """Analyze a single receipt: every error lives on the line, not raised."""
+        start_time = time.time()
+        try:
+            payload = line._build_payload(self.document_type_hint, max_mb)
+        except ValueError as error:
+            line.write({'status': 'error', 'error_message': str(error)})
+            return
+
+        try:
+            response = post_digitize(url, session_id, payload, timeout=timeout)
+        except requests.Timeout:
+            _logger.warning(
+                "Batch line %s (%s) timed out after %.2fs",
+                line.id,
+                line.filename,
+                time.time() - start_time,
+            )
+            line.write(
+                {
+                    'status': 'error',
+                    'error_message': _(
+                        "⏱️ El servicio de digitalización tardó demasiado. "
+                        "Reintentá en unos minutos."
+                    ),
+                }
+            )
+            return
+        except requests.RequestException as error:
+            _logger.error(
+                "Batch line %s (%s) failed after %.2fs: %s",
+                line.id,
+                line.filename,
+                time.time() - start_time,
+                error,
+            )
+            line.write(
+                {
+                    'status': 'error',
+                    'error_message': _(
+                        "❌ No se pudo conectar con el servicio de digitalización. "
+                        "Verifique la URL configurada."
+                    ),
+                }
+            )
+            return
+
+        status = response.status_code
+        # Only metadata is logged: never the base64 image nor the session id.
+        _logger.info(
+            "Batch line %s (%s, %.2f MB) -> HTTP %s in %.2fs",
+            line.id,
+            line.filename,
+            image_size_mb(line.image),
+            status,
+            time.time() - start_time,
+        )
+
+        message = self._batch_message_for_status(status)
+        if message:
+            line.write({'status': 'error', 'error_message': message})
+            return
+
+        try:
+            data = response.json()
+        except ValueError:
+            line.write(
+                {
+                    'status': 'error',
+                    'error_message': _(
+                        "\u26a0\ufe0f El servicio devolvi\xf3 una respuesta que no es JSON."
+                    ),
+                }
+            )
+            return
+
+        parsed = self._parse_response(data)
+        if parsed is None:
+            line.write(
+                {
+                    'status': 'error',
+                    'error_message': _(
+                        "\u26a0\ufe0f La respuesta del servicio est\xe1 incompleta. "
+                        "Reintent\xe1 o cargue la factura a mano."
+                    ),
+                }
+            )
+            return
+
+        extracted = parsed['extracted']
+        merged_warnings = self._merge_warnings(
+            parsed['warnings'], self._build_local_warnings(extracted)
+        )
+        line.write(
+            {
+                'status': 'done',
+                'error_message': False,
+                'result_json': json.dumps(
+                    {
+                        'document_type': parsed['document_type'],
+                        'confidence': parsed['confidence'],
+                        'extracted': extracted,
+                        'warnings': merged_warnings,
+                    },
+                    ensure_ascii=False,
+                    default=str,
+                ),
+            }
+        )
+
+    def _batch_message_for_status(self, status):
+        """HTTP error message for the batch; ``None`` when not an error."""
+        if status in (401, 403):
+            return _(
+                "\U0001f510 Tu sesi\xf3n de Odoo expir\xf3 o no es v\xe1lida. "
+                "Recarg\xe1 Odoo e intent\xe1 de nuevo."
+            )
+        if status == 503:
+            return _(
+                "\U0001f504 El servicio de digitalizaci\xf3n no est\xe1 disponible "
+                "ahora. Reintent\xe1 en unos minutos."
+            )
+        if status >= 500:
+            return _(
+                "\U0001f527 Error del servidor de digitalizaci\xf3n. "
+                "Reintent\xe1 en unos minutos."
+            )
+        if status >= 400:
+            return _(
+                "La imagen o el formato fue rechazado por el servicio. "
+                "Verifique extensi\xf3n y tama\xf1o."
+            )
+        return None

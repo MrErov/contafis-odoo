@@ -6,12 +6,19 @@
         <field name="arch" type="xml">
             <form string="Digitalizar Factura">
                 <header>
+                    <!-- single: se oculta en cuanto hay lote -->
                     <button name="action_digitize" string="Analizar"
-                            type="object" class="btn-primary" invisible="state == 'done'"/>
+                            type="object" class="btn-primary"
+                            invisible="state == 'done' or line_ids"/>
+                    <button name="action_digitize_batch" string="Analizar lote"
+                            type="object" class="btn-primary"
+                            invisible="not line_ids"/>
                     <button name="action_apply_to_invoice" string="Usar datos en Factura Física Rápida"
-                            type="object" class="btn-success" invisible="state != 'done'"/>
+                            type="object" class="btn-success"
+                            invisible="state != 'done' or line_ids"/>
                     <button name="action_digitize" string="Reanalizar"
-                            type="object" class="btn-secondary" invisible="state != 'done'"/>
+                            type="object" class="btn-secondary"
+                            invisible="state != 'done' or line_ids"/>
                     <button string="Cancelar" class="btn-secondary" special="cancel"/>
                 </header>
                 <sheet>
@@ -21,7 +28,7 @@
                             <field name="document_type_hint" required="true"/>
                         </group>
                     </group>
-                    <group string="Imagen de la factura">
+                    <group string="Imagen de la factura" invisible="line_ids">
                         <group>
                             <field name="image" filename="filename" required="true"
                                    help="Formatos aceptados: JPG, JPEG, PNG y WEBP."/>
@@ -29,6 +36,21 @@
                         <group>
                             <field name="filename" readonly="1" invisible="not filename"/>
                         </group>
+                    </group>
+                    <group string="Recibos del lote (máx. 20)">
+                        <field name="line_ids" nolabel="1" widget="section_and_note_one2many">
+                            <list>
+                                <field name="image" widget="image" filename="filename"
+                                       options="{'size': [0, 80]}"/>
+                                <field name="filename"/>
+                                <field name="status" widget="badge"
+                                       decoration-success="status == 'done'"
+                                       decoration-info="status == 'pending'"
+                                       decoration-danger="status == 'error'"/>
+                                <field name="error_message" optional="show"/>
+                                <field name="result_json" column_invisible="True"/>
+                            </list>
+                        </field>
                     </group>
                     <div class="alert alert-danger" role="alert"
                          invisible="state != 'error'">
