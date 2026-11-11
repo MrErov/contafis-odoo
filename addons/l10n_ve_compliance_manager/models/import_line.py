@@ -134,10 +134,13 @@ class ImportLine(models.TransientModel):
             relation_model = m.relation_model
 
             record = None
+            record = None
+            wizard_company_id = self.wizard_id.company_id.id if self.wizard_id else False
             if field_name == 'client_id' and relation_model == 'l10n.ve.compliance.client':
-                # Buscar por RIF
+                # Buscar por RIF en la compa??a del wizard
                 record = self.env['l10n.ve.compliance.client'].search([
-                    ('rif', '=', value)
+                    ('rif', '=', value),
+                    ('company_id', '=', wizard_company_id),
                 ], limit=1)
             elif field_name == 'obligation_type_id' and relation_model == 'l10n.ve.obligation.type':
                 # Buscar por name
@@ -150,9 +153,10 @@ class ImportLine(models.TransientModel):
                     ('name', '=', value)
                 ], limit=1)
             elif field_name == 'partner_id' and relation_model == 'res.partner':
-                # Buscar por RIF o VAT
+                # Buscar por RIF o VAT, filtrando por compa??a del wizard
                 record = self.env['res.partner'].search([
-                    '|', ('vat', '=', value), ('rif', '=', value)
+                    '|', ('vat', '=', value), ('rif', '=', value),
+                    ('company_id', 'in', [False, wizard_company_id]),
                 ], limit=1)
 
             if not record:

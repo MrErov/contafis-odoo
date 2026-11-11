@@ -14,6 +14,7 @@ from . import (
     test_import_wizard,
     test_islr_conciliation,
     test_multi_company,
+    test_multi_company_wizards,
     test_obligation,
     test_obligation_actions,
     test_obligation_bulk_actions,

@@ -35,6 +35,7 @@ class VatBookExportWizard(models.TransientModel):
     def action_export_xlsx(self):
         """Genera y descarga el Excel según book_type."""
         self.ensure_one()
+        self = self.with_company(self.company_id)
 
         if self.book_type == 'both':
             xlsx_content = self._generate_vat_book_both_xlsx()

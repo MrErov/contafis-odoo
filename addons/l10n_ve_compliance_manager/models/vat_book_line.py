@@ -254,7 +254,8 @@ class VatBookLine(models.Model):
     @api.model
     def create_from_move(self, move):
         """Crea líneas de libro desde una factura (método de conveniencia para tests y uso directo)."""
-        wizard_dummy = self.env['l10n.ve.vat.book.generate'].create({
+        move = move.with_company(move.company_id)
+        wizard_dummy = self.env['l10n.ve.vat.book.generate'].with_company(move.company_id).create({
             'period_month': move.invoice_date.strftime('%Y-%m') if move.invoice_date else fields.Date.today().strftime('%Y-%m'),
             'company_id': move.company_id.id,
             'book_type': 'both',
@@ -262,7 +263,7 @@ class VatBookLine(models.Model):
         line_vals_list = wizard_dummy._create_book_lines_from_move(move)
         for vals in line_vals_list:
             vals['wizard_id'] = wizard_dummy.id
-            self.create(vals)
+            self.with_company(move.company_id).create(vals)
         return True
 
     def action_open_export_wizard(self):
