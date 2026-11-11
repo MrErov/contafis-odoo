@@ -56,6 +56,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - `l10n.ve.vat.book.generate` — Wizard de generación desde account.move
 - `l10n.ve.vat.return` — Planilla IVA 99030 (48 ítems fijos)
 - `l10n.ve.islr.reconciliation` / `l10n.ve.islr.reconciliation.line` — Conciliación fiscal ISLR (import Excel con advertencias, validar → PDF)
+- `l10n.ve.digitize.wizard` / `l10n.ve.digitize.batch.line` — Digitalización IA (imagen única + lote de hasta 20 recibos con acción "Usar datos" por fila)
 
 ## Extensiones Core
 - `account.move`: `retention_ids`, `retention_amount`, `action_generate_retention()` (solo `in_invoice`)
@@ -281,7 +282,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ Demo data: cliente "Comercial La Conciliación, C.A." (RIF J-30512345-6) + conciliación 2025 réplica del fixture real, con advertencias intencionales (totales y monto no cuadran por diseño)
 - ✅ 330 tests backend + 9 E2E = 339 tests pasando; tareas T1–T8 `[x]` en `specs/011-conciliacion-islr/tasks.md`
 
-### Fase 012: Wizard de Digitalización de Facturas (spec 007) — COMPLETADA
+### Fase 012: Wizard de Digitalización de Facturas (spec 007: T1-T6 + 007-B/C/D) — COMPLETADA
 - ✅ **T1**: Wizard `l10n.ve.digitize.wizard` (tipo operación, hint documento, upload imagen, timeout configurable 30s, max 5MB, validación JPG/JPEG/PNG/WEBP). Cliente HTTP con `X-Odoo-Session` + `X-Odoo-Database`, timeout 30s, sin log de imagen/session.
 - ✅ **T2**: Mapeo `ExtractedInvoice` → `l10n.ve.physical.invoice.wizard` via `default_*` context (RIF, fechas, moneda VES/USD, bases según `iva_rate`, concepto desde líneas, partner por RIF con filtro compañía).
 - ✅ **T3**: UI resultados (confianza 3 niveles ≥85/≥60/<60, warnings texto plano, tabla líneas readonly, alerta descuadre no bloqueante, 14 campos preview, botón "Usar datos en Factura Física Rápida").
@@ -290,9 +291,12 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - ✅ **T6**: Verificación visual en navegador (4 estados), docs actualizadas (`SPEC.md`, `docs/memory.md`), `pre-commit` verde. Verificación E2E posterior con chrome-devtools (upload → Analizar) que destapó y cerró 2 bugs de producto:
   - **Formato de imagen**: el campo binario de Odoo 19 no siempre persiste `filename`; ahora el formato se deduce de los magic bytes cuando no hay nombre utilizable (`2486629`).
   - **Payload del backend**: con `filename` vacío se enviaba `false` y FastAPI/Pydantic respondía 422; ahora `_get_payload_filename()` garantiza un `str` no vacío (`cfef372`).
+- ✅ **007-B**: Batch de hasta 20 recibos (`l10n.ve.digitize.batch.line` + `action_digitize_batch`/`_process_batch_line`), con estado `pending/done/error`, errores por fila sin abortar el lote y `result_json` con procedencia, `extracted` y warnings fusionadas. Commit `6d49eb1`.
+- ✅ **007-C**: Procesamiento por línea desde la UI con widget OWL `l10n_ve_batch_runner` (un RPC por recibo, progreso "Analizando X de N...", reintento solo de filas no analizadas); `action_digitize_line`/`get_batch_line_ids`. Commit `d12cd2a`.
+- ✅ **007-D**: Acción **Usar datos** por fila (`action_apply_line_to_invoice`) que reutiliza `_build_apply_to_invoice_action()` y abre *Factura Física Rápida* prellenada, preservando `document_type`/`confidence`. E2E real: lote → factura posteada → línea en Libro de Compras. Commit `6bbf5b8`.
 - ⚠️ **Limitación (requisito de deployment, no del módulo)**: la digitalización necesita el backend `contafis-assistant` **no degradado**. Sin corpus ingerido (`corpus_status: missing`, sin chroma/BM25) responde 503 y el wizard muestra «El servicio de digitalización no está disponible ahora». Se resuelve en el deployment (ver `specs/004-*`), no en Odoo.
-- **Tests**: 410 pasando (335 base + 70 nuevos spec 007 + 5 de regresión de la verificación T6). Flaky pre-existentes en seniat/vat_book (ajenos).
-- **Commits**: `fd0d781` (T1), `92c1f2b` (T2), `251012c` (T3), `261a03e` + `c79896f` (T4), `e9b455c` (T5), `89d1b79` + `3768655` (fix instalación limpia: impuestos SENIAT), `2486629` + `cfef372` (fix formato y payload).
+- **Tests**: **437 tests** (`0 failed, 0 error(s) of 437 tests`), incluidos **26** de `TestDigitizeBatch`; E2E de digitalización verificado con factura posteada y línea en `l10n.ve.vat.book.line`. Flaky pre-existentes en seniat/vat_book (ajenos).
+- **Commits**: `fd0d781` (T1), `92c1f2b` (T2), `251012c` (T3), `261a03e` + `c79896f` (T4), `e9b455c` (T5), `89d1b79` + `3768655` (fix instalación limpia: impuestos SENIAT), `2486629` + `cfef372` (fix formato y payload), `155c85b` + `6d49eb1` (007-B), `d12cd2a` (007-C), `6bbf5b8` + `ea02c14` + `b9e9bcc` (007-D y guía).
 
 ### Trabajo Futuro
 - ✅ Hardening 004.1 — Minor 1: recalcular `due_date` al cambiar el tipo o el cliente salvo en obligaciones pagadas — HECHO (decisión: recalc si no está pagada; incluye la acción manual "Recalcular vencimientos" en el formulario y como acción masiva de la lista, respetando `due_date_override`)
@@ -321,10 +325,10 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
-- ✅ **410 tests backend + 9 tests E2E = 419 tests pasando**
+- ✅ **437 tests backend + 9 tests E2E = 446 tests pasando**
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`
 - ✅ Integración MCP Odoo (FGRibreau/mcp-odoo v0.2.1) para operar `contea` desde OpenCode Desktop
-- ✅ Guía de usuario en `docs/guia-usuario/`: portada, TOC, capturas reales y PDF (68 páginas)
+- ✅ Guía de usuario en `docs/guia-usuario/`: portada, TOC, capturas reales y PDF (80 páginas)
 - ⬜ Topics GitHub
