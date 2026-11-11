@@ -1,5 +1,6 @@
 from lxml import etree
 from odoo import fields
+from odoo.exceptions import UserError
 from odoo.tests import TransactionCase, tagged
 from odoo.tools.safe_eval import safe_eval
 
@@ -101,6 +102,18 @@ class TestMultiCompanyUx(TransactionCase):
         move.write({'name': name})
         return move
 
+    def _posted_bill(self, company, journal, partner, name):
+        """Crea una factura de proveedor posted con nombre fijo."""
+        move = self.env['account.move'].with_company(company).create({
+            'move_type': 'in_invoice',
+            'partner_id': partner.id,
+            'journal_id': journal.id,
+            'invoice_date': fields.Date.to_date('2031-06-01'),
+            'date': fields.Date.to_date('2031-06-01'),
+        })
+        move.write({'name': name, 'state': 'posted'})
+        return move
+
     def _retention_sequence(self, company):
         """Asegura la secuencia de retenciones de la compañía.
 
@@ -130,7 +143,7 @@ class TestMultiCompanyUx(TransactionCase):
         journal_b = self._purchase_journal(
             self.company_b, 'UXPB', 'Compras UX 008D',
         )
-        move_b = self._draft_bill(
+        move_b = self._posted_bill(
             self.company_b, journal_b, partner_b, 'UXD-BILL-0001',
         )
         self.assertEqual(
@@ -156,7 +169,7 @@ class TestMultiCompanyUx(TransactionCase):
             'name': 'Proveedor Decoy UX 008D',
             'company_id': self.company_a.id,
         })
-        decoy_a = self._draft_bill(
+        decoy_a = self._posted_bill(
             self.company_a, journal_a, partner_a, 'UXD-BILL-0001',
         )
         self.assertNotEqual(decoy_a, move_b)
@@ -367,6 +380,87 @@ class TestMultiCompanyUx(TransactionCase):
         self.assertIn(
             self.company_b.id, action['context'].get('allowed_company_ids', []),
         )
+
+    def test_retention_sequence_respects_company(self):
+        """La secuencia de retención debe aislarse por compañía (with_company)."""
+        self.env['account.journal'].with_company(self.company_b).create({
+            'name': 'Diario Compras B', 'code': 'UXBC', 'type': 'purchase',
+            'company_id': self.company_b.id,
+        })
+        self.env['account.account'].with_company(self.company_b).create({
+            'name': 'Gasto B', 'code': '510101', 'company_ids': [(6, 0, [self.company_b.id])],
+        })
+        partner_b = self.env['res.partner'].with_company(self.company_b).create({
+            'name': 'Proveedor B Seq', 'vat': 'V-12345678-1',
+            'company_id': self.company_b.id,
+        })
+        # Secuencia específica de compañía B
+        self.env['ir.sequence'].with_company(self.company_b).create({
+            'name': 'Retención B', 'code': 'l10n.retention',
+            'company_id': self.company_b.id,
+            'prefix': 'RET-B-%(year)s-', 'padding': 4, 'number_next': 1,
+        })
+        # Crear retención en compañía B
+        retention_b = self.env['l10n.retention'].with_company(self.company_b).create({
+            'partner_id': partner_b.id, 'amount': 1000.0,
+            'date': '2031-06-15',
+        })
+        # Debe usar la secuencia de B (RET-B-...), no la global (RET-....)
+        self.assertTrue(retention_b.name.startswith('RET-B-'), retention_b.name)
+
+    def test_move_resolution_requires_posted_and_partner(self):
+        """account.move por ref solo resuelve posted + con partner."""
+        partner_b = self.env['res.partner'].with_company(self.company_b).create({
+            'name': 'Proveedor B Move', 'vat': 'V-11111111-1',
+            'company_id': self.company_b.id,
+        })
+        journal_b = self.env['account.journal'].with_company(self.company_b).create({
+            'name': 'Compras B', 'code': 'UXBM', 'type': 'purchase',
+            'company_id': self.company_b.id,
+        })
+
+        def _create_move(ref, partner_id, posted):
+            move = self.env['account.move'].with_company(self.company_b).create({
+                'move_type': 'in_invoice',
+                'journal_id': journal_b.id,
+                'partner_id': partner_id,
+                'ref': ref,
+                'invoice_date': '2031-06-01',
+                'date': '2031-06-01',
+            })
+            if posted:
+                move.write({'state': 'posted'})
+            return move
+
+        # Move borrador SIN partner (no debe resolverse)
+        _create_move('MOVE-DRAFT-NOPARTNER', False, False)
+        # Move posted CON partner (debe resolverse)
+        move_posted = _create_move('MOVE-POSTED-WITHPARTNER', partner_b.id, True)
+
+        wizard = self._create_wizard('retention', self.company_b)
+        self._map(wizard, 'invoice_id', 'many2one', 'account.move')
+        # draft sin partner -> UserError
+        line_draft = self._line(wizard, {'invoice_id': 'MOVE-DRAFT-NOPARTNER'})
+        with self.assertRaises(UserError):
+            wizard.with_company(self.company_b)._resolve_values(line_draft)
+        # posted con partner -> resuelve al id correcto
+        line_posted = self._line(wizard, {'invoice_id': 'MOVE-POSTED-WITHPARTNER'})
+        values = wizard.with_company(self.company_b)._resolve_values(line_posted)
+        self.assertEqual(values['invoice_id'], move_posted.id)
+
+    def test_validate_reference_skips_int_ids(self):
+        """_validate_reference no falla si el valor m2o ya es un id int."""
+        partner_b = self.env['res.partner'].with_company(self.company_b).create({
+            'name': 'Proveedor B Int', 'vat': 'V-22222222-2',
+            'company_id': self.company_b.id,
+        })
+        wizard = self._create_wizard('obligation', self.company_b)
+        self._map(wizard, 'partner_id', 'many2one', 'res.partner')
+        # valor ya es id int (no hay que resolver por nombre)
+        line = self._line(wizard, {'partner_id': partner_b.id})
+        result = line._validate_reference()
+        self.assertTrue(result)
+        self.assertNotEqual(line.state, 'error')
 
 
 @tagged('post_install', '-at_install')

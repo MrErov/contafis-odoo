@@ -129,6 +129,10 @@ class ImportLine(models.TransientModel):
             if value is None or value == '':
                 continue
 
+            if isinstance(value, int) and not isinstance(value, bool):
+                # Ya es un id de registro: no hay que resolver por nombre.
+                continue
+
             field_name = m.field_name
 
             model_name, _domain = wizard._get_import_target(self, {})
