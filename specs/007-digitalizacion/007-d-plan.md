@@ -304,13 +304,13 @@ git diff --stat
 
 ## 7. Checklist de aceptación
 
-- [ ] `action_apply_line_to_invoice` existe en `l10n.ve.digitize.batch.line` y no escribe en la fila.
-- [ ] Los 3 estados y los 5 casos de `result_json` inválido lanzan `UserError` en español.
-- [ ] `_build_apply_to_invoice_action` es el **único** constructor del `ir.actions.act_window`; `action_apply_to_invoice` delega.
-- [ ] Cero claves `default_*` duplicadas entre wizard y línea (`git diff` lo muestra).
-- [ ] La vista usa `<list>`, `invisible="status != 'done'"`, sin `attrs`/`states`.
-- [ ] `TestDigitizeBatch` = 26 tests verdes; suite = 437, 0 failed.
-- [ ] `TestDigitizeMapping::test_apply_returns_physical_wizard_action_with_defaults` verde **sin haberlo editado**.
-- [ ] Verificación visual del botón y del diálogo anidado, consola limpia.
-- [ ] `pre-commit` verde, `git status` con 4 archivos, commit en inglés sin push.
-- [ ] `docs/memory.md`, la guía y el PDF los actualiza el agente principal (no el implementer).
+- [x] `action_apply_line_to_invoice` existe en `l10n.ve.digitize.batch.line` y no escribe en la fila.
+- [x] Los 3 estados y los 5 casos de `result_json` inválido lanzan `UserError` en español.
+- [x] `_build_apply_to_invoice_action` es el **único** constructor del `ir.actions.act_window`; `action_apply_to_invoice` delega.
+- [x] Cero claves `default_*` duplicadas entre wizard y línea (`git diff` lo muestra).
+- [x] La vista usa `<list>`, `invisible="status != 'done'"`, sin `attrs`/`states`.
+- [x] `TestDigitizeBatch` = 26 tests verdes; suite = 437, 0 failed.
+- [x] `TestDigitizeMapping::test_apply_returns_physical_wizard_action_with_defaults` verde **sin haberlo editado**.
+- [x] Verificación visual del botón y del diálogo anidado, consola limpia.
+- [x] `pre-commit` verde, `git status` con 4 archivos, commit en inglés sin push.
+- [x] `docs/memory.md`, la guía y el PDF los actualiza el agente principal (no el implementer).

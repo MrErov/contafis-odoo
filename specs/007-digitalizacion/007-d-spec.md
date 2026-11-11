@@ -5,7 +5,7 @@ Antecedentes: `batch_plan.md` (007-B) y `docs/memory.md` § *Spec 007-C*.
 Baseline: `0 failed, 0 error(s) of 433 tests` (2026-11-10).
 Objetivo: `0 failed, 0 error(s) of 437 tests` (433 + 4).
 
-Estado: propuesta, pendiente de aprobación del orquestador.
+Estado: **COMPLETADA** (2026-11-10). Tests: `0 failed, 0 error(s) of 437 tests` (`TestDigitizeBatch` 26/26).
 
 ---
 

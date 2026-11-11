@@ -4,6 +4,8 @@ Spec base: `specs/007-digitalizacion/spec.md` (RF-01…RF-17).
 Baseline verificado: `0 failed, 0 error(s) of 411 tests` (rama `19.0`, HEAD `58bf3e6`, working tree limpio).
 Objetivo de tests: `0 failed, 0 error(s) of 426 tests` (411 + 15 nuevos).
 
+Estado: **COMPLETADA** (2026-11-10; feature `6d49eb1`).
+
 Este documento es solo plan. No se escribe código acá.
 
 ---
@@ -453,18 +455,18 @@ docker compose run --rm web odoo -d contea -u l10n_ve_compliance_manager \
 
 ## 9. Checklist de aceptación
 
-- [ ] `models/digitize_batch_line.py` existe con los 6 campos de §2, `_order='id'`, `_rec_name='filename'` y los helpers puros.
-- [ ] `l10n.ve.digitize.wizard.line_ids` existe (`One2many`, `ondelete='cascade'` en el hijo).
-- [ ] `action_digitize_batch` valida 0 líneas → `ValidationError`, 21 → `ValidationError`, URL vacía → `UserError`, sin `sid` → `UserError`, todo **antes** de cualquier POST.
-- [ ] El reset (`pending`/`False`/`False`) ocurre antes del loop y es verificable en la 2ª corrida.
-- [ ] Cada `status='error'` guarda `error_message`; cada `status='done'` guarda `result_json` con `document_type`, `confidence`, `extracted` y `warnings` fusionadas.
-- [ ] `action_digitize`, `_parse_response`, `_merge_warnings` y `_build_local_warnings` **sin cambios** (`git diff -U0` lo confirma).
-- [ ] `models/digitize_line.py`, `digitize_client.py` y `__manifest__.py` sin cambios.
-- [ ] 3 ACL nuevas en `ir.model.access.csv` con `1,1,1,1` y los 3 grupos indicados.
-- [ ] Vista: `<list>` (no `<tree>`), sin `attrs`/`states`, botón single oculto con `line_ids`, grupo single oculto con `line_ids`, lista del lote con `image`/`filename`/`status`/`error_message`/`result_json` oculto.
-- [ ] `tests/test_digitize_batch.py` con **exactamente** 15 tests y `@tagged('post_install', '-at_install')`.
-- [ ] `--test-tags …:TestDigitizeBatch` → `0 failed, 0 error(s) of 15 tests`.
-- [ ] Suite completa → `0 failed, 0 error(s) of 426 tests`.
-- [ ] Verificación visual en navegador con toggle single↔lote; consola sin errores JS.
-- [ ] `git status` solo con los 7 archivos esperados; `pre-commit` verde.
-- [ ] Commit `feat(digitize): implement batch processing for up to 20 receipts`; **sin push**.
+- [x] `models/digitize_batch_line.py` existe con los 6 campos de §2, `_order='id'`, `_rec_name='filename'` y los helpers puros.
+- [x] `l10n.ve.digitize.wizard.line_ids` existe (`One2many`, `ondelete='cascade'` en el hijo).
+- [x] `action_digitize_batch` valida 0 líneas → `ValidationError`, 21 → `ValidationError`, URL vacía → `UserError`, sin `sid` → `UserError`, todo **antes** de cualquier POST.
+- [x] El reset (`pending`/`False`/`False`) ocurre antes del loop y es verificable en la 2ª corrida.
+- [x] Cada `status='error'` guarda `error_message`; cada `status='done'` guarda `result_json` con `document_type`, `confidence`, `extracted` y `warnings` fusionadas.
+- [x] `action_digitize`, `_parse_response`, `_merge_warnings` y `_build_local_warnings` **sin cambios** (`git diff -U0` lo confirma).
+- [x] `models/digitize_line.py`, `digitize_client.py` y `__manifest__.py` sin cambios.
+- [x] 3 ACL nuevas en `ir.model.access.csv` con `1,1,1,1` y los 3 grupos indicados.
+- [x] Vista: `<list>` (no `<tree>`), sin `attrs`/`states`, botón single oculto con `line_ids`, grupo single oculto con `line_ids`, lista del lote con `image`/`filename`/`status`/`error_message`/`result_json` oculto.
+- [x] `tests/test_digitize_batch.py` con **exactamente** 15 tests y `@tagged('post_install', '-at_install')`.
+- [x] `--test-tags …:TestDigitizeBatch` → `0 failed, 0 error(s) of 15 tests`.
+- [x] Suite completa → `0 failed, 0 error(s) of 426 tests`.
+- [x] Verificación visual en navegador con toggle single↔lote; consola sin errores JS.
+- [x] `git status` solo con los 7 archivos esperados; `pre-commit` verde.
+- [x] Commit `feat(digitize): implement batch processing for up to 20 receipts`; **sin push**.

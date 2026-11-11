@@ -26,7 +26,7 @@ docker compose run --rm web odoo -d contea -u l10n_ve_compliance_manager \
 
 ---
 
-- [ ] **T1. RED — los 4 tests primero.**
+- [x] **T1. RED — los 4 tests primero.**
       Archivo: `tests/test_digitize_batch.py` (solo tests).
       Añadir `_load_fixture` al import de `.test_digitize_wizard`, el helper local
       `_analyzed_batch()` y los tests 23-26 al final de `TestDigitizeBatch`:
@@ -37,7 +37,7 @@ docker compose run --rm web odoo -d contea -u l10n_ve_compliance_manager \
       `AttributeError` de `action_apply_line_to_invoice` (no por import/sintaxis), con
       los 22 anteriores verdes. Este estado no se commitea.
 
-- [ ] **T2. GREEN — helper compartido en el wizard.**
+- [x] **T2. GREEN — helper compartido en el wizard.**
       Archivo: `models/digitize_wizard.py`.
       (a) `_map_extracted_to_invoice_defaults(self, extracted, document_type=None,
       confidence=None)` con el bloque de procedencia normalizado; (b) nuevo
@@ -49,7 +49,7 @@ docker compose run --rm web odoo -d contea -u l10n_ve_compliance_manager \
       `TestDigitizeMapping::test_apply_returns_physical_wizard_action_with_defaults`
       pasa **sin editarlo** (los 4 nuevos siguen rojos).
 
-- [ ] **T3. GREEN — `action_apply_line_to_invoice` en la fila.**
+- [x] **T3. GREEN — `action_apply_line_to_invoice` en la fila.**
       Archivo: `models/digitize_batch_line.py`.
       Añadir `import json` y `UserError`; implementar la validación estado → JSON →
       `extracted` (dict no vacío) con los 3 mensajes en español, y delegar en
@@ -58,7 +58,7 @@ docker compose run --rm web odoo -d contea -u l10n_ve_compliance_manager \
       Sin `write`/`create`/`sudo`.
       **Hecho cuando:** `0 failed, 0 error(s) of 26 tests` en `TestDigitizeBatch`.
 
-- [ ] **T4. Vista — botón "Usar datos" en la lista del lote.**
+- [x] **T4. Vista — botón "Usar datos" en la lista del lote.**
       Archivo: `views/digitize_wizard_views.xml`.
       `<button name="action_apply_line_to_invoice" string="Usar datos" type="object"
       class="btn-link" invisible="status != 'done'"/>` entre `status` y
@@ -67,7 +67,7 @@ docker compose run --rm web odoo -d contea -u l10n_ve_compliance_manager \
       **Hecho cuando:** `-u l10n_ve_compliance_manager` no reporta error de RelaxNG y
       la vista carga.
 
-- [ ] **T5. Verificación visual del botón y del diálogo anidado.**
+- [x] **T5. Verificación visual del botón y del diálogo anidado.**
       `docker compose restart web`, upgrade CLI y navegador en incógnito (Ctrl+Shift+R).
       Probar con un lote de 2 filas: una *Analizado* y una *Error*.
       **Hecho cuando:** solo la fila *Analizado* muestra **Usar datos**, al pulsarlo se
@@ -75,7 +75,7 @@ docker compose run --rm web odoo -d contea -u l10n_ve_compliance_manager \
       botón no renderiza con `section_and_note_one2many`, aplicar el plan B de R-2
       (one2many plano) y repetir.
 
-- [ ] **T6. Cierre — suite completa, lint y commit.**
+- [x] **T6. Cierre — suite completa, lint y commit.**
       Correr el comando suite, `pre-commit run --all-files`, `git status` y
       `git diff --stat`.
       **Hecho cuando:** `0 failed, 0 error(s) of 437 tests`, `pre-commit` verde,
