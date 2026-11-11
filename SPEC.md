@@ -45,7 +45,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - `l10n.ve.copy.calendar.wizard` — Wizard "Copiar a otro año" del calendario SENIAT
 - `l10n.ve.document.type` / `l10n.ve.document` — Cartelera fiscal
 - `l10n.ve.alert` — Notificaciones multi-tipo, multi-canal
-- `l10n.retention` — Comprobante retención (secuencia RET-YYYY-NNNN)
+- `l10n.retention` — Comprobante retención (secuencia RET-YYYY-NNNN aislada por compañía)
 - `l10n.ve.import.wizard` / `l10n.ve.import.line` / `l10n.ve.import.mapping`
   / `l10n.ve.import.log` — Wizard de importación Excel (4 modelos)
 - `l10n.ve.cartelera.status` — Snapshot mensual de cartelera fiscal
@@ -298,6 +298,23 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 - **Tests**: **437 tests** (`0 failed, 0 error(s) of 437 tests`), incluidos **26** de `TestDigitizeBatch`; E2E de digitalización verificado con factura posteada y línea en `l10n.ve.vat.book.line`. Flaky pre-existentes en seniat/vat_book (ajenos).
 - **Commits**: `fd0d781` (T1), `92c1f2b` (T2), `251012c` (T3), `261a03e` + `c79896f` (T4), `e9b455c` (T5), `89d1b79` + `3768655` (fix instalación limpia: impuestos SENIAT), `2486629` + `cfef372` (fix formato y payload), `155c85b` + `6d49eb1` (007-B), `d12cd2a` (007-C), `6bbf5b8` + `ea02c14` + `b9e9bcc` (007-D y guía).
 
+### Fase 008: Hardening Multi-compañía (Specs 008 a 008-F) — COMPLETADA
+- ✅ **008**: importación Excel y planilla IVA/export soportan compañía no activa (`with_company`, `allowed_company_ids`).
+- ✅ **008-B**: digitalización y factura física resuelven partner, impuestos y diario en la compañía del wizard.
+- ✅ **008-C**: tests de aislamiento cruzado para importación genérica e ISLR.
+- ✅ **008-D**: dominios de `company_id` en vistas y resolución de many2one por compañía (F2-F6).
+- ✅ **008-E**: secuencia `l10n.retention` por compañía, `account.move` solo `posted` + `partner_id`, fast-path `isinstance(int)` en `_validate_reference`.
+- ✅ **008-F**: `generate_retentions` propaga el `company_id` del move (`with_company` + `vals`).
+- ✅ **6 follow-ups cerrados**:
+  1. 008-E F-A: secuencia de retención por compañía (`RET-A-`/`RET-B-` no se cruzan).
+  2. 008-E F-B: resolución de `account.move` exige `posted` y `partner_id`.
+  3. 008-E F-C: ids `int` ya resueltos no fallan en `_validate_reference`.
+  4. 008-F F-A: `generate_retentions` asigna la compañía del move, no la del contexto.
+  5. 008-F F-B.1: tests negativos independientes (`posted` sin partner, `draft` con partner).
+  6. 008-F F-B.2: aislamiento bidireccional de la compañía de la retención.
+- ✅ **469 tests backend** (`0 failed`), 29 dedicados a multi-compañía; 9 E2E Playwright.
+- ✅ Commits: `3446cbe`, `b002adb`, `586f8c4`, `5d31f17`, `7771f17`, `9107420`.
+
 ### Trabajo Futuro
 - ✅ Hardening 004.1 — Minor 1: recalcular `due_date` al cambiar el tipo o el cliente salvo en obligaciones pagadas — HECHO (decisión: recalc si no está pagada; incluye la acción manual "Recalcular vencimientos" en el formulario y como acción masiva de la lista, respetando `due_date_override`)
 - ✅ Spec 11: Conciliación ISLR — HECHO (Fase 011: modelos + wizard + ciclo de vida + reporte QWeb + demo)
@@ -325,7 +342,7 @@ para contadores en Venezuela. Multi-cliente (el contador gestiona varias empresa
 
 - ✅ README.md, CHANGELOG.md, LICENSE (LGPL-3), CONTRIBUTING.md
 - ✅ Metodología SDD (AGENTS.md, docs/capacidades/, opencode.json)
-- ✅ **437 tests backend + 9 tests E2E = 446 tests pasando**
+- ✅ **469 tests backend + 9 tests E2E = 478 tests pasando**
 - ✅ Ruff limpio en E/W/F/I/UP
 - ✅ Pre-commit configurado con ruff
 - ✅ Comandos OpenCode en `.opencode/commands/`
