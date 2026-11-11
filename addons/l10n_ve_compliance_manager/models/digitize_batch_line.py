@@ -6,8 +6,10 @@ failures live on the line itself and never abort the rest of the batch.
 """
 
 import base64
+import json
 
 from odoo import _, fields, models
+from odoo.exceptions import UserError
 
 from .digitize_client import DIGITIZE_ALLOWED_EXTENSIONS
 
@@ -137,3 +139,39 @@ class DigitizeBatchLine(models.TransientModel):
             'filename': payload_filename(self.filename, self.image),
             'document_type': document_type or 'auto',
         }
+
+    def action_apply_line_to_invoice(self):
+        """Abre Factura Física Rápida con los datos de esta fila (spec 007-D).
+
+        Read-only: no ``create``/``write``/``sudo``. The mapping itself is
+        delegated to the wizard helper so the single and batch flows share
+        one contract (RF-D-05).
+        """
+        self.ensure_one()
+
+        if self.status == 'pending':
+            raise UserError(_("Analice el recibo antes de usar los datos."))
+        if self.status != 'done':
+            raise UserError(
+                _(
+                    "El recibo tiene un error de an\xe1lisis. "
+                    "Corr\xedjalo o reanal\xedcelo antes de usar los datos."
+                )
+            )
+
+        try:
+            data = json.loads(self.result_json or '')
+        except (TypeError, ValueError):
+            data = None
+
+        extracted = data.get('extracted') if isinstance(data, dict) else None
+        if not isinstance(extracted, dict) or not extracted:
+            raise UserError(
+                _("El recibo no tiene datos analizados. Vuelva a analizarlo.")
+            )
+
+        return self.wizard_id._build_apply_to_invoice_action(
+            extracted,
+            document_type=data.get('document_type'),
+            confidence=data.get('confidence'),
+        )

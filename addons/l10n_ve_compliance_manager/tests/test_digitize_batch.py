@@ -11,6 +11,7 @@ from .test_digitize_wizard import (
     DIGITIZE_URL,
     VALID_RESPONSE,
     DigitizeTestMixin,
+    _load_fixture,
     _make_response,
 )
 
@@ -71,6 +72,14 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
                 self._patch_session('sid-batch'):
             wizard.action_digitize_batch()
         return mock_post
+
+    def _analyzed_batch(self, rows=1, payload=None):
+        """Lote ya analizado con la respuesta realista del fixture (cero red)."""
+        wizard = self._batch_wizard(rows=rows)
+        self._run_batch(
+            wizard, return_value=_make_response(200, payload or _load_fixture())
+        )
+        return wizard
 
     # ------------------------------------------------------------------
     # 1-15
@@ -423,3 +432,74 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         self.assertEqual([row['id'] for row in data], lines.ids)
         self.assertEqual([row['status'] for row in data], ['pending', 'pending'])
         self.assertEqual(data[0]['filename'], 'recibo-01.jpg')
+
+    # ------------------------------------------------------------------
+    # 22-25: Usar datos por fila (spec 007-D)
+    # ------------------------------------------------------------------
+    def test_batch_line_apply_to_invoice_done(self):
+        """Fila Analizado -> acción del wizard físico con defaults del fixture."""
+        wizard = self._analyzed_batch()
+        line = self._lines(wizard)[0]
+
+        action = line.action_apply_line_to_invoice()
+
+        self.assertEqual(action['type'], 'ir.actions.act_window')
+        self.assertEqual(action['name'], 'Factura Física Rápida')
+        self.assertEqual(action['res_model'], 'l10n.ve.physical.invoice.wizard')
+        self.assertEqual(action['target'], 'new')
+        self.assertEqual(action['view_mode'], 'form')
+
+        context = action['context']
+        self.assertEqual(context['default_type'], 'purchase')
+        self.assertEqual(context['default_partner_vat'], 'J-31527189-4')
+        self.assertEqual(context['default_invoice_number'], 'FAC-000123')
+        self.assertEqual(context['default_control_number'], '00-000456')
+        self.assertEqual(context['default_base_general'], 1000.0)
+        self.assertEqual(context['default_physical_total'], 1160.0)
+        self.assertEqual(context['default_digitized_document_type'], 'factura_z')
+        self.assertEqual(context['default_digitize_confidence'], 0.87)
+
+        self.assertEqual(line.status, 'done')
+        self.assertEqual(wizard.state, 'draft')
+
+    def test_batch_line_apply_to_invoice_pending(self):
+        """Fila Pendiente -> UserError sin escribir nada en la fila."""
+        wizard = self._batch_wizard(rows=1)
+        line = self._lines(wizard)[0]
+
+        with self.assertRaises(UserError) as capture:
+            line.action_apply_line_to_invoice()
+
+        self.assertIn('Analice el recibo', str(capture.exception))
+        self.assertEqual(line.status, 'pending')
+        self.assertFalse(line.result_json)
+
+    def test_batch_line_apply_to_invoice_error(self):
+        """Fila con error de análisis -> UserError."""
+        wizard = self._batch_wizard(rows=2)
+
+        self._run_batch(
+            wizard,
+            side_effect=[_make_response(503), _make_response(200, VALID_RESPONSE)],
+        )
+        line = self._lines(wizard)[0]
+        self.assertEqual(line.status, 'error')
+
+        with self.assertRaises(UserError) as capture:
+            line.action_apply_line_to_invoice()
+
+        self.assertIn('error de análisis', str(capture.exception))
+
+    def test_batch_line_apply_to_invoice_without_result_json(self):
+        """result_json ausente/corrupto/sin extracted -> UserError en 5 variantes."""
+        wizard = self._batch_wizard(rows=1)
+        line = self._lines(wizard)[0]
+        variants = (False, 'no-json', '{}', '{"extracted": {}}', '{"extracted": null}')
+
+        for value in variants:
+            with self.subTest(result_json=value), \
+                    self.assertRaises(UserError) as capture:
+                line.write({'status': 'done', 'result_json': value})
+                line.action_apply_line_to_invoice()
+
+            self.assertIn('no tiene datos analizados', str(capture.exception))

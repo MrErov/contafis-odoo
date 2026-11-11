@@ -47,6 +47,9 @@
                                        decoration-success="status == 'done'"
                                        decoration-info="status == 'pending'"
                                        decoration-danger="status == 'error'"/>
+                                <button name="action_apply_line_to_invoice" string="Usar datos"
+                                        type="object" class="btn-link"
+                                        invisible="status != 'done'"/>
                                 <field name="error_message" optional="show"/>
                                 <field name="result_json" column_invisible="True"/>
                             </list>
