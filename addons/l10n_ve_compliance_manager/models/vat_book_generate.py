@@ -205,6 +205,7 @@ class VatBookGenerate(models.Model):
             ],
             'context': {
                 'search_default_group_by_book_type': 1,
+                'allowed_company_ids': (self.company_id | self.env.companies).ids,
             },
         }
 
@@ -223,4 +224,7 @@ class VatBookGenerate(models.Model):
             'res_id': self.id,
             'view_mode': 'form',
             'target': 'new',
+            'context': {
+                'allowed_company_ids': (self.company_id | self.env.companies).ids,
+            },
         }

@@ -44,6 +44,7 @@
                             <group>
                                 <field name="import_type" required="true"/>
                                 <field name="company_id" required="true"
+                                       domain="[('id', 'in', allowed_company_ids)]"
                                        options="{'no_create': True, 'no_open': True}"/>
                                 <field name="mode"/>
                             </group>
