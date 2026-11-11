@@ -104,7 +104,7 @@ Cuando recibe varios recibos de proveedor a la vez, puede analizarlos en un solo
 
 </div>
 
-![Lote de 5 recibos con estado "Analizado"](./assets/screenshots/14-04-lote-analizado.png)
+![Lote de 3 recibos analizados con el botón "Usar datos" en cada fila](./assets/screenshots/14-04-lote-analizado.png)
 
 > **Límites por recibo:** JPG, JPEG, PNG o WebP; máximo **5 MB** por imagen y **20 filas** por lote. Si un recibo supera el límite o el formato no es válido, la fila queda en **Error** y el resto del lote continúa.
 
@@ -149,7 +149,24 @@ El resultado de cada recibo queda guardado **en su propia fila**:
 - El **Estado** indica si se analizó correctamente (**Analizado**) o no (**Error**).
 - Al hacer clic sobre una fila se abre el detalle **Recibos del lote**, con el campo **Resultado (JSON)** que contiene los datos extraídos (proveedor, RIF, número de factura, montos, confianza y advertencias).
 
-> **El lote no crea facturas ni tiene un botón "Usar datos" por fila.** Para pre-rellenar el wizard de *Factura Física Rápida*, digitalice ese recibo en el **modo individual** (sección **Imagen de la factura**) y use **[Usar datos en Factura Física Rápida]** como se explica arriba. Use el lote para clasificar y revisar muchos recibos rápido, y el modo individual para convertirlos en borradores.
+### Crear la factura desde una fila
+
+Cada fila en estado **Analizado** muestra el botón **[Usar datos]**. Al pulsarlo se abre el wizard de *Factura Física Rápida* (sección 04) **pre-rellenado** con los datos de ese recibo: proveedor/RIF, fecha de emisión y vencimiento, número y control de factura, concepto, moneda, total y bases imponibles.
+
+![Factura Física Rápida pre-rellenada desde una fila del lote](./assets/screenshots/14-06-lote-prefill.png)
+
+<div class="step">
+
+1. Pulse **[Usar datos]** en la fila del recibo analizado.
+2. Revise el wizard pre-rellenado y complete lo que falte (centro de costo, analíticas, retenciones).
+3. Pulse **[Crear y Postear]** para crear y postear la factura de proveedor.
+4. La factura aparece en el **Libro de Compras** del período correspondiente a su fecha de emisión.
+
+</div>
+
+> **El botón solo aparece en filas Analizado.** Si la fila está **Pendiente** o en **Error**, primero pulse **[Analizar lote]** o corrija el recibo. El lote **no crea facturas automáticamente**: cada pulsación abre el mismo wizard pre-rellenado del modo individual y usted decide cuándo crear y postear.
+
+> **Confianza baja en el lote:** a diferencia del modo individual, en el lote el botón aparece en cualquier fila **Analizado**, aunque la confianza sea menor a 0.60. Revise las advertencias y los montos antes de crear la factura.
 
 ---
 
@@ -193,7 +210,8 @@ Este disclaimer se muestra **en el resultado del wizard** y también en el chat 
 | Confianza siempre < 0.5 | Foto borrosa, mala luz, documento recortado | Use luz natural, enfoque, encuadre completo, fondo liso |
 | RIF sale inválido pero en la factura está bien | Modelo leyó mal un dígito (p. ej. 8 vs 3) | Corrija el RIF a mano antes de usar los datos |
 | Montos no cuadran | Separador decimal (coma vs punto) o dígito mal leído | Verifique subtotal, IVA, IGTF y total en la imagen original |
-| Botón "Usar datos" no aparece | Confianza < 0.60 | Mejore la calidad de la imagen y vuelva a digitalizar |
+| Botón "Usar datos" no aparece en el modo individual | Confianza < 0.60 | Mejore la calidad de la imagen y vuelva a digitalizar |
+| Botón "Usar datos" no aparece en una fila del lote | La fila está **Pendiente** o en **Error** | Analice el lote o corrija el recibo; el botón solo aparece en filas **Analizado** |
 | Error 503 "Servicio no disponible" | Asistente fiscal caído o NIM timeout | Verifique que `contafis-assistant` esté corriendo; reintente en 1-2 min |
 
 ---
