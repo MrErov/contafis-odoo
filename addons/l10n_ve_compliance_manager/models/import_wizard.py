@@ -1939,8 +1939,15 @@ class ImportWizard(models.TransientModel):
                         ('company_id', '=', self.company_id.id),
                     ], limit=1)
                     values[field_name] = record.id if record else False
+                elif relation_model == 'res.partner' and field_name == 'partner_id':
+                    # Buscar por name restringido a la compañía del wizard (+ compartidos)
+                    record = self.env[relation_model].search([
+                        ('name', '=', value),
+                        ('company_id', 'in', [False, self.company_id.id]),
+                    ], limit=1)
+                    values[field_name] = record.id if record else False
                 elif relation_model and field_name in ('obligation_type_id',
-                                                        'document_type_id', 'partner_id'):
+                                                        'document_type_id'):
                     # Buscar por name (modelos globales, sin filtro de compa??a)
                     record = self.env[relation_model].search([
                         ('name', '=', value)
