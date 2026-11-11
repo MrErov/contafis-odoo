@@ -551,12 +551,16 @@ class DigitizeWizard(models.TransientModel):
             return 'default_base_not_taxed'
         return None
 
-    def _map_extracted_to_invoice_defaults(self, extracted):
+    def _map_extracted_to_invoice_defaults(
+        self, extracted, document_type=None, confidence=None
+    ):
         """Build the ``default_*`` context for the physical invoice wizard.
 
         Pure with respect to writes: no ``create``/``write`` and no ``sudo``.
         ``self.env`` is only used to resolve the currency and an existing
         partner (RF-10/RF-17).
+        ``document_type``/``confidence`` override the wizard's own fields when
+        given (batch lines carry them in ``result_json``, spec 007-D).
         """
         extracted = extracted if isinstance(extracted, dict) else {}
         defaults = {'default_type': self.type}
@@ -636,11 +640,15 @@ class DigitizeWizard(models.TransientModel):
                     if 'default_new_partner_name' not in defaults:
                         defaults['default_new_partner_name'] = partner.name
 
-        # --- T4: propagar tipo documento digitalizado (desde campos del wizard) ---
-        doc_type = (self.detected_document_type or '').strip()
+        # --- T4/007-D: procedencia del tipo documental (kwargs o campos del wizard) ---
+        raw_doc_type = (
+            document_type if document_type is not None else self.detected_document_type
+        )
+        doc_type = str(raw_doc_type or '').strip()
         if doc_type in ('factura_z', 'nota_credito', 'nota_debito'):
             defaults['default_digitized_document_type'] = doc_type
-            defaults['default_digitize_confidence'] = float(self.confidence or 0.0)
+            raw_confidence = confidence if confidence is not None else self.confidence
+            defaults['default_digitize_confidence'] = float(raw_confidence or 0.0)
 
             ref_value = None
             if doc_type == 'nota_credito':
@@ -651,6 +659,26 @@ class DigitizeWizard(models.TransientModel):
                 defaults['default_digitized_document_ref'] = ref_value
 
         return defaults
+
+    def _build_apply_to_invoice_action(
+        self, extracted, document_type=None, confidence=None
+    ):
+        """Contrato único de prellenado del wizard de Factura Física Rápida.
+
+        Compartido por el flujo de imagen única y por el lote (spec 007-D).
+        No valida: cada flujo valida su propia entrada.
+        """
+        defaults = self._map_extracted_to_invoice_defaults(
+            extracted, document_type=document_type, confidence=confidence
+        )
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Factura F\xedsica R\xe1pida'),
+            'res_model': 'l10n.ve.physical.invoice.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': defaults,
+        }
 
     def _build_local_warnings(self, extracted):
         """Local warnings for data the service returned incomplete/invalid.
@@ -818,15 +846,7 @@ class DigitizeWizard(models.TransientModel):
         except (TypeError, ValueError):
             extracted = {}
 
-        defaults = self._map_extracted_to_invoice_defaults(extracted)
-        return {
-            'type': 'ir.actions.act_window',
-            'name': _('Factura F\xedsica R\xe1pida'),
-            'res_model': 'l10n.ve.physical.invoice.wizard',
-            'view_mode': 'form',
-            'target': 'new',
-            'context': defaults,
-        }
+        return self._build_apply_to_invoice_action(extracted)
 
     # ------------------------------------------------------------------
     # Batch processing (spec 007 - plan B)
