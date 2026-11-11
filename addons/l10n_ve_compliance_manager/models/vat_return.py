@@ -255,6 +255,9 @@ class VatReturn(models.Model):
                 ('period_month', '=', self.period_month),
                 ('company_id', '=', self.company_id.id),
             ],
+            'context': {
+                'allowed_company_ids': (self.company_id | self.env.companies).ids,
+            },
         }
 
     def action_export_99030_xlsx(self):

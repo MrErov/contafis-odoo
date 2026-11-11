@@ -9,6 +9,37 @@ from odoo.tools.translate import _
 
 from .vat_book_headers import VAT_BOOK_HEADER_MAP
 
+# Clave de búsqueda para resolver Many2one desde texto.
+# company: 'shared' -> [False, company]; 'exact' -> sólo company;
+# None -> modelo global (sin filtro de compañía).
+M2O_LOOKUPS = {
+    'res.partner': {
+        'search_by': ('name', 'vat'),
+        'company': 'shared',
+    },
+    'l10n.ve.compliance.client': {
+        'search_by': ('name', 'rif'),
+        'company': 'exact',
+    },
+    'res.currency': {
+        'search_by': ('name',),
+        'company': None,
+    },
+    'account.move': {
+        'search_by': ('name', 'ref'),
+        'company': 'exact',
+        'extra_domain': [('move_type', '=', 'in_invoice')],
+    },
+    'l10n.ve.obligation.type': {
+        'search_by': ('name',),
+        'company': None,
+    },
+    'l10n.ve.document.type': {
+        'search_by': ('name',),
+        'company': None,
+    },
+}
+
 
 class ImportWizard(models.TransientModel):
     _name = 'l10n.ve.import.wizard'
@@ -1868,6 +1899,7 @@ class ImportWizard(models.TransientModel):
             model_name = 'l10n.ve.obligation'
             unique_domain = [
                 ('client_id', '=', client_id),
+                ('client_id.company_id', '=', self.company_id.id),
                 ('obligation_type_id', '=', obligation_type_id),
                 ('period', '=', period),
             ]
@@ -1880,6 +1912,7 @@ class ImportWizard(models.TransientModel):
             model_name = 'l10n.ve.document'
             unique_domain = [
                 ('client_id', '=', client_id),
+                ('client_id.company_id', '=', self.company_id.id),
                 ('document_type_id', '=', document_type_id),
                 ('number', '=', number),
             ]
@@ -1897,7 +1930,7 @@ class ImportWizard(models.TransientModel):
         elif import_type == 'retention':
             invoice_id = values.get('invoice_id')
             partner_id = values.get('partner_id')
-            model_name = 'l10n.ve.retention'
+            model_name = 'l10n.retention'
             unique_domain = [
                 ('invoice_id', '=', invoice_id),
                 ('partner_id', '=', partner_id),
@@ -1905,6 +1938,32 @@ class ImportWizard(models.TransientModel):
             return model_name, unique_domain
 
         return 'l10n.ve.import.wizard', []
+
+    def _resolve_many2one(self, relation_model, field_name, value):
+        """Resuelve un Many2one desde texto.
+
+        Retorna el id (int) si lo encuentra, False si lo buscó y no existe,
+        y None si la relación no está soportada (comportamiento legacy).
+        """
+        spec = M2O_LOOKUPS.get(relation_model)
+        if not spec:
+            return None
+        company = self.company_id or self.env.company
+        domain = list(spec.get('extra_domain') or [])
+        if spec.get('company') == 'shared':
+            domain.append(('company_id', 'in', [False, company.id]))
+        elif spec.get('company') == 'exact':
+            domain.append(('company_id', '=', company.id))
+        keys = spec['search_by']
+        if field_name in keys:
+            keys = (field_name,) + tuple(key for key in keys if key != field_name)
+        for key in keys:
+            record = self.env[relation_model].search(
+                domain + [(key, '=', value)], limit=1,
+            )
+            if record:
+                return record.id
+        return False
 
     def _resolve_values(self, line):
         """
@@ -1924,37 +1983,28 @@ class ImportWizard(models.TransientModel):
 
             # Resolver Many2one: buscar ID por dominio si viene valor de texto
             if m.field_type == 'many2one' and value:
-                relation_model = m.relation_model
-                if relation_model == 'res.partner' and field_name in ('vat', 'rif'):
-                    # Buscar partner por RIF o VAT, filtrando por compa??a del wizard
-                    partner = self.env['res.partner'].search([
-                        '|', ('vat', '=', value), ('rif', '=', value),
-                        ('company_id', 'in', [False, self.company_id.id]),
-                    ], limit=1)
-                    values[field_name] = partner.id if partner else False
-                elif relation_model == 'l10n.ve.compliance.client' and field_name == 'client_id':
-                    # Buscar cliente por name filtrando por compa??a del wizard
-                    record = self.env[relation_model].search([
-                        ('name', '=', value),
-                        ('company_id', '=', self.company_id.id),
-                    ], limit=1)
-                    values[field_name] = record.id if record else False
-                elif relation_model == 'res.partner' and field_name == 'partner_id':
-                    # Buscar por name restringido a la compañía del wizard (+ compartidos)
-                    record = self.env[relation_model].search([
-                        ('name', '=', value),
-                        ('company_id', 'in', [False, self.company_id.id]),
-                    ], limit=1)
-                    values[field_name] = record.id if record else False
-                elif relation_model and field_name in ('obligation_type_id',
-                                                        'document_type_id'):
-                    # Buscar por name (modelos globales, sin filtro de compa??a)
-                    record = self.env[relation_model].search([
-                        ('name', '=', value)
-                    ], limit=1)
-                    values[field_name] = record.id if record else False
-                else:
+                if isinstance(value, int) and not isinstance(value, bool):
                     values[field_name] = value
+                    continue
+                resolved = self._resolve_many2one(
+                    m.relation_model, field_name, value,
+                )
+                if resolved is None:
+                    # Relación no soportada: mantener comportamiento legacy.
+                    values[field_name] = value
+                elif resolved is False:
+                    raise UserError(_(
+                        "No se encontró '%(value)s' para el campo '%(field)s' "
+                        "(%(label)s) del modelo %(model)s en la compañía %(company)s."
+                    ) % {
+                        'value': value,
+                        'field': field_name,
+                        'label': m.col_name,
+                        'model': m.relation_model,
+                        'company': self.company_id.name,
+                    })
+                else:
+                    values[field_name] = resolved
             else:
                 values[field_name] = value
 
@@ -2128,4 +2178,7 @@ class ImportWizard(models.TransientModel):
             'res_id': self.id,
             'view_mode': 'form',
             'target': 'new',
+            'context': {
+                'allowed_company_ids': (self.company_id | self.env.companies).ids,
+            },
         }

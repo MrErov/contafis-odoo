@@ -102,11 +102,10 @@ class ImportLine(models.TransientModel):
         Valida nivel 2 (referencial): que los registros Many2one referenciados
         existan en la BD. Se ejecuta después de _validate_syntax().
 
-        Por cada mapping_id del wizard:
-        - field_name == 'client_id': buscar l10n.ve.compliance.client por rif
-        - field_name == 'obligation_type_id': buscar l10n.ve.obligation.type por name
-        - field_name == 'document_type_id': buscar l10n.ve.document.type por name
-        - field_name == 'partner_id': buscar res.partner por vat o rif
+        Por cada mapping_id del wizard delega en el resolver del wizard
+        (ImportWizard._resolve_many2one), que busca por nombre/RIF/VAT dentro
+        de la compañía del wizard (o del ámbito global del modelo). Así la
+        validación acepta exactamente las mismas referencias que el import.
 
         Si no encuentra el registro, añade a self.error_msg:
           "Referencia no encontrada: {field_name}={valor}"
@@ -131,36 +130,25 @@ class ImportLine(models.TransientModel):
                 continue
 
             field_name = m.field_name
-            relation_model = m.relation_model
 
-            record = None
-            record = None
-            wizard_company_id = self.wizard_id.company_id.id if self.wizard_id else False
-            if field_name == 'client_id' and relation_model == 'l10n.ve.compliance.client':
-                # Buscar por RIF en la compa??a del wizard
-                record = self.env['l10n.ve.compliance.client'].search([
-                    ('rif', '=', value),
-                    ('company_id', '=', wizard_company_id),
-                ], limit=1)
-            elif field_name == 'obligation_type_id' and relation_model == 'l10n.ve.obligation.type':
-                # Buscar por name
-                record = self.env['l10n.ve.obligation.type'].search([
-                    ('name', '=', value)
-                ], limit=1)
-            elif field_name == 'document_type_id' and relation_model == 'l10n.ve.document.type':
-                # Buscar por name
-                record = self.env['l10n.ve.document.type'].search([
-                    ('name', '=', value)
-                ], limit=1)
-            elif field_name == 'partner_id' and relation_model == 'res.partner':
-                # Buscar por RIF o VAT, filtrando por compa??a del wizard
-                record = self.env['res.partner'].search([
-                    '|', ('vat', '=', value), ('rif', '=', value),
-                    ('company_id', 'in', [False, wizard_company_id]),
-                ], limit=1)
+            model_name, _domain = wizard._get_import_target(self, {})
+            target_field = self.env[model_name]._fields.get(field_name)
+            relation_model = (
+                target_field.comodel_name
+                if target_field is not None and target_field.type == 'many2one'
+                else m.relation_model
+            )
 
-            if not record:
-                errors.append(f"Referencia no encontrada: {m.col_name} ({m.field_name}) = '{value}' en {relation_model}")
+            if relation_model:
+                resolved = wizard._resolve_many2one(
+                    relation_model, field_name, value,
+                )
+                if resolved is False:
+                    errors.append(
+                        f"Referencia no encontrada: {m.col_name} "
+                        f"({field_name}) = '{value}' en {relation_model}"
+                    )
+                # resolved is None -> relación no soportada: no se inventa error
 
         if errors:
             self.write({'state': 'error', 'error_msg': '; '.join(errors)})
