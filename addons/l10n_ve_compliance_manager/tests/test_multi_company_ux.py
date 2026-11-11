@@ -462,6 +462,124 @@ class TestMultiCompanyUx(TransactionCase):
         self.assertTrue(result)
         self.assertNotEqual(line.state, 'error')
 
+    def test_retention_service_propagates_move_company(self):
+        """generate_retentions debe asignar company_id del move, no del contexto."""
+        partner_b = self.env['res.partner'].with_company(self.company_b).create({
+            'name': 'Proveedor B Svc', 'vat': 'V-33333333-3',
+            'company_id': self.company_b.id,
+        })
+        journal_b = self._purchase_journal(self.company_b, 'UXPS', 'Compras Svc B')
+        # Move sin líneas (amount_untaxed=0), suficiente para probar company_id
+        move_b = self.env['account.move'].with_company(self.company_b).create({
+            'move_type': 'in_invoice', 'partner_id': partner_b.id,
+            'journal_id': journal_b.id,
+            'invoice_date': '2031-06-01', 'date': '2031-06-01',
+        })
+        move_b.write({'name': 'UXD-BILL-SVC-001'})
+
+        # Secuencia de retención para compañía B (necesaria para el default de name)
+        self.env['ir.sequence'].with_company(self.company_b).create({
+            'name': 'Retención B', 'code': 'l10n.retention',
+            'company_id': self.company_b.id,
+            'prefix': 'RET-B-%(year)s-', 'padding': 4, 'number_next': 1,
+        })
+
+        # Monkey-patch calculate_amounts para devolver montos no cero
+        RetentionService = self.env['l10n.ve.retention.service'].__class__
+        original_calculate = RetentionService.calculate_amounts
+
+        def fake_calculate(self, move):
+            return {'islr': 30.0, 'iva': 75.0, 'igtf': 0.0}
+
+        RetentionService.calculate_amounts = fake_calculate
+        try:
+            # Ejecutar el servicio en contexto de compañía A, sobre un move de B
+            service = self.env['l10n.ve.retention.service'].with_company(self.company_a)
+            retentions = service.generate_retentions(move_b)
+            self.assertTrue(retentions, 'Debe generar retenciones para el move de B')
+            for r in retentions:
+                self.assertEqual(r.company_id, self.company_b,
+                    f'Retención {r.id} debe tener company_id de B (move), no de A (contexto)')
+                self.assertEqual(r.invoice_id, move_b)
+        finally:
+            RetentionService.calculate_amounts = original_calculate
+        # Configurar tasas de retención para que generate_retentions cree registros
+        self.env['l10n.ve.obligation.type'].create({
+            'name': 'ISLR Compra', 'tax_type': 'islr',
+            'base_calculation': 'purchase', 'rate': 3.0,
+        })
+        self.env['l10n.ve.obligation.type'].create({
+            'name': 'IVA Compra', 'tax_type': 'iva',
+            'base_calculation': 'purchase', 'rate': 75.0,
+        })
+        # Ejecutar el servicio en contexto de compañía A, sobre un move de B
+        service = self.env['l10n.ve.retention.service'].with_company(self.company_a)
+        retentions = service.generate_retentions(move_b)
+        self.assertTrue(retentions, 'Debe generar retenciones para el move de B')
+        for r in retentions:
+            self.assertEqual(r.company_id, self.company_b,
+                f'Retención {r.id} debe tener company_id de B (move), no de A (contexto)')
+            self.assertEqual(r.invoice_id, move_b)
+
+    def test_move_resolution_posted_without_partner_fails(self):
+        """account.move posted SIN partner no debe resolverse para retención."""
+        journal_b = self._purchase_journal(self.company_b, 'UXPN', 'Compras Neg B')
+        move = self.env['account.move'].with_company(self.company_b).create({
+            'move_type': 'in_invoice', 'journal_id': journal_b.id,
+            'partner_id': False, 'ref': 'MOVE-POSTED-NOPARTNER',
+            'invoice_date': '2031-06-01', 'date': '2031-06-01',
+        })
+        move.write({'state': 'posted'})
+        wizard = self._create_wizard('retention', self.company_b)
+        self._map(wizard, 'invoice_id', 'many2one', 'account.move')
+        line = self._line(wizard, {'invoice_id': 'MOVE-POSTED-NOPARTNER'})
+        with self.assertRaises(UserError):
+            wizard.with_company(self.company_b)._resolve_values(line)
+
+    def test_move_resolution_draft_with_partner_fails(self):
+        """account.move draft CON partner no debe resolverse para retención."""
+        partner_b = self.env['res.partner'].with_company(self.company_b).create({
+            'name': 'Proveedor B Draft', 'vat': 'V-44444444-4',
+            'company_id': self.company_b.id,
+        })
+        journal_b = self._purchase_journal(self.company_b, 'UXPD', 'Compras Draft B')
+        self.env['account.move'].with_company(self.company_b).create({
+            'move_type': 'in_invoice', 'journal_id': journal_b.id,
+            'partner_id': partner_b.id, 'ref': 'MOVE-DRAFT-WITHPARTNER',
+            'invoice_date': '2031-06-01', 'date': '2031-06-01',
+        })
+        # no action_post, queda en draft
+        wizard = self._create_wizard('retention', self.company_b)
+        self._map(wizard, 'invoice_id', 'many2one', 'account.move')
+        line = self._line(wizard, {'invoice_id': 'MOVE-DRAFT-WITHPARTNER'})
+        with self.assertRaises(UserError):
+            wizard.with_company(self.company_b)._resolve_values(line)
+
+    def test_retention_sequence_isolation_bidirectional(self):
+        """La compañía de la retención debe ser la del contexto de creación."""
+        partner_a = self.env['res.partner'].with_company(self.company_a).create({
+            'name': 'Proveedor A Seq', 'vat': 'V-55555555-5',
+            'company_id': self.company_a.id,
+        })
+        partner_b = self.env['res.partner'].with_company(self.company_b).create({
+            'name': 'Proveedor B Seq', 'vat': 'V-66666666-6',
+            'company_id': self.company_b.id,
+        })
+        # name explícito para evitar el default de next_by_code (frágil con múltiples secuencias)
+        r_a = self.env['l10n.retention'].with_company(self.company_a).create({
+            'name': 'RET-A-TEST-001',
+            'partner_id': partner_a.id, 'amount': 100.0, 'date': '2031-06-15',
+        })
+        r_b = self.env['l10n.retention'].with_company(self.company_b).create({
+            'name': 'RET-B-TEST-002',
+            'partner_id': partner_b.id, 'amount': 200.0, 'date': '2031-06-15',
+        })
+        self.assertEqual(r_a.company_id, self.company_a,
+            'Retención creada en A debe tener company_id de A')
+        self.assertEqual(r_b.company_id, self.company_b,
+            'Retención creada en B debe tener company_id de B')
+        self.assertNotEqual(r_a.company_id, r_b.company_id)
+
 
 @tagged('post_install', '-at_install')
 class TestWizardCompanyFieldDomains(TransactionCase):

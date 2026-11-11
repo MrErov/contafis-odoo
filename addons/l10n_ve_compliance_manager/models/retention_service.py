@@ -41,6 +41,7 @@ class L10nVeRetentionService(models.AbstractModel):
         Idempotente: no duplica si ya existen retenciones para el mismo move."""
         if move.move_type != 'in_invoice':
             return self.env['l10n.retention']
+        self = self.with_company(move.company_id)
         amounts = self.calculate_amounts(move)
         today = fields.Date.today()
         existing = move.retention_ids
@@ -51,6 +52,7 @@ class L10nVeRetentionService(models.AbstractModel):
             amount = amounts.get(tax_type, 0.0)
             if amount:
                 vals_list.append({
+                    'company_id': move.company_id.id,
                     'partner_id': move.partner_id.id,
                     'amount': amount,
                     'currency_id': move.currency_id.id,
