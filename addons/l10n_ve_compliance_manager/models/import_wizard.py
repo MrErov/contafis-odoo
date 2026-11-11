@@ -28,7 +28,11 @@ M2O_LOOKUPS = {
     'account.move': {
         'search_by': ('name', 'ref'),
         'company': 'exact',
-        'extra_domain': [('move_type', '=', 'in_invoice')],
+        'extra_domain': [
+            ('move_type', '=', 'in_invoice'),
+            ('state', '=', 'posted'),
+            ('partner_id', '!=', False),
+        ],
     },
     'l10n.ve.obligation.type': {
         'search_by': ('name',),
