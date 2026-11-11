@@ -27,6 +27,12 @@ class DigitizeWizard(models.TransientModel):
         required=True,
         default='purchase',
     )
+    company_id = fields.Many2one(
+        'res.company',
+        string='Compa??a',
+        default=lambda self: self.env.company,
+        required=True,
+    )
     document_type_hint = fields.Selection(
         [
             ('auto', 'Autom\xe1tico'),
@@ -591,13 +597,13 @@ class DigitizeWizard(models.TransientModel):
 
         currency_code = str(extracted.get('currency') or '').strip().upper()
         if currency_code == 'VES':
-            defaults['default_currency_id'] = self.env.company.currency_id.id
+            defaults['default_currency_id'] = self.company_id.currency_id.id
         elif currency_code == 'USD':
             usd = self.env['res.currency'].search(
                 [('name', '=', 'USD'), ('active', 'in', [True, False])], limit=1
             )
             defaults['default_currency_id'] = (
-                usd.id if usd else self.env.company.currency_id.id
+                usd.id if usd else self.company_id.currency_id.id
             )
 
         subtotal = self._coerce_float(extracted.get('subtotal'))
@@ -631,7 +637,7 @@ class DigitizeWizard(models.TransientModel):
                         '|',
                         ('vat', '=', rif),
                         ('vat', '=', rif_clean),
-                        ('company_id', 'in', [False, self.env.company.id]),
+                        ('company_id', 'in', [False, self.company_id.id]),
                     ],
                     limit=1,
                 )
@@ -657,6 +663,8 @@ class DigitizeWizard(models.TransientModel):
                 ref_value = extracted.get('debit_note_ref')
             if ref_value:
                 defaults['default_digitized_document_ref'] = ref_value
+
+        defaults['default_company_id'] = self.company_id.id
 
         return defaults
 
