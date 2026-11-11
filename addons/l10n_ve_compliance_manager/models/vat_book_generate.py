@@ -51,6 +51,7 @@ class VatBookGenerate(models.Model):
     def action_load_moves(self):
         """Carga facturas del período y compañía seleccionados."""
         self.ensure_one()
+        self = self.with_company(self.company_id)
 
         domain = [
             ('company_id', '=', self.company_id.id),
@@ -161,6 +162,7 @@ class VatBookGenerate(models.Model):
     def action_generate(self):
         """Genera las líneas del libro desde las facturas detectadas."""
         self.ensure_one()
+        self = self.with_company(self.company_id)
 
         if not self.move_ids:
             raise UserError(_('No hay facturas cargadas. Ejecute "Cargar Facturas" primero.'))
@@ -209,6 +211,7 @@ class VatBookGenerate(models.Model):
     def action_reset(self):
         """Reinicia el wizard."""
         self.ensure_one()
+        self = self.with_company(self.company_id)
         self.line_ids.unlink()
         self.write({
             'move_ids': [(5, 0, 0)],

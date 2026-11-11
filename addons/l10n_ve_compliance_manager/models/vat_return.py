@@ -108,6 +108,7 @@ class VatReturn(models.Model):
     def action_load_from_book(self):
         """Carga los ítems desde las líneas del libro de compras/ventas del período."""
         self.ensure_one()
+        self = self.with_company(self.company_id)
 
         BookLine = self.env['l10n.ve.vat.book.line']
         domain = [
@@ -236,6 +237,7 @@ class VatReturn(models.Model):
     def action_calculate(self):
         """Recalcula todos los agregados y autoliquidación."""
         self.ensure_one()
+        self = self.with_company(self.company_id)
         self._compute_aggregates()
         self._compute_excedente_arrastre()
         self.state = 'calculated'
