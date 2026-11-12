@@ -27,6 +27,11 @@ class PhysicalInvoiceWizard(models.TransientModel):
     partner_vat = fields.Char(string='RIF', required=True)
     partner_id = fields.Many2one('res.partner', string='Proveedor/Cliente', readonly=True)
     partner_name = fields.Char(related='partner_id.name', string='Razón Social', readonly=True)
+    rif_invalid = fields.Boolean(
+        string='RIF inválido',
+        compute='_compute_rif_invalid',
+        help='El RIF no supera la validación del dígito de control del SENIAT.',
+    )
 
     # Nuevo partner (se muestra si no existe)
     new_partner_name = fields.Char(string='Razón Social (nuevo)')
@@ -124,16 +129,22 @@ class PhysicalInvoiceWizard(models.TransientModel):
                                   rec.base_not_subject + rec.base_not_taxed + rec.base_no_credit +
                                   rec.vat_general + rec.vat_reduced + rec.vat_additional + rec.vat_no_credit)
 
+    @api.depends('partner_vat')
+    def _compute_rif_invalid(self):
+        for rec in self:
+            rec.rif_invalid = bool(rec.partner_vat) and not rec._validate_rif_module_11(rec.partner_vat)
+
     @api.onchange('partner_vat')
     def _onchange_partner_vat(self):
-        """Valida RIF y busca/crea partner."""
+        """Busca/crea partner y advierte si el RIF no es válido.
+
+        No bloquea la edición: una factura física real puede traer un RIF mal
+        impreso o mal extraído por la IA. La validación estricta se mantiene en
+        ``action_create_and_post`` para no publicar datos fiscales inválidos.
+        """
         if not self.partner_vat:
             self.partner_id = False
             return
-
-        # Validar RIF módulo 11
-        if not self._validate_rif_module_11(self.partner_vat):
-            raise ValidationError(_('RIF inválido (dígito de control incorrecto)'))
 
         # Buscar partner por RIF (case-insensitive, sin guiones) filtrando por compañía activa
         rif_clean = self._clean_rif(self.partner_vat)
@@ -316,7 +327,10 @@ class PhysicalInvoiceWizard(models.TransientModel):
 
         # Validar RIF
         if not self._validate_rif_module_11(self.partner_vat):
-            raise ValidationError(_('RIF inválido (dígito de control incorrecto)'))
+            raise ValidationError(_(
+                "El RIF '%s' no es válido según el dígito de control del SENIAT. "
+                "Corríjalo en el campo RIF antes de crear y publicar la factura."
+            ) % self.partner_vat)
 
         # Buscar o crear partner (filtrando por compañía del wizard)
         rif_clean = self._clean_rif(self.partner_vat)
@@ -391,6 +405,8 @@ class PhysicalInvoiceWizard(models.TransientModel):
             'emission_type': self.emission_type,
             'fiscal_machine_serial': self.fiscal_machine_serial,
             'fiscal_machine_report_z': self.fiscal_machine_report_z,
+            'l10n_ve_invoice_number': self.invoice_number,
+            'l10n_ve_control_number': self.control_number,
         })
 
         # Postear

@@ -4,6 +4,13 @@
         <field name="model">l10n.ve.vat.book.line</field>
         <field name="arch" type="xml">
             <list string="Libro de Compras/Ventas" multi_edit="0">
+                <header>
+                    <button name="%(action_l10n_ve_vat_book_export_wizard)d"
+                            type="action"
+                            string="Exportar a Excel"
+                            class="btn-primary"
+                            display="always"/>
+                </header>
                 <field name="book_type" widget="badge"
                        decoration-success="book_type == 'sale'"
                        decoration-info="book_type == 'purchase'"/>

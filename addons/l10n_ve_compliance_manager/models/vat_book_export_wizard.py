@@ -13,6 +13,7 @@ class VatBookExportWizard(models.TransientModel):
     period_month = fields.Char(
         string='Período (YYYY-MM)',
         required=True,
+        default=lambda self: fields.Date.context_today(self).strftime('%Y-%m'),
         help='Formato: 2026-08',
     )
 
@@ -187,6 +188,24 @@ class VatBookExportWizard(models.TransientModel):
         else:
             return self._get_sale_cell_value(line, header)
 
+    def _get_move_document_code(self, line):
+        """Código SENIAT del tipo de documento (01 factura, 03 nota de crédito)."""
+        move = line.account_move_id
+        if not move:
+            return ''
+        if move.move_type in ('in_invoice', 'out_invoice'):
+            return '01'
+        if move.move_type in ('in_refund', 'out_refund'):
+            return '03'
+        return ''
+
+    def _get_move_date(self, line):
+        """Fecha de emisión de la factura origen en formato venezolano."""
+        move = line.account_move_id
+        if move and move.invoice_date:
+            return move.invoice_date.strftime('%d/%m/%Y')
+        return ''
+
     def _get_purchase_cell_value(self, line, header):
         """Valor para columnas de libro de compras."""
         if header == 'R.I.F.':
@@ -194,13 +213,13 @@ class VatBookExportWizard(models.TransientModel):
         elif header == 'Nombre o Razon Social':
             return line.partner_id.name or ''
         elif header == 'Tipo Doc':
-            return ''  # No existe en modelo
+            return self._get_move_document_code(line)
         elif header == 'Numero de Factura':
             return line.invoice_number or ''
         elif header == 'Numero de Control':
             return line.control_number or ''
         elif header == 'Fecha':
-            return ''  # No existe campo fecha en modelo
+            return self._get_move_date(line)
         elif header == 'Base Alicuota General 16%':
             return line.base_general or 0.0
         elif header == 'I.V.A. Alicuota General 16%':
@@ -229,6 +248,8 @@ class VatBookExportWizard(models.TransientModel):
             return 0.0
         elif header == 'Anticipo IVA (Importación)':
             return 0.0
+        elif header == 'Total c/IVA':
+            return line.total_with_vat or 0.0
         return 0.0
 
     def _get_sale_cell_value(self, line, header):
@@ -238,13 +259,13 @@ class VatBookExportWizard(models.TransientModel):
         elif header == 'Nombre o Razon Social':
             return line.partner_id.name or ''
         elif header == 'Tipo Doc':
-            return ''  # No existe en modelo
+            return self._get_move_document_code(line)
         elif header == 'Numero de Factura':
             return line.invoice_number or ''
         elif header == 'Numero de Control':
             return line.control_number or ''
         elif header == 'Fecha':
-            return ''  # No existe campo fecha en modelo
+            return self._get_move_date(line)
         elif header == 'Ventas internas No sujetas':
             return line.base_not_subject or 0.0
         elif header == 'Ventas internas no gravadas (No Contrib)':
@@ -273,6 +294,8 @@ class VatBookExportWizard(models.TransientModel):
             if line.retention_direction == 'by_buyer':
                 return line.vat_retained or 0.0
             return 0.0
+        elif header == 'Total c/IVA':
+            return line.total_with_vat or 0.0
         return 0.0
 
     def _get_export_headers(self, book_type):
@@ -297,6 +320,7 @@ class VatBookExportWizard(models.TransientModel):
                 'IVA Retenido (al Vendedor)',
                 'IVA Retenido (a Terceros)',
                 'Anticipo IVA (Importación)',
+                'Total c/IVA',
             ]
         else:
             return [
@@ -314,4 +338,5 @@ class VatBookExportWizard(models.TransientModel):
                 'Impuesto IVA (Contrib)',
                 'Nº Comprob. Retención 75% IVA',
                 'Iva Retenido (por comprador)',
+                'Total c/IVA',
             ]
