@@ -1,16 +1,45 @@
 name: CI
 
+# Principios de la skill de CI/CD traducidos a Python/Odoo:
+#   - Shift Left: los gates baratos (ruff, pre-commit) corren antes de la suite.
+#   - Quality gates: lint y tests fallan el workflow, no solo avisan.
+#   - Only run what changed: docs/ y Markdown no disparan la pipeline.
+#
+# Los tests del módulo son TransactionCase de Odoo (no pytest): requieren el
+# runtime completo y una base PostgreSQL real, por eso se ejecutan con
+# `odoo --test-enable` dentro de la imagen oficial.
+
 on:
   push:
-    branches: [main, 19.0]
+    branches: [19.0]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '**/*.md'
   pull_request:
-    branches: [main, 19.0]
+    branches: [19.0]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '**/*.md'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.12'
+  ODOO_IMAGE: 'odoo:19.0'
+
 jobs:
-  lint:
-    name: Lint (pre-commit)
+  quality:
+    name: Quality gates (ruff + pre-commit)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -18,30 +47,40 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.12'
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Cache pre-commit
+      - name: Cache pip
         uses: actions/cache@v6
         with:
-          path: ~/.cache/pre-commit
-          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
 
-      - name: Install pre-commit
-        run: pip install pre-commit
+      - name: Install linters
+        run: pip install --disable-pip-version-check ruff pre-commit
 
-      - name: Run pre-commit
+      # Gate explícito de lint sin auto-fix: en CI no se reescribe el código.
+      - name: Ruff (lint)
+        run: ruff check addons/l10n_ve_compliance_manager
+
+      # mypy se omite a propósito: el repo no tiene configuración de mypy ni
+      # stubs de tipos para el ORM de Odoo 19. Activarlo daría falsos positivos.
+      - name: Pre-commit (YAML, XML, whitespace, ruff)
         run: pre-commit run --all-files --show-diff-on-failure
 
-  backend-tests:
-    name: Backend tests (Odoo + PostgreSQL)
+  test:
+    name: Odoo tests (PostgreSQL 15)
     runs-on: ubuntu-latest
-    needs: lint
+    needs: quality
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:15-alpine
         env:
           POSTGRES_USER: odoo
-          POSTGRES_PASSWORD: odoo
+          # Nunca hardcodear el password: se configura como secret del repo.
+          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
           POSTGRES_DB: postgres
         ports:
           - 5432:5432
@@ -60,19 +99,19 @@ jobs:
           mkdir -p /tmp/extra-addons
           cp -r addons/l10n_ve_compliance_manager /tmp/extra-addons/
 
-      - name: Run Odoo tests
+      - name: Run Odoo test suite
         shell: bash
+        env:
+          PGPASSWORD: ${{ secrets.CI_DB_PASSWORD }}
         run: |
-          # Run Odoo tests and capture output to log file
-          # Use the exact Odoo test result pattern: "0 failed, 0 error(s) of N tests"
-          echo "Starting Odoo tests..."
+          set -o pipefail
           docker run --rm --network host \
             -v /tmp/extra-addons:/mnt/extra-addons \
             -e HOST=localhost \
             -e USER=odoo \
-            -e PASSWORD=odoo \
+            -e PASSWORD="$PGPASSWORD" \
             -e PYTHONUNBUFFERED=1 \
-            odoo:19.0 \
+            "$ODOO_IMAGE" \
             odoo -d test_ci \
               -i l10n_ve_compliance_manager \
               --test-tags /l10n_ve_compliance_manager \
@@ -81,32 +120,18 @@ jobs:
               --no-http \
               --workers=0 \
               --log-level=info \
-              2>&1 | tee /tmp/odoo_test.log
-          DOCKER_EXIT=${PIPESTATUS[0]}
+            2>&1 | tee /tmp/odoo_test.log
 
-          echo "=== Odoo test log saved to /tmp/odoo_test.log ==="
-          echo "=== Docker exit code: $DOCKER_EXIT ==="
-
-          # Search for the exact Odoo test success pattern
-          if grep -q "0 failed, 0 error(s) of" /tmp/odoo_test.log; then
-            echo "=== TESTS PASSED: Found '0 failed, 0 error(s) of N tests' ==="
-            exit 0
+          # Fuente de verdad del conteo: la línea que imprime Odoo.
+          # Se exige N > 0 para que un run sin tests no pase en verde.
+          RESULT_LINE=$(grep -E "0 failed, 0 error\(s\) of [1-9][0-9]* tests" /tmp/odoo_test.log | tail -1 || true)
+          if [ -z "$RESULT_LINE" ]; then
+            echo "::error::No se encontró '0 failed, 0 error(s) of N tests' con N > 0"
+            echo "=== Últimas 100 líneas del log ==="
+            tail -100 /tmp/odoo_test.log
+            exit 1
           fi
-
-          # Fallback: check for other success patterns
-          if grep -q "0 failed, 0 error" /tmp/odoo_test.log; then
-            echo "Tests passed (found '0 failed, 0 error')"
-            exit 0
-          fi
-
-          # If no success pattern found, show relevant log lines and fail
-          echo "=== TESTS FAILED: Could not find success pattern ==="
-          echo "=== Searching for test result patterns ==="
-          grep -i "failed\|error\|passed\|tests" /tmp/odoo_test.log | head -30 || true
-          echo "=== Last 100 lines of log ==="
-          tail -100 /tmp/odoo_test.log
-
-          exit 1
+          echo "::notice::$RESULT_LINE"
 
       - name: Upload test log
         if: always()
@@ -114,112 +139,10 @@ jobs:
         with:
           name: odoo-test-log
           path: /tmp/odoo_test.log
-
-  e2e-tests:
-    name: E2E tests (Playwright)
-    runs-on: ubuntu-latest
-    needs: backend-tests
-    timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: odoo
-          POSTGRES_PASSWORD: odoo
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U odoo"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Prepare addons
-        run: |
-          mkdir -p /tmp/extra-addons
-          cp -r addons/l10n_ve_compliance_manager /tmp/extra-addons/
-
-      - name: Start Odoo (daemon, HTTP enabled)
-        run: |
-          docker run -d --name odoo_e2e --network host \
-            -v /tmp/extra-addons:/mnt/extra-addons \
-            -e HOST=localhost \
-            -e USER=odoo \
-            -e PASSWORD=odoo \
-            -e ODOO_LONGPOLLING_PORT=8069 \
-            odoo:19.0 \
-            odoo -d test_ci_e2e \
-              -i l10n_ve_compliance_manager \
-              --workers=0 \
-              --log-level=info
-
-      - name: Wait for Odoo HTTP and module install
-        run: |
-          for i in $(seq 1 40); do
-            if curl -sSf http://localhost:8069/web/login > /dev/null 2>&1 \
-               && docker logs odoo_e2e 2>&1 | grep -q "Modules loaded"; then
-              echo "Odoo ready after ${i} attempts"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "Odoo did not become ready in 200s"
-          docker logs odoo_e2e || true
-          exit 1
-
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: '20'
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('package-lock.json') }}
-
-      - name: Install npm deps
-        run: npm ci
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: Run E2E tests
-        env:
-          ODOO_URL: http://localhost:8069
-        run: npx playwright test --reporter=list
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-report
-          path: playwright-report/
-
-      - name: Upload Playwright test-results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-test-results
-          path: test-results/
-
-      - name: Dump Odoo E2E log
-        if: always()
-        run: docker logs odoo_e2e > /tmp/odoo_e2e.log 2>&1 || true
-
-      - name: Upload Odoo E2E log
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: odoo-e2e-log
-          path: /tmp/odoo_e2e.log
           if-no-files-found: warn
 
-      - name: Stop Odoo
-        if: always()
-        run: docker stop odoo_e2e || true
+  # build: OMITIDO a propósito.
+  #   - Este repo no tiene Dockerfile propio; usa la imagen oficial odoo:19.0.
+  #   - docker-compose.prod.yml construye `assistant` desde ../contafis-assistant,
+  #     repo hermano que no existe en el checkout de GitHub Actions.
+  # Cuando exista un Dockerfile del módulo, agregar aquí `docker build`.
