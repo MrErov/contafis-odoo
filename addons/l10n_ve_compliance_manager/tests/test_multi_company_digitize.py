@@ -19,6 +19,10 @@ class TestMultiCompanyDigitize(TransactionCase):
 
         # Impuestos y diario de compra para compañía B
         cls.country = cls.env.ref('base.ve')
+        # En BD limpia la compañía principal puede no tener país fiscal VE y
+        # account.move rechaza impuestos con country_id=VE (_validate_taxes_country).
+        cls.company_a.account_fiscal_country_id = cls.country
+        cls.company_b.account_fiscal_country_id = cls.country
         cls.env['account.chart.template'].try_loading('ve', cls.company_b, install_demo=False)
         cls._ensure_vat_taxes(company=cls.company_b, country=cls.country)
 
