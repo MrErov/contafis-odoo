@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/MrErov/contafis-odoo/actions/workflows/ci.yml"><img src="https://github.com/MrErov/contafis-odoo/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Passing"/></a>
-  <img src="https://img.shields.io/badge/Tests-469%20passing-brightgreen?style=flat-square" alt="469 tests passing"/>
+  <img src="https://img.shields.io/badge/Tests-474%20passing-brightgreen?style=flat-square" alt="474 tests passing"/>
   <img src="https://img.shields.io/badge/Odoo-19.0-875A7B?style=flat-square&logo=odoo&logoColor=white" alt="Odoo 19.0"/>
   <img src="https://img.shields.io/badge/License-LGPL--3-blue?style=flat-square" alt="License LGPL-3"/>
   <img src="https://img.shields.io/badge/Release-v1.3.0-orange?style=flat-square" alt="Release v1.3.0"/>
@@ -167,7 +167,7 @@ docker compose run --rm web odoo -d contea \
 
 ## Verificación
 
-**469 tests de backend pasando** (`TransactionCase` y `HttpCase`) + **9 E2E** (Playwright).
+**474 tests de backend pasando** (`TransactionCase` y `HttpCase`) + **9 E2E** (Playwright).
 
 ```bash
 # Backend
