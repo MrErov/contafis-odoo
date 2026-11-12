@@ -83,6 +83,42 @@ class TestVatBookLineSync(TaxGroupMixin, TransactionCase):
         self.assertEqual(field.type, 'char', "l10n_ve_control_number debe ser Char")
         self.assertFalse(field.copy, "l10n_ve_control_number debe tener copy=False")
 
+    def test_account_move_invoice_number_field(self):
+        """account.move expone el número fiscal impreso (Char, copy=False)."""
+        field = self.env['account.move']._fields.get('l10n_ve_invoice_number')
+        self.assertIsNotNone(field, "Campo l10n_ve_invoice_number no existe en account.move")
+        self.assertEqual(field.type, 'char')
+        self.assertFalse(field.copy)
+
+    def test_book_line_uses_fiscal_invoice_number(self):
+        """El libro usa el número fiscal impreso, no el nombre interno de Odoo."""
+        move = self.env['account.move'].create({
+            'move_type': 'in_invoice',
+            'partner_id': self.partner.id,
+            'invoice_date': '2026-08-15',
+            'journal_id': self.journal.id,
+            'l10n_ve_invoice_number': '001-001-00001234',
+            'l10n_ve_control_number': 'CTRL-004',
+            'line_ids': [
+                (0, 0, {
+                    'name': 'Producto Test',
+                    'account_id': self.account_expense.id,
+                    'price_unit': 1000.0,
+                    'quantity': 1.0,
+                    'tax_ids': [(6, 0, [self.tax_general.id])],
+                }),
+            ],
+        })
+
+        move._generate_vat_book_line()
+
+        vbl = self.env['l10n.ve.vat.book.line'].search([
+            ('account_move_id', '=', move.id),
+            ('source', '=', 'odoo_invoice'),
+        ])
+        self.assertEqual(vbl.invoice_number, '001-001-00001234')
+        self.assertEqual(vbl.control_number, 'CTRL-004')
+
     def test_post_invoice_generates_vat_book_line(self):
         """Verifica que _generate_vat_book_line() crea vat.book.line con source='odoo_invoice'."""
         # Crear factura de compra con tax general

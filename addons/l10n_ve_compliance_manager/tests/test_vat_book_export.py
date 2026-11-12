@@ -114,6 +114,7 @@ class TestVatBookExport(TransactionCase):
             'IVA Retenido (al Vendedor)',
             'IVA Retenido (a Terceros)',
             'Anticipo IVA (Importación)',
+            'Total c/IVA',
         ]
         self.assertEqual(headers, expected_headers)
 
@@ -132,6 +133,63 @@ class TestVatBookExport(TransactionCase):
         self.assertEqual(ws.cell(row=total_row, column=9).value, 1200.0)
         # vat_reduced: 16 + 32 + 48 = 96
         self.assertEqual(ws.cell(row=total_row, column=10).value, 96.0)
+
+    def test_export_fills_seniat_date_doc_type_and_total(self):
+        """El XLSX incluye fecha, tipo de documento y total c/IVA."""
+        account = self.env['account.account'].search([
+            ('account_type', '=', 'expense'),
+            ('company_ids', 'in', [self.company.id]),
+        ], limit=1)
+        journal = self.env['account.journal'].search([
+            ('type', '=', 'purchase'),
+            ('company_id', '=', self.company.id),
+        ], limit=1)
+        if not journal:
+            journal = self.env['account.journal'].create({
+                'name': 'Compras Export Test',
+                'code': 'EXPX',
+                'type': 'purchase',
+                'company_id': self.company.id,
+                'default_account_id': account.id if account else False,
+            })
+        move = self.env['account.move'].create({
+            'move_type': 'in_invoice',
+            'partner_id': self.partner.id,
+            'invoice_date': '2026-08-20',
+            'journal_id': journal.id,
+        })
+        self.VatBookLine.create({
+            'book_type': 'purchase',
+            'period_month': '2026-08',
+            'partner_id': self.partner.id,
+            'invoice_number': '001-001-00001234',
+            'control_number': 'CTRL-001',
+            'operation_code': '33',
+            'base_general': 100.0,
+            'vat_general': 16.0,
+            'total_with_vat': 116.0,
+            'account_move_id': move.id,
+            'source': 'odoo_invoice',
+            'company_id': self.company.id,
+        })
+
+        wizard = self.Wizard.create({
+            'period_month': '2026-08',
+            'company_id': self.company.id,
+            'book_type': 'purchase',
+        })
+        wizard.action_export_xlsx()
+        xlsx = base64.b64decode(wizard.template_file)
+        wb, ws = self._read_xlsx(xlsx)
+
+        headers = [ws.cell(row=1, column=c).value for c in range(1, ws.max_column + 1)]
+        total_col = headers.index('Total c/IVA') + 1
+
+        self.assertEqual(ws.cell(row=2, column=3).value, '01')
+        self.assertEqual(ws.cell(row=2, column=6).value, '20/08/2026')
+        self.assertEqual(ws.cell(row=2, column=total_col).value, 116.0)
+        # Fila TOTAL GENERAL
+        self.assertEqual(ws.cell(row=3, column=total_col).value, 116.0)
 
     def test_export_sale_generates_file(self):
         """Export venta genera archivo XLSX válido."""
@@ -169,6 +227,7 @@ class TestVatBookExport(TransactionCase):
             'Impuesto IVA (Contrib)',
             'Nº Comprob. Retención 75% IVA',
             'Iva Retenido (por comprador)',
+            'Total c/IVA',
         ]
         self.assertEqual(headers, expected_headers)
 
@@ -231,7 +290,7 @@ class TestVatBookExport(TransactionCase):
         self.assertEqual(ws.max_row, 2)
         self.assertEqual(ws.cell(row=2, column=1).value, 'TOTAL GENERAL')
         # Todos los totales en 0
-        for col in range(7, 18):  # Columnas numéricas
+        for col in range(7, 20):  # Columnas numéricas (incluye Total c/IVA)
             self.assertEqual(ws.cell(row=2, column=col).value, 0.0)
 
     def test_export_headers_match_import_template(self):
@@ -257,7 +316,7 @@ class TestVatBookExport(TransactionCase):
         import_ws = import_wb.active
         import_headers = [import_ws.cell(row=1, column=c).value for c in range(1, import_ws.max_column + 1)]
 
-        self.assertEqual(export_headers, import_headers)
+        self.assertEqual(export_headers, import_headers + ['Total c/IVA'])
 
     def test_export_sale_headers_match_import_template(self):
         """Headers del export venta son idénticos al template de importación."""
@@ -281,7 +340,7 @@ class TestVatBookExport(TransactionCase):
         import_ws = import_wb.active
         import_headers = [import_ws.cell(row=1, column=c).value for c in range(1, import_ws.max_column + 1)]
 
-        self.assertEqual(export_headers, import_headers)
+        self.assertEqual(export_headers, import_headers + ['Total c/IVA'])
 
     def test_export_action_open_wizard_from_line(self):
         """Botón 'Exportar' en línea abre wizard con período correcto."""

@@ -137,6 +137,14 @@ class DigitizeWizard(models.TransientModel):
         Format: "code: message\n" per warning. Never markup/HTML.
         HTML entities in messages are escaped to prevent XSS.
         """
+        labels = {
+            'low_confidence': _('Baja confianza'),
+            'invalid_rif': _('RIF inválido'),
+            'amount_mismatch': _('Monto no coincide'),
+            'missing_field': _('Dato faltante'),
+            'unknown_document_type': _('Tipo de documento desconocido'),
+            'parsing_error': _('Dato con formato inválido'),
+        }
         for wizard in self:
             text = ''
             if wizard.warnings_json:
@@ -153,7 +161,10 @@ class DigitizeWizard(models.TransientModel):
                         message = w.get('message') or ''
                         # Escape HTML entities to ensure plain text output
                         message = html.escape(message)
-                        if code or message:
+                        label = labels.get(code)
+                        if label:
+                            lines.append(f'{label} — {code}: {message}')
+                        elif code or message:
                             lines.append(f'{code}: {message}')
                     text = '\n'.join(lines) if lines else ''
             wizard.warnings_text = text

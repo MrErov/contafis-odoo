@@ -10,7 +10,7 @@
                     <button name="action_digitize" string="Analizar"
                             type="object" class="btn-primary"
                             invisible="state == 'done' or line_ids"/>
-                    <button name="action_apply_to_invoice" string="Usar datos en Factura Física Rápida"
+                    <button name="action_apply_to_invoice" string="Usar datos"
                             type="object" class="btn-success"
                             invisible="state != 'done' or line_ids"/>
                     <button name="action_digitize" string="Reanalizar"

@@ -6,11 +6,17 @@
         <field name="arch" type="xml">
             <form string="Factura Física Rápida">
                 <header>
-                    <button name="action_create_and_post" string="Crear y Postear"
+                    <button name="action_create_and_post" string="Crear y Publicar"
                             type="object" class="btn-primary"/>
                     <button string="Cancelar" class="btn-secondary" special="cancel"/>
                 </header>
                 <sheet>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="not rif_invalid">
+                        <strong>RIF inválido:</strong>
+                        el dígito de control no coincide con el esperado por el SENIAT.
+                        Corrija el RIF antes de publicar la factura.
+                    </div>
                     <group string="Información General">
                         <group>
                             <field name="type" required="true"/>
