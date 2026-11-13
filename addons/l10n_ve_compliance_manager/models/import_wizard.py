@@ -1,6 +1,7 @@
 import base64
 import json
 import re
+from datetime import date, datetime
 from io import BytesIO
 
 from odoo import api, fields, models
@@ -1321,6 +1322,34 @@ class ImportWizard(models.TransientModel):
             'target': 'new',
         }
 
+    @api.model
+    def _parse_vat_book_date(self, value):
+        """Convierte la fecha del Excel a ``date``.
+
+        Odoo 19 ``fields.Date.to_date`` solo acepta ISO o ``date``/``datetime``.
+        El Excel del contador suele traer ``DD/MM/YYYY``, así que se acepta
+        ese formato como fallback.
+        """
+        if not value:
+            return False
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        text = str(value).strip()
+        try:
+            return fields.Date.to_date(text)
+        except ValueError:
+            pass
+        for fmt in ('%d/%m/%Y', '%d-%m-%Y', '%d/%m/%y'):
+            try:
+                return datetime.strptime(text, fmt).date()
+            except ValueError:
+                continue
+        raise UserError(_(
+            "Fecha inválida '%s'. Use el formato DD/MM/AAAA o AAAA-MM-DD."
+        ) % value)
+
     def _build_vat_book_vals(self, data, book_type, partner_id, operation_code, retention_direction):
         """Construye vals para UNA línea vat.book.line según _rate_type."""
         rate = data.get('_rate_type', 'general')
@@ -1373,6 +1402,8 @@ class ImportWizard(models.TransientModel):
             'book_type': book_type,
             'partner_id': partner_id,
             'invoice_number': data.get('invoice_number') or '',
+            'invoice_date': self._parse_vat_book_date(data.get('invoice_date')),
+            'invoice_type': data.get('invoice_type') or '',
             'control_number': data.get('control_number') or '',
             'operation_code': operation_code,
             'total_with_vat': total_with_vat,
@@ -1385,6 +1416,7 @@ class ImportWizard(models.TransientModel):
             'base_not_taxed': base_not_taxed,
             'base_import_16': base_import_16,
             'vat_import_16': vat_import_16,
+            'anticipo_import': data.get('anticipo_import') or 0.0,
             'retention_number': data.get('retention_number') or '',
             'retention_direction': retention_direction,
         }

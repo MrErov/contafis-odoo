@@ -1,9 +1,24 @@
 import base64
+from datetime import date
 from io import BytesIO
 
 from odoo import fields, models
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
+
+DATE_NUMBER_FORMAT = 'DD/MM/YYYY'
+
+# Columnas que no se suman en TOTAL GENERAL (texto o fecha).
+NON_NUMERIC_HEADERS = frozenset({
+    'R.I.F.',
+    'Nombre o Razon Social',
+    'Tipo Doc',
+    'Numero de Factura',
+    'Numero de Control',
+    'Fecha',
+    'Nº Comprob. Retención 75%',
+    'Nº Comprob. Retención 75% IVA',
+})
 
 
 class VatBookExportWizard(models.TransientModel):
@@ -155,13 +170,20 @@ class VatBookExportWizard(models.TransientModel):
         lines = self.env['l10n.ve.vat.book.line'].search(domain, order='partner_id, invoice_number, operation_code, retention_direction')
 
         row_idx = 2
-        totals = {header: 0.0 for header in headers}
+        totals = {
+            header: 0.0
+            for header in headers
+            if header not in NON_NUMERIC_HEADERS
+        }
 
         for line in lines:
             for col_idx, header in enumerate(headers, 1):
                 value = self._get_cell_value(line, header, book_type)
                 cell = ws.cell(row=row_idx, column=col_idx, value=value)
-                cell.number_format = number_format
+                if isinstance(value, date):
+                    cell.number_format = DATE_NUMBER_FORMAT
+                elif isinstance(value, int | float):
+                    cell.number_format = number_format
                 cell.border = thin_border
                 if isinstance(value, int | float):
                     totals[header] += value
@@ -190,6 +212,8 @@ class VatBookExportWizard(models.TransientModel):
 
     def _get_move_document_code(self, line):
         """Código SENIAT del tipo de documento (01 factura, 03 nota de crédito)."""
+        if line.invoice_type:
+            return line.invoice_type
         move = line.account_move_id
         if not move:
             return ''
@@ -200,11 +224,8 @@ class VatBookExportWizard(models.TransientModel):
         return ''
 
     def _get_move_date(self, line):
-        """Fecha de emisión de la factura origen en formato venezolano."""
-        move = line.account_move_id
-        if move and move.invoice_date:
-            return move.invoice_date.strftime('%d/%m/%Y')
-        return ''
+        """Fecha de emisión de la factura como objeto ``date`` nativo."""
+        return line.invoice_date or (line.account_move_id.invoice_date or None)
 
     def _get_purchase_cell_value(self, line, header):
         """Valor para columnas de libro de compras."""
@@ -233,9 +254,9 @@ class VatBookExportWizard(models.TransientModel):
         elif header == 'Compras sin Derecho a Credito (Nacional)':
             return line.base_no_credit or 0.0
         elif header == 'Base Importación 16%':
-            return 0.0  # Se combina en base_general
+            return line.base_import_16 or 0.0
         elif header == 'I.V.A. de importación 16%':
-            return 0.0  # Se combina en vat_general
+            return line.vat_import_16 or 0.0
         elif header == 'Nº Comprob. Retención 75%':
             return line.retention_number or ''
         elif header == 'IVA Retenido (al Vendedor)':
@@ -247,7 +268,7 @@ class VatBookExportWizard(models.TransientModel):
                 return line.vat_retained or 0.0
             return 0.0
         elif header == 'Anticipo IVA (Importación)':
-            return 0.0
+            return line.anticipo_import or 0.0
         elif header == 'Total c/IVA':
             return line.total_with_vat or 0.0
         return 0.0

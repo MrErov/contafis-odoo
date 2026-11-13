@@ -30,6 +30,17 @@ class VatBookLine(models.Model):
         required=True,
     )
 
+    invoice_date = fields.Date(
+        string='Fecha de Factura',
+        index=True,
+        help='Fecha de emisión de la factura. Se conserva para el export y la reimportación.',
+    )
+
+    invoice_type = fields.Char(
+        string='Tipo de Documento SENIAT',
+        help='01 Factura, 03 Nota de Crédito. Se completa desde la factura o el Excel.',
+    )
+
     control_number = fields.Char(
         string='Número de Control SENIAT',
     )
@@ -61,6 +72,11 @@ class VatBookLine(models.Model):
 
     vat_import_16 = fields.Float(
         string='IVA Importación 16%',
+        digits='Account',
+    )
+
+    anticipo_import = fields.Float(
+        string='Anticipo IVA Importación',
         digits='Account',
     )
 
@@ -227,6 +243,8 @@ class VatBookLine(models.Model):
             'period_month': move.invoice_date.strftime('%Y-%m') if move.invoice_date else fields.Date.today().strftime('%Y-%m'),
             'partner_id': move.partner_id.id,
             'invoice_number': move.name or '',
+            'invoice_date': move.invoice_date or False,
+            'invoice_type': '03' if move.move_type in ('in_refund', 'out_refund') else '01',
             'control_number': move.ref or move.name or '',
             'operation_code': op_code,
             'total_with_vat': sign * (amounts['base_general'] + amounts['vat_general'] + amounts['base_reduced'] + amounts['vat_reduced'] + amounts['base_not_taxed']),
