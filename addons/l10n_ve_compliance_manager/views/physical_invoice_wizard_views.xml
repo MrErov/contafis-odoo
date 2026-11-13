@@ -116,6 +116,7 @@
 
     <!-- Wizard Action -->
     <record id="action_l10n_ve_physical_invoice_wizard" model="ir.actions.act_window">
+        <field name="path">ve-physical-invoice</field>
         <field name="name">Factura Física Rápida</field>
         <field name="res_model">l10n.ve.physical.invoice.wizard</field>
         <field name="view_mode">form</field>

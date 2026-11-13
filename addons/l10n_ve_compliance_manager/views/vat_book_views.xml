@@ -136,6 +136,7 @@
     </record>
 
     <record id="action_l10n_ve_vat_book_line" model="ir.actions.act_window">
+        <field name="path">ve-vat-book</field>
         <field name="name">Libro de Compras/Ventas</field>
         <field name="res_model">l10n.ve.vat.book.line</field>
         <field name="view_mode">list,form,pivot</field>

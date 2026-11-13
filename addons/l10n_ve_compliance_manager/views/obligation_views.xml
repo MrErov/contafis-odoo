@@ -155,6 +155,7 @@
     </record>
 
     <record id="action_l10n_ve_obligation" model="ir.actions.act_window">
+        <field name="path">ve-obligations</field>
         <field name="name">Obligaciones</field>
         <field name="res_model">l10n.ve.obligation</field>
         <field name="view_mode">kanban,list,form</field>
@@ -187,6 +188,7 @@
     </record>
 
     <record id="action_l10n_ve_obligation_due_soon" model="ir.actions.act_window">
+        <field name="path">ve-due-soon</field>
         <field name="name">Próximos vencimientos</field>
         <field name="res_model">l10n.ve.obligation</field>
         <field name="view_mode">list,form</field>

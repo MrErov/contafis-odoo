@@ -40,6 +40,7 @@
 
         <!-- Wizard Action - disponible en menú Actions (⚙️) del list/form view -->
         <record id="action_l10n_ve_vat_book_export_wizard" model="ir.actions.act_window">
+            <field name="path">ve-vat-book-export</field>
             <field name="name">Exportar Libro IVA a Excel</field>
             <field name="res_model">l10n.ve.vat.book.export.wizard</field>
             <field name="view_mode">form</field>

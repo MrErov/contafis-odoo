@@ -93,6 +93,7 @@
     </record>
 
     <record id="action_l10n_ve_cartelera_status" model="ir.actions.act_window">
+        <field name="path">ve-fiscal-board</field>
         <field name="name">Snapshots Cartelera Fiscal</field>
         <field name="res_model">l10n.ve.cartelera.status</field>
         <field name="view_mode">list,form</field>

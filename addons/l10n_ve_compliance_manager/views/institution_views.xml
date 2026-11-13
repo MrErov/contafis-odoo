@@ -49,6 +49,7 @@
     </record>
 
     <record id="action_l10n_ve_institution" model="ir.actions.act_window">
+        <field name="path">ve-institutions</field>
         <field name="name">Instituciones</field>
         <field name="res_model">l10n.ve.institution</field>
         <field name="view_mode">list,form</field>

@@ -1,5 +1,6 @@
 from . import (
     test_account_tax,
+    test_action_paths,
     test_cartelera_evidence,
     test_cartelera_status,
     test_chat_history,
