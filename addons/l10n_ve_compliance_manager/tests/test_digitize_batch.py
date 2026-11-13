@@ -50,7 +50,7 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         commands = []
         for index, spec in enumerate(specs):
             row = {
-                'filename': 'recibo-%02d.jpg' % (index + 1),
+                'filename': f'recibo-{index + 1:02d}.jpg',
                 'image': image,
             }
             row.update(spec)

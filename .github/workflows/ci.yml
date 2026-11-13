@@ -58,7 +58,9 @@ jobs:
             pip-${{ runner.os }}-
 
       - name: Install linters
-        run: pip install --disable-pip-version-check ruff pre-commit
+        # Misma versión que .pre-commit-config.yaml (ruff-pre-commit v0.5.7)
+        # para que local y CI apliquen exactamente las mismas reglas.
+        run: pip install --disable-pip-version-check ruff==0.5.7 pre-commit
 
       # Gate explícito de lint sin auto-fix: en CI no se reescribe el código.
       - name: Ruff (lint)
@@ -79,8 +81,9 @@ jobs:
         image: postgres:15-alpine
         env:
           POSTGRES_USER: odoo
-          # Nunca hardcodear el password: se configura como secret del repo.
-          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
+          # DB efímera de CI: password fijo para no depender de secrets
+          # (los PR desde forks no reciben secrets y el servicio no arrancaría).
+          POSTGRES_PASSWORD: "ci_ephemeral_password"
           POSTGRES_DB: postgres
         ports:
           - 5432:5432
@@ -102,7 +105,7 @@ jobs:
       - name: Run Odoo test suite
         shell: bash
         env:
-          PGPASSWORD: ${{ secrets.CI_DB_PASSWORD }}
+          PGPASSWORD: "ci_ephemeral_password"
         run: |
           set -o pipefail
           docker run --rm --network host \

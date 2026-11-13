@@ -36,7 +36,7 @@ jobs:
         image: postgres:15-alpine
         env:
           POSTGRES_USER: odoo
-          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
+          POSTGRES_PASSWORD: "ci_ephemeral_password"
           POSTGRES_DB: postgres
         ports:
           - 5432:5432
@@ -57,7 +57,7 @@ jobs:
 
       - name: Start Odoo (daemon, HTTP enabled)
         env:
-          PGPASSWORD: ${{ secrets.CI_DB_PASSWORD }}
+          PGPASSWORD: "ci_ephemeral_password"
         run: |
           docker run -d --name odoo_e2e --network host \
             -v /tmp/extra-addons:/mnt/extra-addons \
