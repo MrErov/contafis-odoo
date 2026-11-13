@@ -180,13 +180,15 @@ class TestMultiCompanyWizards(TransactionCase):
         wb = openpyxl.load_workbook(BytesIO(xlsx_content))
         ws = wb['COMPRAS']
 
-        # Debe haber: header (fila 1) + 1 dato (fila 2) + total (fila 3) = 3 filas
-        self.assertEqual(ws.max_row, 3, "Excel debe tener header + 1 fila de datos + total")
-        # Verificar que la fila 2 contiene nuestra factura
-        invoice_cell = ws.cell(row=2, column=4)  # columna D = Numero de Factura
+        # Nuevo diseño:
+        # Fila 1: Título, Fila 2: Subtítulo, Fila 3: Vacía, Fila 4: Headers
+        # Fila 5: 1 dato, Fila 6: Vacía, Fila 7: Total = 7 filas
+        self.assertEqual(ws.max_row, 7, "Excel debe tener título, subtítulo, headers, 1 fila de datos, vacía, total")
+        # Verificar que la fila 5 contiene nuestra factura
+        invoice_cell = ws.cell(row=5, column=4)  # columna D = Numero de Factura
         self.assertEqual(invoice_cell.value, 'WIZ-EXP-B-001')
         # Verificar que NO es la fila de total
-        self.assertNotEqual(ws.cell(row=2, column=1).value, 'TOTAL GENERAL')
+        self.assertNotEqual(ws.cell(row=5, column=1).value, 'TOTAL GENERAL')
 
     def test_vat_book_generate_reset_non_active_company(self):
         """Reset del wizard de generación borra líneas de B, con A activa."""
