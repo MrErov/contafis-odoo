@@ -21,6 +21,7 @@ Incluye:
     """,
     'license': 'LGPL-3',
     'depends': ['base', 'account', 'mail', 'l10n_ve'],
+    'external_dependencies': {'python': ['openpyxl']},
     'post_init_hook': 'post_init_hook',
     'data': [
         'security/groups.xml',

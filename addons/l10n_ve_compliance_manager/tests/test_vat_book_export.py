@@ -1,4 +1,5 @@
 import base64
+from datetime import date, datetime
 from io import BytesIO
 
 import openpyxl
@@ -134,6 +135,29 @@ class TestVatBookExport(TransactionCase):
         # vat_reduced: 16 + 32 + 48 = 96
         self.assertEqual(ws.cell(row=total_row, column=10).value, 96.0)
 
+    def test_export_total_row_leaves_text_columns_empty(self):
+        """TOTAL GENERAL no debe escribir 0.00 en columnas de texto."""
+        self._create_vat_book_lines('purchase', 2)
+
+        wizard = self.Wizard.create({
+            'period_month': '2026-08',
+            'company_id': self.company.id,
+            'book_type': 'purchase',
+        })
+        wizard.action_export_xlsx()
+        xlsx = base64.b64decode(wizard.template_file)
+        wb, ws = self._read_xlsx(xlsx)
+
+        total_row = ws.max_row
+        self.assertEqual(ws.cell(row=total_row, column=1).value, 'TOTAL GENERAL')
+        for col in (2, 3, 4, 5, 6, 15):
+            self.assertIsNone(
+                ws.cell(row=total_row, column=col).value,
+                f'La columna {col} es de texto y no debe tener total',
+            )
+        self.assertEqual(ws.cell(row=total_row, column=7).value, 3000.0)
+        self.assertEqual(ws.cell(row=total_row, column=8).value, 480.0)
+
     def test_export_fills_seniat_date_doc_type_and_total(self):
         """El XLSX incluye fecha, tipo de documento y total c/IVA."""
         account = self.env['account.account'].search([
@@ -186,7 +210,12 @@ class TestVatBookExport(TransactionCase):
         total_col = headers.index('Total c/IVA') + 1
 
         self.assertEqual(ws.cell(row=2, column=3).value, '01')
-        self.assertEqual(ws.cell(row=2, column=6).value, '20/08/2026')
+        date_value = ws.cell(row=2, column=6).value
+        self.assertIsInstance(date_value, (date, datetime))
+        if isinstance(date_value, datetime):
+            date_value = date_value.date()
+        self.assertEqual(date_value, date(2026, 8, 20))
+        self.assertEqual(ws.cell(row=2, column=6).number_format, 'DD/MM/YYYY')
         self.assertEqual(ws.cell(row=2, column=total_col).value, 116.0)
         # Fila TOTAL GENERAL
         self.assertEqual(ws.cell(row=3, column=total_col).value, 116.0)
@@ -289,9 +318,13 @@ class TestVatBookExport(TransactionCase):
         # Solo headers (fila 1) + total (fila 2) = 2 filas
         self.assertEqual(ws.max_row, 2)
         self.assertEqual(ws.cell(row=2, column=1).value, 'TOTAL GENERAL')
-        # Todos los totales en 0
-        for col in range(7, 20):  # Columnas numéricas (incluye Total c/IVA)
+        # Columnas numéricas en 0; las de texto quedan vacías
+        numeric_cols = {7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19}
+        text_cols = {2, 3, 4, 5, 6, 15}
+        for col in numeric_cols:
             self.assertEqual(ws.cell(row=2, column=col).value, 0.0)
+        for col in text_cols:
+            self.assertIsNone(ws.cell(row=2, column=col).value)
 
     def test_export_headers_match_import_template(self):
         """Headers del export son idénticos al template de importación."""
