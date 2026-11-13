@@ -127,8 +127,9 @@ class TestExportRegression(TaxGroupMixin, TransactionCase):
 
         # Verificar que la hoja tiene datos
         # Contar filas de datos (excluyendo header y total)
+        # En el nuevo diseño: fila 1=title, fila 2=subtitle, fila 3=vacía, fila 4=headers, fila 5+=datos
         data_rows = 0
-        for row in ws.iter_rows(min_row=2, values_only=True):
+        for row in ws.iter_rows(min_row=5, values_only=True):
             if row[0] is not None and row[0] != 'TOTAL GENERAL':
                 data_rows += 1
 
@@ -137,7 +138,7 @@ class TestExportRegression(TaxGroupMixin, TransactionCase):
 
         # Verificar que la línea odoo_invoice está presente
         found_odoo = False
-        for row in ws.iter_rows(min_row=2, values_only=True):
+        for row in ws.iter_rows(min_row=5, values_only=True):
             if row[3] == 'BILL/2026/09/0002':  # invoice_number
                 found_odoo = True
                 break
@@ -145,14 +146,15 @@ class TestExportRegression(TaxGroupMixin, TransactionCase):
         self.assertTrue(found_odoo, "Línea odoo_invoice no encontrada en export")
 
         # Verificar totales
-        # base_general total = 500 + 1000 + 200 = 1700 (columna 6)
-        # vat_general total = 80 + 160 + 32 = 272 (columna 7)
+        # base_general total = 500 + 1000 + 200 = 1700 (columna 7 en nuevo diseño)
+        # vat_general total = 80 + 160 + 32 = 272 (columna 8 en nuevo diseño)
         total_row = None
-        for row in ws.iter_rows(min_row=2, values_only=True):
+        for row in ws.iter_rows(min_row=5, values_only=True):
             if row[0] == 'TOTAL GENERAL':
                 total_row = row
                 break
 
         self.assertIsNotNone(total_row, "Debe existir fila TOTAL GENERAL")
+        # Columnas: 0=A(TOTAL), 1=B, 2=C, 3=D, 4=E, 5=F(Fecha), 6=G(Base General), 7=H(VAT General)
         self.assertEqual(total_row[6], 1700.0, "Total base_general debe ser 1700")
         self.assertEqual(total_row[7], 272.0, "Total vat_general debe ser 272")
