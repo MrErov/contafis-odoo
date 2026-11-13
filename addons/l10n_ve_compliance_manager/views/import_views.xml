@@ -227,6 +227,7 @@
 
         <!-- Wizard Action -->
         <record id="action_l10n_ve_import_wizard" model="ir.actions.act_window">
+            <field name="path">ve-import-excel</field>
             <field name="name">Importar desde Excel</field>
             <field name="res_model">l10n.ve.import.wizard</field>
             <field name="view_mode">form</field>
@@ -323,6 +324,7 @@
 
         <!-- Log Action -->
         <record id="action_l10n_ve_import_log" model="ir.actions.act_window">
+            <field name="path">ve-import-logs</field>
             <field name="name">Logs de Importación</field>
             <field name="res_model">l10n.ve.import.log</field>
             <field name="view_mode">list,form</field>

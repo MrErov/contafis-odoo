@@ -206,6 +206,7 @@
     </record>
 
     <record id="action_l10n_ve_compliance_client" model="ir.actions.act_window">
+        <field name="path">ve-compliance-clients</field>
         <field name="name">Clientes de Cumplimiento</field>
         <field name="res_model">l10n.ve.compliance.client</field>
         <field name="view_mode">kanban,list,form</field>

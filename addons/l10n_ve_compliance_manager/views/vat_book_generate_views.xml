@@ -26,6 +26,7 @@
     </record>
 
     <record id="action_l10n_ve_vat_book_generate" model="ir.actions.act_window">
+        <field name="path">ve-vat-book-generate</field>
         <field name="name">Generar Libro IVA</field>
         <field name="res_model">l10n.ve.vat.book.generate</field>
         <field name="view_mode">form</field>

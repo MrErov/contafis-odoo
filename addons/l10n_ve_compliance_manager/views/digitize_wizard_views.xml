@@ -116,6 +116,7 @@
     </record>
 
     <record id="action_l10n_ve_digitize_wizard" model="ir.actions.act_window">
+        <field name="path">ve-digitize-invoice</field>
         <field name="name">Digitalizar Factura</field>
         <field name="res_model">l10n.ve.digitize.wizard</field>
         <field name="view_mode">form</field>
