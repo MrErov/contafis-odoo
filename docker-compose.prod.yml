@@ -66,7 +66,11 @@ services:
       - odoo
       - --config=/etc/odoo/odoo.conf
       - --proxy-mode
-      - --workers=${ODOO_WORKERS:-4}
+      - --workers=2
+      - -d
+      - contea
+      - -i
+      - base
     expose:
       - "8069"
       - "8072"
@@ -113,8 +117,6 @@ services:
     restart: unless-stopped
     depends_on:
       odoo:
-        condition: service_healthy
-      chromadb:
         condition: service_healthy
     # El archivo es obligatorio en producción; `required: false` solo permite
     # validar la sintaxis del compose con `docker compose config` sin secretos.
