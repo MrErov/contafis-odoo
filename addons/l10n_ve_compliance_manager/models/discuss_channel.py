@@ -141,8 +141,23 @@ class DiscussChannel(models.Model):
             'Content-Type': 'application/json',
             'X-Odoo-Session': session_id,
         }
+        api_key = (
+            self.env['ir.config_parameter']
+            .sudo()
+            .get_param('l10n_ve_chat.auth_token', '')
+            or ''
+        ).strip()
+        if api_key:
+            headers['X-API-Key'] = api_key
 
-        _logger.info("BOT WEBHOOK - URL: %s, Payload: %s, Headers: %s", webhook_url, payload, headers)
+        # Never log header values: they carry the session id and the shared
+        # secret of the assistant.
+        _logger.info(
+            "BOT WEBHOOK - URL: %s, Payload keys: %s, Header names: %s",
+            webhook_url,
+            sorted(payload),
+            sorted(headers),
+        )
 
         start_time = time.time()
         try:

@@ -10,7 +10,8 @@
                         <setting string="Webhook URL" help="URL del endpoint que recibirá los mensajes (POST JSON).">
                             <field name="l10n_ve_chat_webhook_url" placeholder="https://tu-n8n.com/webhook/contafis"/>
                         </setting>
-                        <setting string="Token de Autenticación" help="Token Bearer opcional.">
+                        <setting string="API key del asistente"
+                                 help="Secreto compartido que Odoo envía en el header X-API-Key (chat y digitalización).">
                             <field name="l10n_ve_chat_auth_token" password="True"/>
                         </setting>
                     </block>

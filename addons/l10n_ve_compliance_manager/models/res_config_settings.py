@@ -10,9 +10,9 @@ class ResConfigSettings(models.TransientModel):
         help="URL del endpoint que recibirá los mensajes (POST JSON). Ej: https://tu-n8n.com/webhook/contafis",
     )
     l10n_ve_chat_auth_token = fields.Char(
-        string="Auth Token",
+        string="API key del asistente",
         config_parameter='l10n_ve_chat.auth_token',
-        help="Token Bearer que se enviará en el header Authorization. Deje vacío si no se requiere autenticación.",
+        help="Secreto compartido entre Odoo y contafis-assistant. Se envía en el header X-API-Key en las llamadas de chat y digitalización. Deje vacío si el asistente no exige autenticación.",
     )
     l10n_ve_digitize_url = fields.Char(
         string="URL del servicio de digitalización",

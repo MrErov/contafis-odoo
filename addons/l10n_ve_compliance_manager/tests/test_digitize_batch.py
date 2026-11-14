@@ -8,6 +8,7 @@ from odoo.exceptions import UserError, ValidationError
 from odoo.tests import TransactionCase, tagged
 
 from .test_digitize_wizard import (
+    API_KEY,
     DIGITIZE_URL,
     VALID_RESPONSE,
     DigitizeTestMixin,
@@ -31,6 +32,7 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         self.config.set_param('l10n_ve_digitize.url', DIGITIZE_URL)
         self.config.set_param('l10n_ve_digitize.timeout_seconds', '30')
         self.config.set_param('l10n_ve_digitize.max_image_mb', '5')
+        self.config.set_param('l10n_ve_chat.auth_token', API_KEY)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -279,6 +281,7 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         self.assertEqual(payloads[1]['document_type'], 'nota_credito')
         headers = mock_post.call_args.kwargs['headers']
         self.assertEqual(headers['X-Odoo-Session'], 'sid-batch')
+        self.assertEqual(headers['X-API-Key'], API_KEY)
 
     def test_batch_merges_local_warnings_in_result_json(self):
         """result_json fusiona warnings del servicio (ganador) con los locales."""
