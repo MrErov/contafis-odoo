@@ -2,7 +2,7 @@ import base64
 from datetime import date
 from io import BytesIO
 
-from odoo import fields, models
+from odoo import api, fields, models
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
@@ -69,7 +69,7 @@ class VatBookExportWizard(models.TransientModel):
     period_month = fields.Char(
         string='Período (YYYY-MM)',
         required=True,
-        default=lambda self: fields.Date.context_today(self).strftime('%Y-%m'),
+        default=lambda self: self._get_default_period_month(),
         help='Formato: 2026-08',
     )
 
@@ -114,6 +114,24 @@ class VatBookExportWizard(models.TransientModel):
                    f'&field=template_file&download=true&filename={filename}',
             'target': 'self',
         }
+
+    @api.model
+    def _get_default_period_month(self):
+        """Período por defecto del wizard de export.
+
+        Regla: el último período que tiene líneas para la compañía activa
+        (y el tipo de libro pedido). Así, el contador que trabaja con datos
+        de 2026-10 no exporta por error el mes actual vacío.
+        Fallback: el mes en curso.
+        """
+        book_type = self.env.context.get('default_book_type') or self.book_type
+        domain = [('company_id', '=', self.env.company.id)]
+        if book_type in ('purchase', 'sale'):
+            domain.append(('book_type', '=', book_type))
+        line = self.env['l10n.ve.vat.book.line'].search(
+            domain, order='period_month desc', limit=1
+        )
+        return line.period_month or fields.Date.context_today(self).strftime('%Y-%m')
 
     def _generate_vat_book_xlsx(self, book_type):
         """Genera Excel para un tipo de libro (purchase o sale)."""
@@ -272,6 +290,11 @@ class VatBookExportWizard(models.TransientModel):
         for line_idx, line in enumerate(lines):
             for col_idx, header in enumerate(headers, 1):
                 value = self._get_cell_value(line, header, book_type)
+                # `''` se serializa como `<c t="inlineStr"></c>` (sin `<is>`),
+                # lo que hace que Excel marque el archivo como dañado.
+                # Las celdas de texto vacías se omiten (equivalen a vacío).
+                if isinstance(value, str) and not value:
+                    value = None
                 cell = ws.cell(row=row_idx, column=col_idx, value=value)
                 cell.border = thin_border
 
