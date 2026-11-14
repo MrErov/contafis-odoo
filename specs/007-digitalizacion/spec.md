@@ -1,6 +1,6 @@
 # Spec 007 - Wizard de Digitalización de facturas venezolanas
 
-Estado: propuesta (pendiente de aprobación). Baseline de tests: `0 failed, 0 error(s) of 344 tests`.
+Estado: **COMPLETADA** (2026-11-10). Tests: `0 failed, 0 error(s) of 437 tests`. Incluye sub-specs 007-B (lote), 007-C (procesamiento por línea) y 007-D ("Usar datos" por fila).
 
 ## 1. Problema
 

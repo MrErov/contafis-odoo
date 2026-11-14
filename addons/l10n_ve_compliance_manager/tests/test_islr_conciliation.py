@@ -593,7 +593,7 @@ class TestIslrConciliacionWizardLoad(IslrWizardTestMixin, TransactionCase):
         wizard = self._create_wizard(company_id=company_c.id)
         with self.assertRaises(UserError) as caught:
             self._load_bytes(wizard, FIXTURE_PATH.read_bytes())
-        self.assertIn('varias compañías', str(caught.exception))
+        self.assertIn('no está registrado', str(caught.exception))
         self.assertEqual(wizard.state, 'draft')
         self.assertFalse(wizard.conciliacion_client_id)
 

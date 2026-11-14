@@ -1,5 +1,6 @@
 <odoo>
     <record id="action_l10n_ve_chat_history" model="ir.actions.act_window">
+        <field name="path">ve-chat-history</field>
         <field name="name">Historial de Chats</field>
         <field name="res_model">l10n.ve.chat.history</field>
         <field name="view_mode">list,form</field>

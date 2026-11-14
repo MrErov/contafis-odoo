@@ -5,11 +5,18 @@ class VeRetention(models.Model):
     _name = 'l10n.retention'
     _description = 'Retención'
 
+    company_id = fields.Many2one(
+        'res.company', string='Compañía',
+        default=lambda self: self.env.company,
+        required=True,
+    )
     name = fields.Char(
         string='Nombre',
         required=True,
         copy=False,
-        default=lambda self: self.env['ir.sequence'].next_by_code('l10n.retention'),
+        default=lambda self: self.env['ir.sequence']
+            .with_company(self.company_id or self.env.company)
+            .next_by_code('l10n.retention'),
     )
     partner_id = fields.Many2one('res.partner', string='Contacto')
     amount = fields.Monetary(string='Monto')

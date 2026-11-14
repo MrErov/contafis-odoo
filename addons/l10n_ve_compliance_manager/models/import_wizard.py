@@ -1,6 +1,7 @@
 import base64
 import json
 import re
+from datetime import date, datetime
 from io import BytesIO
 
 from odoo import api, fields, models
@@ -8,6 +9,41 @@ from odoo.exceptions import UserError
 from odoo.tools.translate import _
 
 from .vat_book_headers import VAT_BOOK_HEADER_MAP
+
+# Clave de búsqueda para resolver Many2one desde texto.
+# company: 'shared' -> [False, company]; 'exact' -> sólo company;
+# None -> modelo global (sin filtro de compañía).
+M2O_LOOKUPS = {
+    'res.partner': {
+        'search_by': ('name', 'vat'),
+        'company': 'shared',
+    },
+    'l10n.ve.compliance.client': {
+        'search_by': ('name', 'rif'),
+        'company': 'exact',
+    },
+    'res.currency': {
+        'search_by': ('name',),
+        'company': None,
+    },
+    'account.move': {
+        'search_by': ('name', 'ref'),
+        'company': 'exact',
+        'extra_domain': [
+            ('move_type', '=', 'in_invoice'),
+            ('state', '=', 'posted'),
+            ('partner_id', '!=', False),
+        ],
+    },
+    'l10n.ve.obligation.type': {
+        'search_by': ('name',),
+        'company': None,
+    },
+    'l10n.ve.document.type': {
+        'search_by': ('name',),
+        'company': None,
+    },
+}
 
 
 class ImportWizard(models.TransientModel):
@@ -658,6 +694,7 @@ class ImportWizard(models.TransientModel):
         Para import_type='vat_book_purchase'/'vat_book_sale', usa parser específico VAT book.
         """
         self.ensure_one()
+        self = self.with_company(self.company_id)
         if not self.file:
             raise UserError(_('Debe subir un archivo Excel.'))
 
@@ -793,7 +830,9 @@ class ImportWizard(models.TransientModel):
         )
 
         sanitized = sanitize_rif(rif)
-        candidates = self.env['l10n.ve.compliance.client'].search([]).filtered(
+        candidates = self.env['l10n.ve.compliance.client'].search([
+            ('company_id', '=', self.company_id.id),
+        ]).filtered(
             lambda client: sanitize_rif(client.rif) == sanitized
         )
         if not candidates:
@@ -802,21 +841,9 @@ class ImportWizard(models.TransientModel):
                 'Cree el cliente antes de importar la conciliación.'
             ) % rif)
 
-        if len(candidates.mapped('company_id')) > 1:
-            in_company = candidates.filtered(
-                lambda client: client.company_id == self.company_id
-            )
-            if len(in_company) != 1:
-                names = ', '.join(candidates.mapped('company_id.name'))
-                raise UserError(_(
-                    'El RIF %s existe en varias compañías (%s). '
-                    'Seleccione la compañía correcta en el asistente e intente de nuevo.'
-                ) % (rif, names))
-            candidates = in_company
-
         if len(candidates) != 1:
             raise UserError(_(
-                'Se encontraron varios clientes con el RIF %s. '
+                'Se encontraron varios clientes con el RIF %s en la compañía seleccionada. '
                 'Depure los datos antes de importar la conciliación.'
             ) % rif)
 
@@ -1295,6 +1322,34 @@ class ImportWizard(models.TransientModel):
             'target': 'new',
         }
 
+    @api.model
+    def _parse_vat_book_date(self, value):
+        """Convierte la fecha del Excel a ``date``.
+
+        Odoo 19 ``fields.Date.to_date`` solo acepta ISO o ``date``/``datetime``.
+        El Excel del contador suele traer ``DD/MM/YYYY``, así que se acepta
+        ese formato como fallback.
+        """
+        if not value:
+            return False
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        text = str(value).strip()
+        try:
+            return fields.Date.to_date(text)
+        except ValueError:
+            pass
+        for fmt in ('%d/%m/%Y', '%d-%m-%Y', '%d/%m/%y'):
+            try:
+                return datetime.strptime(text, fmt).date()
+            except ValueError:
+                continue
+        raise UserError(_(
+            "Fecha inválida '%s'. Use el formato DD/MM/AAAA o AAAA-MM-DD."
+        ) % value)
+
     def _build_vat_book_vals(self, data, book_type, partner_id, operation_code, retention_direction):
         """Construye vals para UNA línea vat.book.line según _rate_type."""
         rate = data.get('_rate_type', 'general')
@@ -1347,6 +1402,8 @@ class ImportWizard(models.TransientModel):
             'book_type': book_type,
             'partner_id': partner_id,
             'invoice_number': data.get('invoice_number') or '',
+            'invoice_date': self._parse_vat_book_date(data.get('invoice_date')),
+            'invoice_type': data.get('invoice_type') or '',
             'control_number': data.get('control_number') or '',
             'operation_code': operation_code,
             'total_with_vat': total_with_vat,
@@ -1359,6 +1416,7 @@ class ImportWizard(models.TransientModel):
             'base_not_taxed': base_not_taxed,
             'base_import_16': base_import_16,
             'vat_import_16': vat_import_16,
+            'anticipo_import': data.get('anticipo_import') or 0.0,
             'retention_number': data.get('retention_number') or '',
             'retention_direction': retention_direction,
         }
@@ -1380,7 +1438,10 @@ class ImportWizard(models.TransientModel):
                     return 'skipped'
 
                 # Resolver partner
-                partner = self.env['res.partner'].search([('vat', '=', partner_vat)], limit=1)
+                partner = self.env['res.partner'].search([
+                    ('vat', '=', partner_vat),
+                    ('company_id', 'in', [False, self.company_id.id]),
+                ], limit=1)
                 if not partner:
                     if self.mode == 'strict':
                         raise UserError(_("Partner con VAT '%s' no existe") % partner_vat)
@@ -1737,6 +1798,7 @@ class ImportWizard(models.TransientModel):
     def action_validate(self):
         """Ejecuta validación 3 niveles en todas las líneas del preview."""
         self.ensure_one()
+        self = self.with_company(self.company_id)
         lines = self.line_ids.filtered(lambda line: line.state in ('draft', 'validated'))
         for line in lines:
             errors = self._validate_line(line)
@@ -1775,6 +1837,7 @@ class ImportWizard(models.TransientModel):
         Modo lax: continúa procesando, reporta errores por fila.
         """
         self.ensure_one()
+        self = self.with_company(self.company_id)
         if self.import_type == 'islr_conciliation':
             return self._import_islr_conciliation()
 
@@ -1872,6 +1935,7 @@ class ImportWizard(models.TransientModel):
             model_name = 'l10n.ve.obligation'
             unique_domain = [
                 ('client_id', '=', client_id),
+                ('client_id.company_id', '=', self.company_id.id),
                 ('obligation_type_id', '=', obligation_type_id),
                 ('period', '=', period),
             ]
@@ -1884,6 +1948,7 @@ class ImportWizard(models.TransientModel):
             model_name = 'l10n.ve.document'
             unique_domain = [
                 ('client_id', '=', client_id),
+                ('client_id.company_id', '=', self.company_id.id),
                 ('document_type_id', '=', document_type_id),
                 ('number', '=', number),
             ]
@@ -1892,13 +1957,16 @@ class ImportWizard(models.TransientModel):
         elif import_type == 'client':
             rif = values.get('rif')
             model_name = 'l10n.ve.compliance.client'
-            unique_domain = [('rif', '=', rif)]
+            unique_domain = [
+                ('rif', '=', rif),
+                ('company_id', '=', self.company_id.id),
+            ]
             return model_name, unique_domain
 
         elif import_type == 'retention':
             invoice_id = values.get('invoice_id')
             partner_id = values.get('partner_id')
-            model_name = 'l10n.ve.retention'
+            model_name = 'l10n.retention'
             unique_domain = [
                 ('invoice_id', '=', invoice_id),
                 ('partner_id', '=', partner_id),
@@ -1906,6 +1974,32 @@ class ImportWizard(models.TransientModel):
             return model_name, unique_domain
 
         return 'l10n.ve.import.wizard', []
+
+    def _resolve_many2one(self, relation_model, field_name, value):
+        """Resuelve un Many2one desde texto.
+
+        Retorna el id (int) si lo encuentra, False si lo buscó y no existe,
+        y None si la relación no está soportada (comportamiento legacy).
+        """
+        spec = M2O_LOOKUPS.get(relation_model)
+        if not spec:
+            return None
+        company = self.company_id or self.env.company
+        domain = list(spec.get('extra_domain') or [])
+        if spec.get('company') == 'shared':
+            domain.append(('company_id', 'in', [False, company.id]))
+        elif spec.get('company') == 'exact':
+            domain.append(('company_id', '=', company.id))
+        keys = spec['search_by']
+        if field_name in keys:
+            keys = (field_name,) + tuple(key for key in keys if key != field_name)
+        for key in keys:
+            record = self.env[relation_model].search(
+                domain + [(key, '=', value)], limit=1,
+            )
+            if record:
+                return record.id
+        return False
 
     def _resolve_values(self, line):
         """
@@ -1925,22 +2019,28 @@ class ImportWizard(models.TransientModel):
 
             # Resolver Many2one: buscar ID por dominio si viene valor de texto
             if m.field_type == 'many2one' and value:
-                relation_model = m.relation_model
-                if relation_model == 'res.partner' and field_name in ('vat', 'rif'):
-                    # Buscar partner por RIF o VAT
-                    partner = self.env['res.partner'].search([
-                        '|', ('vat', '=', value), ('rif', '=', value)
-                    ], limit=1)
-                    values[field_name] = partner.id if partner else False
-                elif relation_model and field_name in ('client_id', 'obligation_type_id',
-                                                       'document_type_id', 'partner_id'):
-                    # Buscar por name o código dependiendo del modelo
-                    record = self.env[relation_model].search([
-                        ('name', '=', value)
-                    ], limit=1)
-                    values[field_name] = record.id if record else False
-                else:
+                if isinstance(value, int) and not isinstance(value, bool):
                     values[field_name] = value
+                    continue
+                resolved = self._resolve_many2one(
+                    m.relation_model, field_name, value,
+                )
+                if resolved is None:
+                    # Relación no soportada: mantener comportamiento legacy.
+                    values[field_name] = value
+                elif resolved is False:
+                    raise UserError(_(
+                        "No se encontró '%(value)s' para el campo '%(field)s' "
+                        "(%(label)s) del modelo %(model)s en la compañía %(company)s."
+                    ) % {
+                        'value': value,
+                        'field': field_name,
+                        'label': m.col_name,
+                        'model': m.relation_model,
+                        'company': self.company_id.name,
+                    })
+                else:
+                    values[field_name] = resolved
             else:
                 values[field_name] = value
 
@@ -1998,15 +2098,17 @@ class ImportWizard(models.TransientModel):
                 if not name:
                     raise UserError(_('Nombre de empresa vacío en la fila %d') % line.row_index)
 
-                # Buscar cliente por RIF
+                # Buscar cliente por RIF en la compa??a del wizard
                 client = self.env['l10n.ve.compliance.client'].search([
-                    ('rif', '=', rif)
+                    ('rif', '=', rif),
+                    ('company_id', '=', self.company_id.id),
                 ], limit=1)
 
                 if not client:
                     # Buscar partner por VAT (res.partner no tiene campo rif, solo vat)
                     partner = self.env['res.partner'].search([
-                        ('vat', '=', rif)
+                        ('vat', '=', rif),
+                        ('company_id', 'in', [False, self.company_id.id]),
                     ], limit=1)
 
                     if not partner:
@@ -2021,13 +2123,11 @@ class ImportWizard(models.TransientModel):
                         })
 
                     # Asegurar company_id (required en compliance.client)
-                    company_id = self.company_id.id or self.env.company.id
-
                     client = self.env['l10n.ve.compliance.client'].create({
                         'name': name,
                         'partner_id': partner.id,
                         'rif': rif,
-                        'company_id': company_id,
+                        'company_id': self.company_id.id,
                     })
 
                 # Generar snapshot de cartelera
@@ -2114,4 +2214,7 @@ class ImportWizard(models.TransientModel):
             'res_id': self.id,
             'view_mode': 'form',
             'target': 'new',
+            'context': {
+                'allowed_company_ids': (self.company_id | self.env.companies).ids,
+            },
         }

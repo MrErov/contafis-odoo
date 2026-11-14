@@ -4,6 +4,13 @@
         <field name="model">l10n.ve.vat.book.line</field>
         <field name="arch" type="xml">
             <list string="Libro de Compras/Ventas" multi_edit="0">
+                <header>
+                    <button name="%(action_l10n_ve_vat_book_export_wizard)d"
+                            type="action"
+                            string="Exportar a Excel"
+                            class="btn-primary"
+                            display="always"/>
+                </header>
                 <field name="book_type" widget="badge"
                        decoration-success="book_type == 'sale'"
                        decoration-info="book_type == 'purchase'"/>
@@ -129,9 +136,11 @@
     </record>
 
     <record id="action_l10n_ve_vat_book_line" model="ir.actions.act_window">
+        <field name="path">ve-vat-book</field>
         <field name="name">Libro de Compras/Ventas</field>
         <field name="res_model">l10n.ve.vat.book.line</field>
         <field name="view_mode">list,form,pivot</field>
+        <field name="domain">[('company_id', 'in', allowed_company_ids)]</field>
         <field name="context">{'search_default_group_by_book_type': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
