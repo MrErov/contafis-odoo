@@ -60,10 +60,10 @@ jobs:
               "ubuntu@${HOST_IP}" 'bash -s' <<'REMOTE'
           set -euo pipefail
           cd /opt/contafis
-          sudo -u contafis git fetch origin main
-          sudo -u contafis git checkout main
-          sudo -u contafis git pull --ff-only origin main
-          echo "DEPLOY_COMMIT=$(git rev-parse --short HEAD)"
+          sudo -u contafis -H git fetch origin main
+          sudo -u contafis -H git checkout main
+          sudo -u contafis -H git pull --ff-only origin main
+          echo "DEPLOY_COMMIT=$(sudo -u contafis -H git -C /opt/contafis rev-parse --short HEAD)"
           sudo docker compose -f /opt/contafis/docker-compose.prod.yml up -d --build
           sudo docker compose -f /opt/contafis/docker-compose.prod.yml ps
           curl -fsS http://127.0.0.1/healthz
