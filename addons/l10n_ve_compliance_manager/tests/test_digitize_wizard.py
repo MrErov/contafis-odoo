@@ -14,6 +14,7 @@ from odoo.tools import html2plaintext
 from .common import TaxGroupMixin
 
 DIGITIZE_URL = 'http://digitize.test/digitize'
+API_KEY = 'test-assistant-secret'
 FIXTURES_DIR = Path(__file__).parent / 'fixtures'
 
 
@@ -73,6 +74,7 @@ class TestDigitizeClient(DigitizeTestMixin, TransactionCase):
         self.config = self.env['ir.config_parameter'].sudo()
         self.config.set_param('l10n_ve_digitize.url', DIGITIZE_URL)
         self.config.set_param('l10n_ve_digitize.timeout_seconds', '30')
+        self.config.set_param('l10n_ve_chat.auth_token', API_KEY)
 
     def test_post_digitize_sends_payload_and_session_header(self):
         """El POST debe llevar el payload JSON y el header X-Odoo-Session."""
@@ -90,6 +92,38 @@ class TestDigitizeClient(DigitizeTestMixin, TransactionCase):
         self.assertEqual(kwargs['headers']['Content-Type'], 'application/json')
         self.assertEqual(kwargs['headers']['X-Odoo-Session'], 'sid-abc')
         self.assertNotIn('X-User-Token', kwargs['headers'])
+        self.assertNotIn('X-API-Key', kwargs['headers'])
+
+    def test_post_digitize_sends_api_key_when_provided(self):
+        """El cliente envía X-API-Key (secreto del middleware del asistente)."""
+        payload = {'image_base64': 'ZmFrZQ==', 'filename': 'factura.jpg'}
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post:
+            post_digitize(DIGITIZE_URL, 'sid-abc', payload, timeout=30, api_key=API_KEY)
+
+        self.assertEqual(mock_post.call_args.kwargs['headers']['X-API-Key'], API_KEY)
+
+    def test_action_digitize_sends_configured_api_key(self):
+        """El wizard toma el secreto de ``l10n_ve_chat.auth_token``."""
+        wizard = self._create_wizard()
+
+        with patch(
+            'requests.post', return_value=_make_response(200, VALID_RESPONSE)
+        ) as mock_post, self._patch_session():
+            wizard.action_digitize()
+
+        self.assertEqual(mock_post.call_args.kwargs['headers']['X-API-Key'], API_KEY)
+
+    def test_action_digitize_omits_api_key_when_not_configured(self):
+        """Sin secreto configurado no se envía el header (modo loopback/dev)."""
+        self.config.set_param('l10n_ve_chat.auth_token', '')
+        wizard = self._create_wizard()
+
+        with patch(
+            'requests.post', return_value=_make_response(200, VALID_RESPONSE)
+        ) as mock_post, self._patch_session():
+            wizard.action_digitize()
+
+        self.assertNotIn('X-API-Key', mock_post.call_args.kwargs['headers'])
 
     def test_post_digitize_uses_configured_timeout(self):
         """El timeout enviado a requests.post sale del parámetro configurado."""
