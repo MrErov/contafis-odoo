@@ -3,6 +3,8 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import odoo.addons.l10n_ve_compliance_manager.models.discuss_channel as discuss_channel_module
 from odoo.tests import TransactionCase, tagged
 
+API_KEY = 'test-assistant-secret'
+
 
 @tagged('post_install', '-at_install')
 class TestDiscussBotSessionAuth(TransactionCase):
@@ -15,8 +17,9 @@ class TestDiscussBotSessionAuth(TransactionCase):
         self.BotUser = self.env.ref('l10n_ve_compliance_manager.user_contafis_bot', raise_if_not_found=False)
         self.config_param = self.env['ir.config_parameter'].sudo()
 
-        # Configurar webhook URL
+        # Configurar webhook URL y secreto compartido del asistente
         self.config_param.set_param('l10n_ve_chat.webhook_url', 'http://localhost:8000/webhook')
+        self.config_param.set_param('l10n_ve_chat.auth_token', API_KEY)
 
         # Usuario contador (sin api_token, ya no se usa)
         self.accountant = self.User.create({
@@ -79,6 +82,41 @@ class TestDiscussBotSessionAuth(TransactionCase):
                 # Verificar que el valor del session ID es el esperado
                 session_header = headers['X-Odoo-Session']
                 self.assertEqual(session_header, 'test-session-id-123', "X-Odoo-Session should match mocked session ID")
+
+                # Verificar el secreto compartido exigido por el middleware
+                self.assertEqual(headers.get('X-API-Key'), API_KEY)
+            finally:
+                discuss_channel_module.request = original_request
+
+    def test_bot_omits_api_key_when_not_configured(self):
+        """Sin secreto configurado no se envía X-API-Key (n8n legacy / dev)."""
+        if not self.BotUser:
+            self.skipTest("Bot user not found")
+
+        self.config_param.set_param('l10n_ve_chat.auth_token', '')
+        channel = self._create_bot_channel('Test Bot Chat Sin API Key')
+
+        with patch('requests.post') as mock_post:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = {'answer': 'OK', 'warnings': []}
+            mock_post.return_value = mock_response
+
+            mock_session = MagicMock()
+            mock_session.sid = 'test-session-id-no-key'
+            mock_request = MagicMock()
+            type(mock_request).session = PropertyMock(return_value=mock_session)
+            original_request = discuss_channel_module.request
+            discuss_channel_module.request = mock_request
+
+            try:
+                channel.with_user(self.accountant).message_post(
+                    body='Hola bot sin API key',
+                    message_type='comment',
+                    subtype_xmlid='mail.mt_comment',
+                )
+                headers = mock_post.call_args.kwargs.get('headers', {})
+                self.assertNotIn('X-API-Key', headers)
             finally:
                 discuss_channel_module.request = original_request
 

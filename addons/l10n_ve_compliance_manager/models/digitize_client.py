@@ -32,15 +32,21 @@ def _get_session_id():
     return session_id
 
 
-def post_digitize(url, session_id, payload, timeout):
+def post_digitize(url, session_id, payload, timeout, api_key=None):
     """POST a JSON payload to the ``/digitize`` endpoint.
 
     No ORM, no logging of the image. ``requests.Timeout`` and
     ``requests.RequestException`` are propagated so the model can map them to
     a localized, actionable message. Returns the raw ``requests.Response``.
+
+    ``api_key`` is the shared secret required by the assistant middleware
+    (``X-API-Key``). It is omitted when empty so the service keeps working
+    in loopback/development setups without a configured secret.
     """
     headers = {
         'Content-Type': 'application/json',
         'X-Odoo-Session': session_id,
     }
+    if api_key:
+        headers['X-API-Key'] = api_key
     return requests.post(url, json=payload, headers=headers, timeout=timeout)

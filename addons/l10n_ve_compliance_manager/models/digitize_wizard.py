@@ -230,6 +230,14 @@ class DigitizeWizard(models.TransientModel):
     def _get_url(self):
         return (self._get_param('l10n_ve_digitize.url') or '').strip()
 
+    def _get_api_key(self):
+        """Shared secret for the assistant middleware (``X-API-Key``).
+
+        Reuses ``l10n_ve_chat.auth_token`` so chat and digitize authenticate
+        with the same assistant deployment.
+        """
+        return (self._get_param('l10n_ve_chat.auth_token') or '').strip()
+
     # ------------------------------------------------------------------
     # Input validation
     # ------------------------------------------------------------------
@@ -383,7 +391,9 @@ class DigitizeWizard(models.TransientModel):
 
         start_time = time.time()
         try:
-            response = post_digitize(url, session_id, payload, timeout=timeout)
+            response = post_digitize(
+                url, session_id, payload, timeout=timeout, api_key=self._get_api_key()
+            )
         except requests.Timeout:
             _logger.warning(
                 "Digitize request for %s timed out after %.2fs",
@@ -994,7 +1004,9 @@ class DigitizeWizard(models.TransientModel):
             return
 
         try:
-            response = post_digitize(url, session_id, payload, timeout=timeout)
+            response = post_digitize(
+                url, session_id, payload, timeout=timeout, api_key=self._get_api_key()
+            )
         except requests.Timeout:
             _logger.warning(
                 "Batch line %s (%s) timed out after %.2fs",
