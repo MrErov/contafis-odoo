@@ -68,6 +68,7 @@
     </record>
 
     <record id="action_l10n_ve_document" model="ir.actions.act_window">
+        <field name="path">ve-documents</field>
         <field name="name">Documentos</field>
         <field name="res_model">l10n.ve.document</field>
         <field name="view_mode">list,form</field>

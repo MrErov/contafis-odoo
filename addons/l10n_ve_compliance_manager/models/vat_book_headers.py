@@ -14,6 +14,8 @@ VAT_BOOK_HEADER_MAP = {
     'rif': 'partner_vat',
     'nombre o razon social': 'partner_name',
     'razon social': 'partner_name',
+    'tipo doc': 'invoice_type',
+    'tipo de documento': 'invoice_type',
     'numero de factura': 'invoice_number',
     'nº factura': 'invoice_number',
     'numero factura / reporte z': 'invoice_number',

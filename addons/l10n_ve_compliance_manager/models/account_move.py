@@ -21,6 +21,13 @@ class AccountMove(models.Model):
         copy=False,
     )
 
+    l10n_ve_invoice_number = fields.Char(
+        string='Número de Factura SENIAT',
+        copy=False,
+        help='Número impreso en la factura física o talonario. '
+             'Si se deja vacío, el libro usa el número interno de Odoo.',
+    )
+
     l10n_ve_control_number = fields.Char(
         string='Número de Control SENIAT',
         readonly=True,
@@ -116,7 +123,7 @@ class AccountMove(models.Model):
                     'book_type': book_type,
                     'operation_code': operation_code,
                     'partner_id': self.partner_id.id,
-                    'invoice_number': self.name or '',
+                    'invoice_number': self.l10n_ve_invoice_number or self.name or '',
                     'control_number': self.l10n_ve_control_number or self.ref or self.name or '',
                     'period_month': period_month,
                     'company_id': self.company_id.id,

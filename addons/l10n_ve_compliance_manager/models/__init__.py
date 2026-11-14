@@ -9,6 +9,7 @@ from . import (
     cartelera_status,
     chat_history,
     compliance_client,
+    digitize_batch_line,
     digitize_client,
     digitize_line,
     digitize_wizard,

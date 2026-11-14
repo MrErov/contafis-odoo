@@ -274,6 +274,8 @@ class TestPhysicalInvoiceWizard(TaxGroupMixin, TransactionCase):
         self.assertEqual(move.move_type, 'in_invoice')
         self.assertEqual(move.partner_id, self.partner)
         self.assertEqual(move.amount_total, 1160.0)
+        self.assertEqual(move.l10n_ve_invoice_number, 'FAC-001')
+        self.assertEqual(move.l10n_ve_control_number, 'CTRL-001')
 
         # Verificar vat.book.line
         vbl = self.env['l10n.ve.vat.book.line'].search([
@@ -286,6 +288,8 @@ class TestPhysicalInvoiceWizard(TaxGroupMixin, TransactionCase):
         self.assertEqual(vbl.operation_code, '33')
         self.assertGreater(vbl.base_general, 0)
         self.assertGreater(vbl.vat_general, 0)
+        self.assertEqual(vbl.invoice_number, 'FAC-001')
+        self.assertEqual(vbl.control_number, 'CTRL-001')
 
     def test_wizard_create_sale_invoice(self):
         """Crear factura de venta vía wizard."""
@@ -340,6 +344,27 @@ class TestPhysicalInvoiceWizard(TaxGroupMixin, TransactionCase):
         })
         # No debe lanzar excepción
         wizard2._validate_rif_module_11('J-31527189-4')
+
+    def test_onchange_invalid_rif_does_not_block(self):
+        """Un RIF inválido se advierte pero no impide abrir/editar el wizard."""
+        wizard = self.env['l10n.ve.physical.invoice.wizard'].create({
+            'type': 'purchase',
+            'partner_vat': 'J-12345678-9',  # DV incorrecto
+            'invoice_number': 'FAC-005',
+            'control_number': 'CTRL-005',
+            'invoice_date': '2026-08-15',
+            'base_general': 1000.0,
+            'currency_id': self.env.company.currency_id.id,
+        })
+
+        # No debe lanzar ValidationError
+        wizard._onchange_partner_vat()
+        self.assertTrue(wizard.rif_invalid)
+        self.assertFalse(wizard.partner_id)
+
+        # Corregir el RIF limpia la advertencia
+        wizard.partner_vat = 'J-31527189-4'
+        self.assertFalse(wizard.rif_invalid)
 
     def test_wizard_creates_partner_inline(self):
         """RIF nuevo → crea partner automáticamente."""

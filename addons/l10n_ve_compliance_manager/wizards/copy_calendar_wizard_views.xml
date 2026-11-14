@@ -25,6 +25,7 @@
     </record>
 
     <record id="action_l10n_ve_copy_calendar_wizard" model="ir.actions.act_window">
+        <field name="path">ve-copy-calendar</field>
         <field name="name">Copiar a otro año</field>
         <field name="res_model">l10n.ve.copy.calendar.wizard</field>
         <field name="view_mode">form</field>

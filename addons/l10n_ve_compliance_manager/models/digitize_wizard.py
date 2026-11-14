@@ -8,6 +8,7 @@ import requests
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from .digitize_batch_line import BATCH_MAX_LINES, image_size_mb
 from .digitize_client import DIGITIZE_ALLOWED_EXTENSIONS, _get_session_id, post_digitize
 
 _logger = logging.getLogger(__name__)
@@ -25,6 +26,12 @@ class DigitizeWizard(models.TransientModel):
         string='Tipo de Operaci\xf3n',
         required=True,
         default='purchase',
+    )
+    company_id = fields.Many2one(
+        'res.company',
+        string='Compa??a',
+        default=lambda self: self.env.company,
+        required=True,
     )
     document_type_hint = fields.Selection(
         [
@@ -81,6 +88,16 @@ class DigitizeWizard(models.TransientModel):
         readonly=True,
     )
 
+    # Recibos del lote (spec 007 - plan B)
+    line_ids = fields.One2many(
+        'l10n.ve.digitize.batch.line',
+        'wizard_id',
+        string='Recibos del lote',
+    )
+    # Ancla del widget que procesa el lote recibo por recibo desde la UI
+    # (spec 007-C): mantiene cada peticion HTTP bajo limit_time_real.
+    batch_runner = fields.Boolean(string='Ejecutar lote', default=True)
+
     # UI de confianza y advertencias (T3 - RF-07, RF-08)
     confidence_pct = fields.Integer(
         string='Confianza (%)', compute='_compute_confidence_pct', readonly=True,
@@ -120,6 +137,14 @@ class DigitizeWizard(models.TransientModel):
         Format: "code: message\n" per warning. Never markup/HTML.
         HTML entities in messages are escaped to prevent XSS.
         """
+        labels = {
+            'low_confidence': _('Baja confianza'),
+            'invalid_rif': _('RIF inválido'),
+            'amount_mismatch': _('Monto no coincide'),
+            'missing_field': _('Dato faltante'),
+            'unknown_document_type': _('Tipo de documento desconocido'),
+            'parsing_error': _('Dato con formato inválido'),
+        }
         for wizard in self:
             text = ''
             if wizard.warnings_json:
@@ -136,7 +161,10 @@ class DigitizeWizard(models.TransientModel):
                         message = w.get('message') or ''
                         # Escape HTML entities to ensure plain text output
                         message = html.escape(message)
-                        if code or message:
+                        label = labels.get(code)
+                        if label:
+                            lines.append(f'{label} — {code}: {message}')
+                        elif code or message:
                             lines.append(f'{code}: {message}')
                     text = '\n'.join(lines) if lines else ''
             wizard.warnings_text = text
@@ -540,12 +568,16 @@ class DigitizeWizard(models.TransientModel):
             return 'default_base_not_taxed'
         return None
 
-    def _map_extracted_to_invoice_defaults(self, extracted):
+    def _map_extracted_to_invoice_defaults(
+        self, extracted, document_type=None, confidence=None
+    ):
         """Build the ``default_*`` context for the physical invoice wizard.
 
         Pure with respect to writes: no ``create``/``write`` and no ``sudo``.
         ``self.env`` is only used to resolve the currency and an existing
         partner (RF-10/RF-17).
+        ``document_type``/``confidence`` override the wizard's own fields when
+        given (batch lines carry them in ``result_json``, spec 007-D).
         """
         extracted = extracted if isinstance(extracted, dict) else {}
         defaults = {'default_type': self.type}
@@ -576,13 +608,13 @@ class DigitizeWizard(models.TransientModel):
 
         currency_code = str(extracted.get('currency') or '').strip().upper()
         if currency_code == 'VES':
-            defaults['default_currency_id'] = self.env.company.currency_id.id
+            defaults['default_currency_id'] = self.company_id.currency_id.id
         elif currency_code == 'USD':
             usd = self.env['res.currency'].search(
                 [('name', '=', 'USD'), ('active', 'in', [True, False])], limit=1
             )
             defaults['default_currency_id'] = (
-                usd.id if usd else self.env.company.currency_id.id
+                usd.id if usd else self.company_id.currency_id.id
             )
 
         subtotal = self._coerce_float(extracted.get('subtotal'))
@@ -616,7 +648,7 @@ class DigitizeWizard(models.TransientModel):
                         '|',
                         ('vat', '=', rif),
                         ('vat', '=', rif_clean),
-                        ('company_id', 'in', [False, self.env.company.id]),
+                        ('company_id', 'in', [False, self.company_id.id]),
                     ],
                     limit=1,
                 )
@@ -625,11 +657,15 @@ class DigitizeWizard(models.TransientModel):
                     if 'default_new_partner_name' not in defaults:
                         defaults['default_new_partner_name'] = partner.name
 
-        # --- T4: propagar tipo documento digitalizado (desde campos del wizard) ---
-        doc_type = (self.detected_document_type or '').strip()
+        # --- T4/007-D: procedencia del tipo documental (kwargs o campos del wizard) ---
+        raw_doc_type = (
+            document_type if document_type is not None else self.detected_document_type
+        )
+        doc_type = str(raw_doc_type or '').strip()
         if doc_type in ('factura_z', 'nota_credito', 'nota_debito'):
             defaults['default_digitized_document_type'] = doc_type
-            defaults['default_digitize_confidence'] = float(self.confidence or 0.0)
+            raw_confidence = confidence if confidence is not None else self.confidence
+            defaults['default_digitize_confidence'] = float(raw_confidence or 0.0)
 
             ref_value = None
             if doc_type == 'nota_credito':
@@ -639,7 +675,29 @@ class DigitizeWizard(models.TransientModel):
             if ref_value:
                 defaults['default_digitized_document_ref'] = ref_value
 
+        defaults['default_company_id'] = self.company_id.id
+
         return defaults
+
+    def _build_apply_to_invoice_action(
+        self, extracted, document_type=None, confidence=None
+    ):
+        """Contrato único de prellenado del wizard de Factura Física Rápida.
+
+        Compartido por el flujo de imagen única y por el lote (spec 007-D).
+        No valida: cada flujo valida su propia entrada.
+        """
+        defaults = self._map_extracted_to_invoice_defaults(
+            extracted, document_type=document_type, confidence=confidence
+        )
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Factura F\xedsica R\xe1pida'),
+            'res_model': 'l10n.ve.physical.invoice.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': defaults,
+        }
 
     def _build_local_warnings(self, extracted):
         """Local warnings for data the service returned incomplete/invalid.
@@ -807,12 +865,255 @@ class DigitizeWizard(models.TransientModel):
         except (TypeError, ValueError):
             extracted = {}
 
-        defaults = self._map_extracted_to_invoice_defaults(extracted)
+        return self._build_apply_to_invoice_action(extracted)
+
+    # ------------------------------------------------------------------
+    # Batch processing (spec 007 - plan B)
+    # ------------------------------------------------------------------
+    def action_digitize_batch(self):
+        """Analyze up to BATCH_MAX_LINES receipts in one click (plan 007-B).
+
+        Global preconditions (batch size, URL, session) abort the whole batch
+        before any POST. Everything else isolates the failure on the line.
+        """
+        self.ensure_one()
+        lines = self.line_ids
+        if not lines:
+            raise ValidationError(
+                _("Agregue al menos un recibo al lote antes de analizar.")
+            )
+        if len(lines) > BATCH_MAX_LINES:
+            raise ValidationError(
+                _("El lote admite como m\xe1ximo %d recibos (cargados: %d).")
+                % (BATCH_MAX_LINES, len(lines))
+            )
+
+        url = self._get_url()
+        if not url:
+            raise UserError(
+                _(
+                    "La digitalizaci\xf3n no est\xe1 configurada. "
+                    "Configure la URL en Ajustes \u2192 ContaFis AI."
+                )
+            )
+
+        session_id = _get_session_id()
+        if not session_id:
+            raise UserError(
+                _("\U0001f510 Sesión no detectada. Recarg\xe1 Odoo e intent\xe1 de nuevo.")
+            )
+
+        # Reset before reprocessing so the button is idempotent.
+        lines.write(
+            {'status': 'pending', 'error_message': False, 'result_json': False}
+        )
+
+        timeout = self._get_timeout()
+        max_mb = self._get_max_image_mb()
+
+        for line in lines:
+            try:
+                self._process_batch_line(line, url, session_id, timeout, max_mb)
+            except Exception:  # last-resort safety net for one item.
+                _logger.exception("Batch line %s failed unexpectedly", line.id)
+                line.write(
+                    {
+                        'status': 'error',
+                        'error_message': _("Error inesperado al procesar el recibo."),
+                    }
+                )
+
+        return self._reload_action()
+
+    def get_batch_line_ids(self):
+        """Id, filename and status of every batch line (spec 007-C)."""
+        self.ensure_one()
+        return [
+            {
+                'id': line.id,
+                'filename': line.filename or '',
+                'status': line.status,
+            }
+            for line in self.line_ids
+        ]
+
+    def action_digitize_line(self, line_id):
+        """Analyze a single batch line from the web client (spec 007-C).
+
+        The client calls this method once per receipt. Keeping one HTTP
+        request per line avoids the Odoo worker timeout (``limit_time_real``)
+        and lets the list refresh as soon as each row finishes.
+        """
+        self.ensure_one()
+        line = self.line_ids.filtered(lambda item: item.id == line_id)
+        if not line:
+            raise UserError(_("El recibo no pertenece a este lote."))
+        if len(self.line_ids) > BATCH_MAX_LINES:
+            raise ValidationError(
+                _("El lote admite como m\xe1ximo %d recibos (cargados: %d).")
+                % (BATCH_MAX_LINES, len(self.line_ids))
+            )
+
+        url = self._get_url()
+        if not url:
+            raise UserError(
+                _(
+                    "La digitalizaci\xf3n no est\xe1 configurada. "
+                    "Configure la URL en Ajustes \u2192 ContaFis AI."
+                )
+            )
+        session_id = _get_session_id()
+        if not session_id:
+            raise UserError(
+                _("\U0001f510 Sesi\xf3n no detectada. Recarg\xe1 Odoo e intent\xe1 de nuevo.")
+            )
+
+        line.write(
+            {'status': 'pending', 'error_message': False, 'result_json': False}
+        )
+        self._process_batch_line(
+            line,
+            url,
+            session_id,
+            self._get_timeout(),
+            self._get_max_image_mb(),
+        )
         return {
-            'type': 'ir.actions.act_window',
-            'name': _('Factura F\xedsica R\xe1pida'),
-            'res_model': 'l10n.ve.physical.invoice.wizard',
-            'view_mode': 'form',
-            'target': 'new',
-            'context': defaults,
+            'line_id': line.id,
+            'status': line.status,
+            'error_message': line.error_message or '',
         }
+
+    def _process_batch_line(self, line, url, session_id, timeout, max_mb):
+        """Analyze a single receipt: every error lives on the line, not raised."""
+        start_time = time.time()
+        try:
+            payload = line._build_payload(self.document_type_hint, max_mb)
+        except ValueError as error:
+            line.write({'status': 'error', 'error_message': str(error)})
+            return
+
+        try:
+            response = post_digitize(url, session_id, payload, timeout=timeout)
+        except requests.Timeout:
+            _logger.warning(
+                "Batch line %s (%s) timed out after %.2fs",
+                line.id,
+                line.filename,
+                time.time() - start_time,
+            )
+            line.write(
+                {
+                    'status': 'error',
+                    'error_message': _(
+                        "⏱️ El servicio de digitalización tardó demasiado. "
+                        "Reintentá en unos minutos."
+                    ),
+                }
+            )
+            return
+        except requests.RequestException as error:
+            _logger.error(
+                "Batch line %s (%s) failed after %.2fs: %s",
+                line.id,
+                line.filename,
+                time.time() - start_time,
+                error,
+            )
+            line.write(
+                {
+                    'status': 'error',
+                    'error_message': _(
+                        "❌ No se pudo conectar con el servicio de digitalización. "
+                        "Verifique la URL configurada."
+                    ),
+                }
+            )
+            return
+
+        status = response.status_code
+        # Only metadata is logged: never the base64 image nor the session id.
+        _logger.info(
+            "Batch line %s (%s, %.2f MB) -> HTTP %s in %.2fs",
+            line.id,
+            line.filename,
+            image_size_mb(line.image),
+            status,
+            time.time() - start_time,
+        )
+
+        message = self._batch_message_for_status(status)
+        if message:
+            line.write({'status': 'error', 'error_message': message})
+            return
+
+        try:
+            data = response.json()
+        except ValueError:
+            line.write(
+                {
+                    'status': 'error',
+                    'error_message': _(
+                        "\u26a0\ufe0f El servicio devolvi\xf3 una respuesta que no es JSON."
+                    ),
+                }
+            )
+            return
+
+        parsed = self._parse_response(data)
+        if parsed is None:
+            line.write(
+                {
+                    'status': 'error',
+                    'error_message': _(
+                        "\u26a0\ufe0f La respuesta del servicio est\xe1 incompleta. "
+                        "Reintent\xe1 o cargue la factura a mano."
+                    ),
+                }
+            )
+            return
+
+        extracted = parsed['extracted']
+        merged_warnings = self._merge_warnings(
+            parsed['warnings'], self._build_local_warnings(extracted)
+        )
+        line.write(
+            {
+                'status': 'done',
+                'error_message': False,
+                'result_json': json.dumps(
+                    {
+                        'document_type': parsed['document_type'],
+                        'confidence': parsed['confidence'],
+                        'extracted': extracted,
+                        'warnings': merged_warnings,
+                    },
+                    ensure_ascii=False,
+                    default=str,
+                ),
+            }
+        )
+
+    def _batch_message_for_status(self, status):
+        """HTTP error message for the batch; ``None`` when not an error."""
+        if status in (401, 403):
+            return _(
+                "\U0001f510 Tu sesi\xf3n de Odoo expir\xf3 o no es v\xe1lida. "
+                "Recarg\xe1 Odoo e intent\xe1 de nuevo."
+            )
+        if status == 503:
+            return _(
+                "\U0001f504 El servicio de digitalizaci\xf3n no est\xe1 disponible "
+                "ahora. Reintent\xe1 en unos minutos."
+            )
+        if status >= 500:
+            return _(
+                "\U0001f527 Error del servidor de digitalizaci\xf3n. "
+                "Reintent\xe1 en unos minutos."
+            )
+        if status >= 400:
+            return _(
+                "La imagen o el formato fue rechazado por el servicio. "
+                "Verifique extensi\xf3n y tama\xf1o."
+            )
+        return None

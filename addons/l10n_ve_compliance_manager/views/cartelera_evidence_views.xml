@@ -27,6 +27,7 @@
     </record>
 
     <record id="action_l10n_ve_cartelera_evidence_wizard" model="ir.actions.act_window">
+        <field name="path">ve-evidence-upload</field>
         <field name="name">Subir Evidencia</field>
         <field name="res_model">l10n.ve.cartelera.evidence.wizard</field>
         <field name="view_mode">form</field>

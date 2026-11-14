@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/MrErov/contafis-odoo/actions/workflows/ci.yml"><img src="https://github.com/MrErov/contafis-odoo/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Passing"/></a>
-  <img src="https://img.shields.io/badge/Tests-337%20passing-brightgreen?style=flat-square" alt="337 tests passing"/>
+  <img src="https://img.shields.io/badge/Tests-474%20passing-brightgreen?style=flat-square" alt="474 tests passing"/>
   <img src="https://img.shields.io/badge/Odoo-19.0-875A7B?style=flat-square&logo=odoo&logoColor=white" alt="Odoo 19.0"/>
   <img src="https://img.shields.io/badge/License-LGPL--3-blue?style=flat-square" alt="License LGPL-3"/>
   <img src="https://img.shields.io/badge/Release-v1.3.0-orange?style=flat-square" alt="Release v1.3.0"/>
@@ -26,7 +26,7 @@
 | **[Asistente IA (LangGraph)](https://github.com/MrErov/contafis-assistant)** | Backend RAG con LangChain, FastAPI y ChromaDB. Demo pública disponible. |
 
 <p align="center">
-  <a href="docs/guia-usuario/guia-usuario.pdf"><strong>Guía de Usuario · 68 págs.</strong></a>
+  <a href="docs/guia-usuario/guia-usuario.pdf"><strong>Guía de Usuario · 80 págs.</strong></a>
   &nbsp;·&nbsp;
   <a href="#instalación-rápida"><strong>Instalación rápida</strong></a>
   &nbsp;·&nbsp;
@@ -60,7 +60,27 @@ la consolidación manual entre hojas de cálculo, correos y carpetas.
 | **Multiempresa**<br/>Aislamiento de clientes, obligaciones y conciliaciones por compañía y contador. | **Alertas**<br/>Email y WhatsApp vía `wa.me`. |
 | **Bandeja y análisis**<br/>Vencimientos, acciones masivas, KPIs, gráfico y pivote. | **Importadores Excel**<br/>Libro de compras/ventas, cartelera y planilla IVA 99030. |
 | **Factura Física Rápida**<br/>Carga de compras desde talonario o máquina fiscal. | **Reportes PDF**<br/>Cumplimiento y planilla IVA. |
-| **Asistente Fiscal (Bot IA)**<br/>Integrado en Odoo Discuss, conecta con el backend LangChain RAG para consultas fiscales en lenguaje natural. | |
+| **Batch de 20 recibos**<br/>Digitalización secuencial con progreso en vivo, manejo de errores y reintento de filas fallidas. | **Digitalización IA**<br/>Extracción de datos de facturas y recibos con el asistente fiscal. |
+| **Asistente Fiscal (Bot IA)**<br/>Integrado en Odoo Discuss, conecta con el backend LangChain RAG para consultas fiscales en lenguaje natural. | **Flujo E2E**<br/>9 escenarios Playwright (login, factura física, libro, planilla IVA, multi-compañía y digitalización) integrados al CI. |
+
+---
+
+## Multi-compañía
+
+ContaFis está blindado para contadores que operan varias empresas desde una
+sola instancia. El aislamiento se aplica en todos los flujos:
+
+- **Wizards**: importación Excel, digitalización, factura física, libro de
+  compras/ventas y planilla IVA resuelven con `with_company` y
+  `allowed_company_ids`, incluso cuando la compañía activa no es la del registro.
+- **Datos**: reglas `ir.rule` por compañía, dominios de `company_id` en las
+  vistas y resolución de many2one con política explícita por modelo.
+- **Retenciones**: secuencia `l10n.retention` aislada por compañía y
+  `generate_retentions` propaga el `company_id` de la factura, no el del
+  contexto de ejecución.
+- **Cobertura**: 29 tests dedicados (`test_multi_company_*.py`) sobre
+  importación genérica, ISLR, digitalización, factura física, retenciones,
+  navegación y dominios entre compañías.
 
 ---
 
@@ -78,15 +98,15 @@ la consolidación manual entre hojas de cálculo, correos y carpetas.
 |:---:|:---:|
 | ![Calendario SENIAT](docs/guia-usuario/assets/screenshots/08-01-calendario-tablas.png?v=2) | ![Factura Física Rápida](docs/guia-usuario/assets/screenshots/04-06-bases-iva.png?v=2) |
 
-> Estas son 6 capturas destacadas. La guía incluye 39 capturas del flujo
+> Estas son 6 capturas destacadas. La guía incluye 45 capturas del flujo
 > completo: alta de clientes, facturas, libro, planilla IVA, retenciones,
-> calendario, cartelera y alertas.
+> calendario, cartelera, alertas y digitalización por lote.
 
 ---
 
 ## Documentación
 
-- **[Guía de Usuario (PDF · 68 páginas)](docs/guia-usuario/guia-usuario.pdf)** —
+- **[Guía de Usuario (PDF · 80 páginas)](docs/guia-usuario/guia-usuario.pdf)** —
   recorrido paso a paso con capturas, preguntas frecuentes, glosario y
   limitaciones.
 - **[Especificaciones por capacidad](docs/capacidades/)** — una spec
@@ -147,7 +167,7 @@ docker compose run --rm web odoo -d contea \
 
 ## Verificación
 
-**337 tests pasando:** 328 backend (`TransactionCase`) + 9 E2E (Playwright).
+**474 tests de backend pasando** (`TransactionCase` y `HttpCase`) + **9 E2E** (Playwright).
 
 ```bash
 # Backend
@@ -162,8 +182,9 @@ npm run test:e2e
 ```
 
 La suite cubre calendario SENIAT, tablas ISLR, generación idempotente,
-seguridad por contador, multiempresa, retenciones, libro de compras/ventas,
-planilla IVA, conciliación ISLR y su PDF.
+seguridad por contador, multiempresa (aislamiento cruzado en wizards,
+retenciones y secuencias), retenciones, libro de compras/ventas, planilla IVA,
+conciliación ISLR y su PDF.
 
 ---
 
@@ -174,6 +195,7 @@ planilla IVA, conciliación ISLR y su PDF.
 - [x] Bandeja de vencimientos, KPIs y aislamiento multiempresa.
 - [x] Conciliación ISLR con importador Excel y reporte PDF.
 - [x] Asistente Fiscal (Bot IA) integrado en Discuss con backend LangChain RAG.
+- [x] Hardening multi-compañía (Specs 008 a 008-F): wizards, retenciones, secuencias y flujo E2E.
 - [ ] Portal del cliente (solo lectura).
 - [ ] Integración opcional con WhatsApp Business API.
 

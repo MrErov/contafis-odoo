@@ -51,12 +51,14 @@
     </record>
 
     <record id="action_l10n_ve_obligation_analysis" model="ir.actions.act_window">
+        <field name="path">ve-obligation-analysis</field>
         <field name="name">Obligaciones</field>
         <field name="res_model">l10n.ve.obligation</field>
         <field name="view_mode">graph,pivot,list</field>
     </record>
 
     <record id="action_l10n_ve_alert_analysis" model="ir.actions.act_window">
+        <field name="path">ve-alert-analysis</field>
         <field name="name">Alertas</field>
         <field name="res_model">l10n.ve.alert</field>
         <field name="view_mode">graph,pivot,list</field>

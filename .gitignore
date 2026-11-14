@@ -18,6 +18,9 @@ config/odoo.conf
 config/*.local.conf
 .env
 .env.*
+# Los archivos de ejemplo SÍ se versionan (no contienen secretos reales)
+!.env.example
+!.env.prod.example
 
 # === Datos sensibles ===
 *.sql
@@ -71,6 +74,9 @@ env/
 *.sqlite3
 postgresql/
 _build/
+
+# === Datos locales de despliegue (no versionar) ===
+/data/
 
 # === Node.js (logs de depuración) ===
 npm-debug.log*

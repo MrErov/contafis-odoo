@@ -1,0 +1,25 @@
+# Configuración explícita de ruff para local, pre-commit y CI.
+# Debe reflejar [tool.ruff] de pyproject.toml: ruff.toml tiene prioridad
+# sobre pyproject.toml, así que si divergen gana este archivo.
+# Objetivo: que un release nuevo de ruff no cambie las reglas por su cuenta
+# (ver incidente UP031 en CI con ruff 0.17.5).
+target-version = "py312"
+line-length = 120
+exclude = [
+    ".git",
+    "__pycache__",
+    "*.pyc",
+    "addons/l10n_ve_compliance_manager/migrations",
+    "addons/l10n_ve_compliance_manager/static/description",
+]
+
+[lint]
+select = ["E", "W", "F", "I", "UP"]
+ignore = ["E501"]
+
+# Odoo usa `from . import models` en los __init__.py para registrar modelos,
+# vistas y tests. Es un re-export intencional, no un import sin usar.
+[lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"**/tests/*" = ["E501"]
+"**/models/__init__.py" = ["F401"]

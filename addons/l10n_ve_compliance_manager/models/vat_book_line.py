@@ -30,6 +30,17 @@ class VatBookLine(models.Model):
         required=True,
     )
 
+    invoice_date = fields.Date(
+        string='Fecha de Factura',
+        index=True,
+        help='Fecha de emisión de la factura. Se conserva para el export y la reimportación.',
+    )
+
+    invoice_type = fields.Char(
+        string='Tipo de Documento SENIAT',
+        help='01 Factura, 03 Nota de Crédito. Se completa desde la factura o el Excel.',
+    )
+
     control_number = fields.Char(
         string='Número de Control SENIAT',
     )
@@ -61,6 +72,11 @@ class VatBookLine(models.Model):
 
     vat_import_16 = fields.Float(
         string='IVA Importación 16%',
+        digits='Account',
+    )
+
+    anticipo_import = fields.Float(
+        string='Anticipo IVA Importación',
         digits='Account',
     )
 
@@ -227,6 +243,8 @@ class VatBookLine(models.Model):
             'period_month': move.invoice_date.strftime('%Y-%m') if move.invoice_date else fields.Date.today().strftime('%Y-%m'),
             'partner_id': move.partner_id.id,
             'invoice_number': move.name or '',
+            'invoice_date': move.invoice_date or False,
+            'invoice_type': '03' if move.move_type in ('in_refund', 'out_refund') else '01',
             'control_number': move.ref or move.name or '',
             'operation_code': op_code,
             'total_with_vat': sign * (amounts['base_general'] + amounts['vat_general'] + amounts['base_reduced'] + amounts['vat_reduced'] + amounts['base_not_taxed']),
@@ -254,7 +272,8 @@ class VatBookLine(models.Model):
     @api.model
     def create_from_move(self, move):
         """Crea líneas de libro desde una factura (método de conveniencia para tests y uso directo)."""
-        wizard_dummy = self.env['l10n.ve.vat.book.generate'].create({
+        move = move.with_company(move.company_id)
+        wizard_dummy = self.env['l10n.ve.vat.book.generate'].with_company(move.company_id).create({
             'period_month': move.invoice_date.strftime('%Y-%m') if move.invoice_date else fields.Date.today().strftime('%Y-%m'),
             'company_id': move.company_id.id,
             'book_type': 'both',
@@ -262,7 +281,7 @@ class VatBookLine(models.Model):
         line_vals_list = wizard_dummy._create_book_lines_from_move(move)
         for vals in line_vals_list:
             vals['wizard_id'] = wizard_dummy.id
-            self.create(vals)
+            self.with_company(move.company_id).create(vals)
         return True
 
     def action_open_export_wizard(self):

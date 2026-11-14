@@ -1,0 +1,192 @@
+# docker-compose.prod.yml — Stack completo de producción ContaFis (5 contenedores)
+#
+# Servicios:
+#   db         PostgreSQL 15 (datos persistentes)
+#   odoo       Odoo 19 (HTTP 8069 + websocket 8072, solo red interna)
+#   chromadb   ChromaDB 1.5.9 (misma versión que el cliente Python del assistant)
+#   assistant  FastAPI del repo hermano ../contafis-assistant (solo red interna)
+#   nginx      Reverse proxy; ÚNICO servicio con puertos publicados (80/443)
+#
+# Secretos: NO van en este archivo. Usar `.env.prod` (gitignored) basado en
+# `.env.prod.example`, y `config/odoo.conf/odoo.conf` (gitignored) para Odoo.
+#
+# Uso:
+#   cp .env.prod.example .env.prod   # completar valores reales
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Nota sobre Chroma: el assistant usa chromadb.PersistentClient (embed) vía
+# CHROMA_PATH, por eso monta su propio volumen `assistant_chroma_data`. El
+# servicio `chromadb` queda disponible para una futura migración a HttpClient
+# (requiere cambio de código en el assistant; fuera del alcance de este compose).
+
+name: contafis-prod
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-odoo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - contafis_net
+
+  # ---------------------------------------------------------------------------
+  # Odoo 19
+  # ---------------------------------------------------------------------------
+  odoo:
+    image: odoo:19.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      HOST: db
+      PORT: "5432"
+      USER: ${POSTGRES_USER:-odoo}
+      PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_ME}
+    volumes:
+      - odoo_filestore:/var/lib/odoo
+      # Contiene admin_passwd y db_password reales; está en .gitignore.
+      - ./config/odoo.conf/odoo.conf:/etc/odoo/odoo.conf:ro
+      - ./addons:/mnt/extra-addons:ro
+    command:
+      - odoo
+      - --config=/etc/odoo/odoo.conf
+      - --proxy-mode
+      - --workers=${ODOO_WORKERS:-4}
+    expose:
+      - "8069"
+      - "8072"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8069/web/login', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    networks:
+      - contafis_net
+
+  # ---------------------------------------------------------------------------
+  # ChromaDB (vector store)
+  # ---------------------------------------------------------------------------
+  chromadb:
+    image: chromadb/chroma:1.5.9
+    restart: unless-stopped
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /data
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - chroma_data:/data
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v2/heartbeat', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - contafis_net
+
+  # ---------------------------------------------------------------------------
+  # Assistant (FastAPI + LangGraph + RAG)
+  # ---------------------------------------------------------------------------
+  assistant:
+    build:
+      context: ../contafis-assistant
+      dockerfile: Dockerfile
+    image: contafis-assistant:prod
+    restart: unless-stopped
+    depends_on:
+      odoo:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+    # El archivo es obligatorio en producción; `required: false` solo permite
+    # validar la sintaxis del compose con `docker compose config` sin secretos.
+    env_file:
+      - path: .env.prod
+        required: false
+    environment:
+      APP_ENV: production
+      API_HOST: 0.0.0.0
+      API_PORT: "8000"
+      PORT: "8000"
+      ODOO_URL: http://odoo:8069
+      ODOO_DB: ${ODOO_DB:-contea}
+      ODOO_READONLY_ATTESTED: "true"
+      CHROMA_PATH: /data/chroma
+      CHROMA_COLLECTION: ${CHROMA_COLLECTION:-contafis_normativa_v1}
+      VECTOR_BACKEND: chroma
+      # Reservado para la futura migración a HttpClient de Chroma.
+      CHROMA_SERVER_URL: http://chromadb:8000
+    volumes:
+      - assistant_data:/app/data
+      - assistant_chroma_data:/data/chroma
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/livez', timeout=5).status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - contafis_net
+
+  # ---------------------------------------------------------------------------
+  # Nginx (único servicio expuesto al host/internet)
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      odoo:
+        condition: service_healthy
+      assistant:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - certbot_certs:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - contafis_net
+
+volumes:
+  postgres_data:
+  odoo_filestore:
+  chroma_data:
+  certbot_certs:
+  certbot_www:
+  assistant_data:
+  assistant_chroma_data:
+
+networks:
+  # Red bridge privada: ningún servicio publica puertos salvo nginx.
+  # No usar `internal: true`: assistant y odoo necesitan egreso (NIM, SMTP).
+  contafis_net:
+    name: contafis_net
+    driver: bridge
