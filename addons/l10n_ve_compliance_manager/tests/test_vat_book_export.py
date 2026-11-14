@@ -1,4 +1,5 @@
 import base64
+import zipfile
 from datetime import date, datetime
 from io import BytesIO
 
@@ -71,6 +72,11 @@ class TestVatBookExport(TransactionCase):
         """Lee un archivo XLSX y retorna workbook y hoja activa."""
         wb = openpyxl.load_workbook(BytesIO(xlsx_bytes), data_only=True)
         return wb, wb.active
+
+    def _read_sheet_xml(self, xlsx_bytes):
+        """Retorna el XML crudo de la hoja activa (para checks de integridad)."""
+        with zipfile.ZipFile(BytesIO(xlsx_bytes)) as zf:
+            return zf.read('xl/worksheets/sheet1.xml').decode('utf-8')
 
     def _get_data_sheet_info(self, ws):
         """Helper para obtener info de la hoja con el nuevo layout."""
@@ -496,3 +502,53 @@ class TestVatBookExport(TransactionCase):
         total_row = 8
         self.assertEqual(ws.cell(row=total_row, column=16).value, 100.0)
         self.assertEqual(ws.cell(row=total_row, column=17).value, 50.0)
+
+    def test_export_does_not_write_empty_string_cells(self):
+        """Texto vacío NO debe escribirse en el XLSX.
+
+        openpyxl serializa `''` como `<c t="inlineStr"></c>` (sin el elemento
+        `<is>` que exige el formato). Excel marca ese archivo como dañado y
+        pide "repararlo" al abrirlo. Las celdas vacías deben omitirse.
+        """
+        self.VatBookLine.create({
+            'book_type': 'purchase',
+            'period_month': '2026-08',
+            'partner_id': self.partner.id,
+            'invoice_number': 'FAC-SINDATOS-001',
+            'operation_code': '33',
+            'base_general': 100.0,
+            'vat_general': 16.0,
+            'company_id': self.company.id,
+        })
+
+        wizard = self.Wizard.create({
+            'period_month': '2026-08',
+            'company_id': self.company.id,
+            'book_type': 'purchase',
+        })
+        wizard.action_export_xlsx()
+        xlsx = base64.b64decode(wizard.template_file)
+
+        # 1) Las celdas de texto vacías se leen como None (celda inexistente)
+        wb, ws = self._read_xlsx(xlsx)
+        self.assertEqual(ws.cell(row=5, column=4).value, 'FAC-SINDATOS-001')  # Factura sí tiene dato
+        self.assertIsNone(ws.cell(row=5, column=5).value)   # Nº de Control vacío
+        self.assertIsNone(ws.cell(row=5, column=3).value)   # Tipo Doc vacío (sin move)
+        self.assertIsNone(ws.cell(row=5, column=15).value)  # Nº Comprob. Retención vacío
+
+        # 2) El XML no debe contener celdas inlineStr vacías
+        sheet_xml = self._read_sheet_xml(xlsx)
+        self.assertNotIn('t="inlineStr"></c>', sheet_xml)
+        self.assertNotIn("t='inlineStr'></c>", sheet_xml)
+
+    def test_export_wizard_default_period_is_latest_month_with_data(self):
+        """El wizard debe abrir en el último período con datos, no en el mes actual.
+
+        Escenario real: el contador tiene datos de 2026-10 y ejecuta el export
+        en noviembre; si el período por defecto es "hoy", el archivo sale vacío.
+        """
+        self._create_vat_book_lines('purchase', 1)  # período 2026-08
+
+        wizard = self.Wizard.with_context(default_book_type='purchase').create({})
+
+        self.assertEqual(wizard.period_month, '2026-08')
