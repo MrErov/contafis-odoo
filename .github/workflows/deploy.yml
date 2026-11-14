@@ -1,0 +1,70 @@
+name: CD
+
+# Despliegue a producción (AWS Lightsail). Solo se dispara con pushes/merges a
+# `main`; `workflow_dispatch` permite reintentar manualmente tras configurar
+# los secrets o recuperar un deploy fallido.
+#
+# Secrets requeridos (Settings -> Secrets and variables -> Actions):
+#   SSH_PRIVATE_KEY  llave privada ed25519 dedicada al deploy (sin passphrase)
+#   HOST_IP          IP pública del VPS
+#
+# El deploy corre como `ubuntu` (sudo sin password) y hace `git pull` como
+# `contafis` para no cambiar el owner de los archivos del repo.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Lightsail
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          HOST_IP: ${{ secrets.HOST_IP }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SSH_PRIVATE_KEY:-}" ] || [ -z "${HOST_IP:-}" ]; then
+            echo "::error::Faltan los secrets SSH_PRIVATE_KEY y/o HOST_IP"
+            exit 1
+          fi
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/contafis_deploy"
+          chmod 600 "$HOME/.ssh/contafis_deploy"
+          ssh-keyscan -H "$HOST_IP" >> "$HOME/.ssh/known_hosts"
+
+      - name: Pull and deploy
+        env:
+          HOST_IP: ${{ secrets.HOST_IP }}
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/contafis_deploy" \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes \
+              "ubuntu@${HOST_IP}" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          cd /opt/contafis
+          sudo -u contafis git fetch origin main
+          sudo -u contafis git checkout main
+          sudo -u contafis git pull --ff-only origin main
+          echo "DEPLOY_COMMIT=$(git rev-parse --short HEAD)"
+          sudo docker compose -f /opt/contafis/docker-compose.prod.yml up -d --build
+          sudo docker compose -f /opt/contafis/docker-compose.prod.yml ps
+          curl -fsS http://127.0.0.1/healthz
+          REMOTE
