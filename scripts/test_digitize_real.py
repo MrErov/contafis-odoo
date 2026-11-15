@@ -18,10 +18,18 @@ IMAGE_PATH = os.path.join(
     "fixtures",
     "talonario_factura_z_prueba.jpg"
 )
-# Token de API del usuario admin en Odoo (legacy X-User-Token)
-USER_API_TOKEN = "b8b05ec5855f131cb43caece7818448441fe75e6"
+# Token de API del usuario admin en Odoo (legacy X-User-Token).
+# Se lee del entorno para no versionar secretos.
+USER_API_TOKEN = os.getenv("TEST_USER_TOKEN")
 
 def main():
+    if not USER_API_TOKEN:
+        print(
+            "ERROR: define la variable de entorno TEST_USER_TOKEN "
+            "con la API key de Odoo."
+        )
+        return 2
+
     # Verificar que la imagen existe
     if not os.path.exists(IMAGE_PATH):
         print("Imagen no encontrada: " + IMAGE_PATH)
