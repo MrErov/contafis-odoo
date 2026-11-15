@@ -19,7 +19,7 @@ Incluye:
 - Libro de Compras/Ventas y Planilla IVA 99030 (Forma 99030 SENIAT).
 - Asistente Fiscal (Bot IA) integrado en Discuss.
     """,
-    'license': 'LGPL-3',
+    'license': 'Other proprietary',
     'depends': ['base', 'account', 'mail', 'l10n_ve'],
     'external_dependencies': {'python': ['openpyxl']},
     'post_init_hook': 'post_init_hook',
