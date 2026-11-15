@@ -59,6 +59,11 @@ jobs:
               -o StrictHostKeyChecking=yes \
               "ubuntu@${HOST_IP}" 'bash -s' <<'REMOTE'
           set -euo pipefail
+          # Sincronizar el repo del assistant (build context ../contafis-assistant).
+          cd /opt/contafis-assistant
+          sudo -u contafis -H git fetch origin main
+          sudo -u contafis -H git checkout main
+          sudo -u contafis -H git pull --ff-only origin main
           cd /opt/contafis
           sudo -u contafis -H git fetch origin main
           sudo -u contafis -H git checkout main
