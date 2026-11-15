@@ -14,7 +14,7 @@
   <a href="https://github.com/MrErov/contafis-odoo/actions/workflows/ci.yml"><img src="https://github.com/MrErov/contafis-odoo/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI Passing"/></a>
   <img src="https://img.shields.io/badge/Tests-474%20passing-brightgreen?style=flat-square" alt="474 tests passing"/>
   <img src="https://img.shields.io/badge/Odoo-19.0-875A7B?style=flat-square&logo=odoo&logoColor=white" alt="Odoo 19.0"/>
-  <img src="https://img.shields.io/badge/License-LGPL--3-blue?style=flat-square" alt="License LGPL-3"/>
+  <img src="https://img.shields.io/badge/License-Proprietary-red?style=flat-square" alt="License Proprietary"/>
   <img src="https://img.shields.io/badge/Release-v1.3.0-orange?style=flat-square" alt="Release v1.3.0"/>
 </p>
 
@@ -217,4 +217,9 @@ Contribuciones bienvenidas: abre un issue o revisa
 
 ## Licencia
 
-**LGPL-3.0** — consulta [LICENSE](LICENSE).
+Este proyecto es propietario y confidencial. Todos los derechos están reservados.
+Queda estrictamente prohibido el uso comercial, la copia o la distribución de este software sin el consentimiento explícito por escrito del autor. Para consultas sobre licencias comerciales, contactar a
+[eurickramiro.ospinovelasquez@gmail.com](mailto:eurickramiro.ospinovelasquez@gmail.com)
+o al [perfil de GitHub @MrErov](https://github.com/MrErov).
+
+Consulta el archivo [LICENSE](LICENSE) para el texto completo.
