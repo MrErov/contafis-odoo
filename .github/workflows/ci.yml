@@ -11,13 +11,13 @@ name: CI
 
 on:
   push:
-    branches: [19.0]
+    branches: [19.0, main]
     paths-ignore:
       - 'docs/**'
       - '*.md'
       - '**/*.md'
   pull_request:
-    branches: [19.0]
+    branches: [19.0, main]
     paths-ignore:
       - 'docs/**'
       - '*.md'

@@ -223,3 +223,7 @@ Queda estrictamente prohibido el uso comercial, la copia o la distribución de e
 o al [perfil de GitHub @MrErov](https://github.com/MrErov).
 
 Consulta el archivo [LICENSE](LICENSE) para el texto completo.
+
+---
+
+Estado: Producción validada con CI/CD en cascada.
