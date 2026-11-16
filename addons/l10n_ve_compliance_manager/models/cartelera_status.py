@@ -12,6 +12,14 @@ class CarteleraStatus(models.Model):
         required=True,
         ondelete='cascade',
     )
+    company_id = fields.Many2one(
+        'res.company',
+        string='Compañía',
+        related='client_id.company_id',
+        store=True,
+        index=True,
+        readonly=True,
+    )
     year = fields.Integer(string='Año', required=True)
     month = fields.Selection([
         ('1', 'Enero'), ('2', 'Febrero'), ('3', 'Marzo'),

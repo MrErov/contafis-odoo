@@ -26,6 +26,7 @@ from . import (
     test_obligation_payment_wizard,
     test_physical_invoice_wizard,
     test_retention_service,
+    test_security_p0,
     test_seniat_calendar,
     test_vat_book,
     test_vat_book_export,
