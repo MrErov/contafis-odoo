@@ -77,8 +77,11 @@ test.describe('Wizard Factura Física', () => {
     await page.keyboard.press('Tab');
     await page.waitForTimeout(500);
 
-    // Submit
-    await page.getByRole('button', { name: 'Crear y Postear' }).click();
+    // Submit (por atributo `name`, no por etiqueta: sobrevive a renombres y traducciones)
+    const btn = page.locator('button[name="action_create_and_post"]');
+    await expect(btn).toBeVisible({ timeout: 15000 });
+    await page.waitForLoadState('networkidle');
+    await btn.click();
 
     // Esperar un momento para que el submit procese
     await page.waitForTimeout(3000);
