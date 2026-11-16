@@ -124,5 +124,36 @@
             <field name="model_id" ref="model_l10n_ve_chat_history"/>
             <field name="domain_force">[('company_id', 'in', company_ids)]</field>
         </record>
+
+        <!-- P0-01/P0-02: reglas globales de compañía (aplican también al admin). -->
+        <record id="rule_l10n_ve_cartelera_status_company" model="ir.rule">
+            <field name="name">Snapshot Cartelera: aislamiento por compañía</field>
+            <field name="model_id" ref="model_l10n_ve_cartelera_status"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+
+        <record id="rule_l10n_ve_cartelera_evidence_company" model="ir.rule">
+            <field name="name">Evidencia Cartelera: aislamiento por compañía</field>
+            <field name="model_id" ref="model_l10n_ve_cartelera_evidence"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+
+        <record id="rule_l10n_retention_company" model="ir.rule">
+            <field name="name">Retención: aislamiento por compañía</field>
+            <field name="model_id" ref="model_l10n_retention"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+
+        <record id="rule_l10n_ve_vat_return_company" model="ir.rule">
+            <field name="name">Planilla IVA: aislamiento por compañía</field>
+            <field name="model_id" ref="model_l10n_ve_vat_return"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+
+        <record id="rule_l10n_ve_vat_book_generate_company" model="ir.rule">
+            <field name="name">Generador Libro IVA: aislamiento por compañía</field>
+            <field name="model_id" ref="model_l10n_ve_vat_book_generate"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
     </data>
 </odoo>

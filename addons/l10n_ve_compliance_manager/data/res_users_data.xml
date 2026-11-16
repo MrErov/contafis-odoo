@@ -5,7 +5,6 @@
             <field name="name">ContaFis AI</field>
             <field name="login">contafis_bot</field>
             <field name="email">bot@contafis.local</field>
-            <field name="password">bot_unusable_password_123</field>
             <field name="active" eval="True"/>
             <field name="share" eval="False"/>
             <field name="company_id" ref="base.main_company"/>
