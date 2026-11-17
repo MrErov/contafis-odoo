@@ -2,10 +2,12 @@ import base64
 import json
 from datetime import date
 from pathlib import Path
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
-import odoo.addons.l10n_ve_compliance_manager.models.digitize_client as digitize_client_module
 import requests
+from odoo.addons.l10n_ve_compliance_manager.models.assistant_token import (
+    verify_assistant_token,
+)
 from odoo.addons.l10n_ve_compliance_manager.models.digitize_client import post_digitize
 from odoo.exceptions import UserError, ValidationError
 from odoo.tests import TransactionCase, tagged
@@ -46,13 +48,15 @@ def _make_response(status_code, payload=None):
 class DigitizeTestMixin:
     """Helpers compartidos por las clases de test de la spec 007/T1."""
 
-    def _patch_session(self, sid='test-session-id-123'):
-        """Simula `request.session.sid` en el módulo del cliente HTTP."""
-        mock_session = MagicMock()
-        mock_session.sid = sid
-        mock_request = MagicMock()
-        type(mock_request).session = PropertyMock(return_value=mock_session)
-        return patch.object(digitize_client_module, 'request', mock_request)
+    def _assert_signed_token(self, headers, expected_uid=None):
+        """Valida el token efímero del header y descarta la sesión legada."""
+        token = headers.get('X-ContaFis-Token')
+        self.assertTrue(token, 'Falta el header X-ContaFis-Token')
+        claims = verify_assistant_token(token, API_KEY)
+        self.assertEqual(claims.uid, expected_uid or self.env.user.id)
+        self.assertEqual(claims.company_id, self.env.company.id)
+        self.assertNotIn('X-Odoo-Session', headers)
+        return claims
 
     def _create_wizard(self, **vals):
         defaults = {
@@ -76,21 +80,23 @@ class TestDigitizeClient(DigitizeTestMixin, TransactionCase):
         self.config.set_param('l10n_ve_digitize.timeout_seconds', '30')
         self.config.set_param('l10n_ve_chat.auth_token', API_KEY)
 
-    def test_post_digitize_sends_payload_and_session_header(self):
-        """El POST debe llevar el payload JSON y el header X-Odoo-Session."""
+    def test_post_digitize_sends_payload_and_token_header(self):
+        """El POST lleva el payload JSON y el token firmado, nunca la sesión."""
         payload = {
             'image_base64': 'ZmFrZQ==',
             'filename': 'factura.jpg',
             'document_type': 'auto',
         }
         with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post:
-            post_digitize(DIGITIZE_URL, 'sid-abc', payload, timeout=30)
+            post_digitize(DIGITIZE_URL, 'signed-token', payload, timeout=30)
 
         args, kwargs = mock_post.call_args
         self.assertEqual(args[0], DIGITIZE_URL)
         self.assertEqual(kwargs['json'], payload)
         self.assertEqual(kwargs['headers']['Content-Type'], 'application/json')
-        self.assertEqual(kwargs['headers']['X-Odoo-Session'], 'sid-abc')
+        self.assertEqual(kwargs['headers']['X-ContaFis-Token'], 'signed-token')
+        self.assertFalse(kwargs['allow_redirects'])
+        self.assertNotIn('X-Odoo-Session', kwargs['headers'])
         self.assertNotIn('X-User-Token', kwargs['headers'])
         self.assertNotIn('X-API-Key', kwargs['headers'])
 
@@ -98,7 +104,7 @@ class TestDigitizeClient(DigitizeTestMixin, TransactionCase):
         """El cliente envía X-API-Key (secreto del middleware del asistente)."""
         payload = {'image_base64': 'ZmFrZQ==', 'filename': 'factura.jpg'}
         with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post:
-            post_digitize(DIGITIZE_URL, 'sid-abc', payload, timeout=30, api_key=API_KEY)
+            post_digitize(DIGITIZE_URL, 'signed-token', payload, timeout=30, api_key=API_KEY)
 
         self.assertEqual(mock_post.call_args.kwargs['headers']['X-API-Key'], API_KEY)
 
@@ -108,30 +114,33 @@ class TestDigitizeClient(DigitizeTestMixin, TransactionCase):
 
         with patch(
             'requests.post', return_value=_make_response(200, VALID_RESPONSE)
-        ) as mock_post, self._patch_session():
+        ) as mock_post:
             wizard.action_digitize()
 
-        self.assertEqual(mock_post.call_args.kwargs['headers']['X-API-Key'], API_KEY)
+        headers = mock_post.call_args.kwargs['headers']
+        self.assertEqual(headers['X-API-Key'], API_KEY)
+        self._assert_signed_token(headers)
 
-    def test_action_digitize_omits_api_key_when_not_configured(self):
-        """Sin secreto configurado no se envía el header (modo loopback/dev)."""
+    def test_action_digitize_fails_closed_without_shared_secret(self):
+        """Sin secreto no hay token: no se llama al servicio (fail-closed)."""
         self.config.set_param('l10n_ve_chat.auth_token', '')
         wizard = self._create_wizard()
 
         with patch(
             'requests.post', return_value=_make_response(200, VALID_RESPONSE)
-        ) as mock_post, self._patch_session():
+        ) as mock_post:
             wizard.action_digitize()
 
-        self.assertNotIn('X-API-Key', mock_post.call_args.kwargs['headers'])
+        mock_post.assert_not_called()
+        self.assertEqual(wizard.state, 'error')
+        self.assertIn('secreto compartido', wizard.error_message)
 
     def test_post_digitize_uses_configured_timeout(self):
         """El timeout enviado a requests.post sale del parámetro configurado."""
         self.config.set_param('l10n_ve_digitize.timeout_seconds', '12')
         wizard = self._create_wizard()
 
-        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
-                self._patch_session():
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post:
             wizard.action_digitize()
 
         self.assertEqual(mock_post.call_args.kwargs['timeout'], 12.0)
@@ -143,7 +152,7 @@ class TestDigitizeClient(DigitizeTestMixin, TransactionCase):
         """Con 200 el cliente devuelve la respuesta sin interpretarla."""
         with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)):
             response = post_digitize(
-                DIGITIZE_URL, 'sid-abc', {'filename': 'factura.jpg'}, timeout=30
+                DIGITIZE_URL, 'signed-token', {'filename': 'factura.jpg'}, timeout=30
             )
 
         self.assertEqual(response.status_code, 200)
@@ -154,7 +163,7 @@ class TestDigitizeClient(DigitizeTestMixin, TransactionCase):
         with patch('requests.post', side_effect=requests.Timeout('timed out')):
             with self.assertRaises(requests.Timeout):
                 post_digitize(
-                    DIGITIZE_URL, 'sid-abc', {'filename': 'factura.jpg'}, timeout=1
+                    DIGITIZE_URL, 'signed-token', {'filename': 'factura.jpg'}, timeout=1
                 )
 
     def test_timeout_is_floored_to_one_second(self):
@@ -184,13 +193,14 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
         self.config.set_param('l10n_ve_digitize.url', DIGITIZE_URL)
         self.config.set_param('l10n_ve_digitize.timeout_seconds', '30')
         self.config.set_param('l10n_ve_digitize.max_image_mb', '5')
+        self.config.set_param('l10n_ve_chat.auth_token', API_KEY)
 
     def _run_with_response(self, status_code, payload=None):
         """Ejecuta action_digitize con una respuesta HTTP simulada."""
         wizard = self._create_wizard()
         with patch(
             'requests.post', return_value=_make_response(status_code, payload)
-        ) as mock_post, self._patch_session():
+        ) as mock_post:
             wizard.action_digitize()
         mock_post.assert_called_once()
         return wizard
@@ -200,7 +210,7 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
         self.config.set_param('l10n_ve_digitize.url', '')
         wizard = self._create_wizard()
 
-        with patch('requests.post') as mock_post, self._patch_session():
+        with patch('requests.post') as mock_post:
             wizard.action_digitize()
 
         mock_post.assert_not_called()
@@ -208,17 +218,17 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
         self.assertIn('no está configurada', wizard.error_message)
         self.assertIn('Ajustes', wizard.error_message)
 
-    def test_action_digitize_requires_session(self):
-        """Sin contexto HTTP no hay sid: no se llama al servicio ni se lanza excepción."""
+    def test_action_digitize_requires_shared_secret(self):
+        """Sin secreto compartido no hay token firmado: no se llama al servicio."""
+        self.config.set_param('l10n_ve_chat.auth_token', '')
         wizard = self._create_wizard()
 
-        with patch('requests.post') as mock_post, \
-                patch.object(digitize_client_module, 'request', None):
+        with patch('requests.post') as mock_post:
             wizard.action_digitize()
 
         mock_post.assert_not_called()
         self.assertEqual(wizard.state, 'error')
-        self.assertIn('Sesión no detectada', wizard.error_message)
+        self.assertIn('secreto compartido', wizard.error_message)
 
     def test_action_digitize_builds_contract_payload(self):
         """RF-03: el wizard arma el payload del contrato sin prefijo `data:`."""
@@ -230,16 +240,14 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
 
         with patch(
             'requests.post', return_value=_make_response(200, VALID_RESPONSE)
-        ) as mock_post, self._patch_session('sid-payload'):
+        ) as mock_post:
             wizard.action_digitize()
 
         payload = mock_post.call_args.kwargs['json']
         self.assertEqual(payload['image_base64'], 'ZmFrZQ==')
         self.assertEqual(payload['filename'], 'factura.JPG')
         self.assertEqual(payload['document_type'], 'nota_credito')
-        self.assertEqual(
-            mock_post.call_args.kwargs['headers']['X-Odoo-Session'], 'sid-payload'
-        )
+        self._assert_signed_token(mock_post.call_args.kwargs['headers'])
 
     def test_action_digitize_payload_filename_is_always_a_string(self):
         """filename vacío/False no debe llegar al backend: Pydantic exige str (T6).
@@ -253,8 +261,7 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
             image=base64.b64encode(jpeg_bytes).decode(),
         )
 
-        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
-                self._patch_session():
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post:
             wizard.action_digitize()
 
         payload = mock_post.call_args.kwargs['json']
@@ -266,8 +273,7 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
         """Si el nombre existe, se envía tal cual (no se pisa con el fallback)."""
         wizard = self._create_wizard(filename='talonario.JPG')
 
-        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
-                self._patch_session():
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post:
             wizard.action_digitize()
 
         payload = mock_post.call_args.kwargs['json']
@@ -277,8 +283,7 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
         """Un timeout del servicio deja el wizard en error, sin excepción."""
         wizard = self._create_wizard()
 
-        with patch('requests.post', side_effect=requests.Timeout('timed out')), \
-                self._patch_session():
+        with patch('requests.post', side_effect=requests.Timeout('timed out')):
             wizard.action_digitize()
 
         self.assertEqual(wizard.state, 'error')
@@ -288,19 +293,18 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
         """Un fallo de conexión deja el wizard en error, sin excepción."""
         wizard = self._create_wizard()
 
-        with patch('requests.post', side_effect=requests.ConnectionError('down')), \
-                self._patch_session():
+        with patch('requests.post', side_effect=requests.ConnectionError('down')):
             wizard.action_digitize()
 
         self.assertEqual(wizard.state, 'error')
         self.assertIn('No se pudo conectar', wizard.error_message)
 
-    def test_action_digitize_maps_401_to_session_error(self):
-        """401/403 = sesión de Odoo expirada, no error del servicio."""
+    def test_action_digitize_maps_401_to_auth_error(self):
+        """401/403 = el asistente rechazó el token firmado, no un 5xx."""
         wizard = self._run_with_response(401)
 
         self.assertEqual(wizard.state, 'error')
-        self.assertIn('sesión de Odoo expiró', wizard.error_message)
+        self.assertIn('rechazó la autenticación', wizard.error_message)
         self.assertNotIn('servidor', wizard.error_message.lower())
 
     def test_action_digitize_maps_503_to_unavailable(self):
@@ -359,7 +363,7 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
         large_image = base64.b64encode(b'x' * (6 * 1024 * 1024)).decode()
         wizard = self._create_wizard(image=large_image)
 
-        with patch('requests.post') as mock_post, self._patch_session():
+        with patch('requests.post') as mock_post:
             with self.assertRaises(ValidationError):
                 wizard.action_digitize()
 
@@ -370,7 +374,7 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
         """Un .gif se rechaza antes de llamar al servicio."""
         wizard = self._create_wizard(filename='factura.gif')
 
-        with patch('requests.post') as mock_post, self._patch_session():
+        with patch('requests.post') as mock_post:
             with self.assertRaises(ValidationError):
                 wizard.action_digitize()
 
@@ -382,8 +386,7 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
         for ext in ('JPG', 'JPEG', 'PNG', 'WEBP'):
             with self.subTest(ext=ext):
                 wizard = self._create_wizard(filename=f'factura.{ext}')
-                with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
-                        self._patch_session():
+                with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post:
                     wizard.action_digitize()
                 # El servicio se llama (no hay error de validación)
                 mock_post.assert_called_once()
@@ -397,8 +400,7 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
             image=base64.b64encode(jpeg_bytes).decode(),
         )
 
-        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
-                self._patch_session():
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post:
             wizard.action_digitize()
 
         mock_post.assert_called_once()
@@ -425,25 +427,27 @@ class TestDigitizeWizardErrors(DigitizeTestMixin, TransactionCase):
                 wizard.action_digitize()
         mock_post.assert_not_called()
 
-    def test_action_digitize_does_not_log_image_or_session(self):
-        """El log registra metadatos, nunca el base64 ni el sid (RNF-04)."""
-        secret_sid = 'SECRET-SESSION-DO-NOT-LOG'
+    def test_action_digitize_does_not_log_image_or_token(self):
+        """El log registra metadatos, nunca el base64 ni el token (RNF-04)."""
         wizard = self._create_wizard()
         image_b64 = wizard.image
         if isinstance(image_b64, bytes):
             image_b64 = image_b64.decode()
 
-        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)), \
-                self._patch_session(secret_sid):
+        with patch(
+            'requests.post', return_value=_make_response(200, VALID_RESPONSE)
+        ) as mock_post:
             with self.assertLogs(
                 'odoo.addons.l10n_ve_compliance_manager.models', level='DEBUG'
             ) as captured:
                 wizard.action_digitize()
 
+        token = mock_post.call_args.kwargs['headers']['X-ContaFis-Token']
         output = '\n'.join(captured.output)
         self.assertNotIn(image_b64, output)
-        self.assertNotIn(secret_sid, output)
+        self.assertNotIn(token, output)
         self.assertNotIn('X-Odoo-Session', output)
+        self.assertNotIn('X-ContaFis-Token', output)
         self.assertTrue(
             any('factura.jpg' in line for line in captured.output),
             'El log debe identificar el archivo analizado',
@@ -478,6 +482,7 @@ class TestDigitizeMapping(DigitizeTestMixin, TransactionCase):
         self.config.set_param('l10n_ve_digitize.url', DIGITIZE_URL)
         self.config.set_param('l10n_ve_digitize.timeout_seconds', '30')
         self.config.set_param('l10n_ve_digitize.max_image_mb', '5')
+        self.config.set_param('l10n_ve_chat.auth_token', API_KEY)
 
     def _done_wizard(self, payload=None):
         """Ejecuta la digitalización con una respuesta simulada y la deja en `done`."""
@@ -485,7 +490,7 @@ class TestDigitizeMapping(DigitizeTestMixin, TransactionCase):
         with patch(
             'requests.post',
             return_value=_make_response(200, payload or _load_fixture()),
-        ), self._patch_session():
+        ):
             wizard.action_digitize()
         self.assertEqual(wizard.state, 'done')
         return wizard
@@ -769,6 +774,7 @@ class TestDigitizeWarningsUi(DigitizeTestMixin, TransactionCase):
         self.config.set_param('l10n_ve_digitize.url', DIGITIZE_URL)
         self.config.set_param('l10n_ve_digitize.timeout_seconds', '30')
         self.config.set_param('l10n_ve_digitize.max_image_mb', '5')
+        self.config.set_param('l10n_ve_chat.auth_token', API_KEY)
 
     def _done_wizard(self, payload=None):
         """Ejecuta la digitalización con una respuesta simulada y la deja en `done`."""
@@ -776,7 +782,7 @@ class TestDigitizeWarningsUi(DigitizeTestMixin, TransactionCase):
         with patch(
             'requests.post',
             return_value=_make_response(200, payload or _load_fixture()),
-        ), self._patch_session():
+        ):
             wizard.action_digitize()
         self.assertEqual(wizard.state, 'done')
         return wizard
@@ -977,6 +983,7 @@ class TestDigitizeEndToEnd(DigitizeTestMixin, TaxGroupMixin, TransactionCase):
         self.config.set_param('l10n_ve_digitize.url', DIGITIZE_URL)
         self.config.set_param('l10n_ve_digitize.timeout_seconds', '30')
         self.config.set_param('l10n_ve_digitize.max_image_mb', '5')
+        self.config.set_param('l10n_ve_chat.auth_token', API_KEY)
         # El wizard físico necesita impuestos con l10n_ve_tax_type para
         # construir líneas. No dependemos de los datos ambientales de la BD:
         # en instalación limpia la plantilla contable puede haberlos borrado.
@@ -994,8 +1001,7 @@ class TestDigitizeEndToEnd(DigitizeTestMixin, TaxGroupMixin, TransactionCase):
     def _full_flow(self, payload, type='purchase'):
         """Ejecuta flujo completo: mock -> digitize -> apply -> create_and_post."""
         wizard = self._create_wizard(type=type)
-        with patch('requests.post', return_value=_make_response(200, payload)), \
-                self._patch_session():
+        with patch('requests.post', return_value=_make_response(200, payload)):
             wizard.action_digitize()
         self.assertEqual(wizard.state, 'done')
 
@@ -1077,8 +1083,7 @@ class TestDigitizeEndToEnd(DigitizeTestMixin, TaxGroupMixin, TransactionCase):
         payload['extracted']['supplier_name'] = 'Proveedor Cía A'
 
         wizard = self._create_wizard()
-        with patch('requests.post', return_value=_make_response(200, payload)), \
-                self._patch_session():
+        with patch('requests.post', return_value=_make_response(200, payload)):
             wizard.action_digitize()
 
         self.assertEqual(wizard.state, 'done')
@@ -1106,8 +1111,7 @@ class TestDigitizeEndToEnd(DigitizeTestMixin, TaxGroupMixin, TransactionCase):
         payload2['extracted']['supplier_name'] = 'Proveedor Nuevo'
 
         wizard2 = self._create_wizard()
-        with patch('requests.post', return_value=_make_response(200, payload2)), \
-                self._patch_session():
+        with patch('requests.post', return_value=_make_response(200, payload2)):
             wizard2.action_digitize()
 
         action2 = wizard2.action_apply_to_invoice()
@@ -1130,8 +1134,7 @@ class TestDigitizeEndToEnd(DigitizeTestMixin, TaxGroupMixin, TransactionCase):
 
         initial_count = self.env['account.move'].search_count([])
 
-        with patch('requests.post', return_value=_make_response(200, payload)), \
-                self._patch_session():
+        with patch('requests.post', return_value=_make_response(200, payload)):
             wizard.action_digitize()
 
         wizard.action_apply_to_invoice()

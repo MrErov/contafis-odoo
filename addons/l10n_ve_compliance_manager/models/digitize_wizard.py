@@ -8,8 +8,9 @@ import requests
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from .assistant_token import generate_assistant_token
 from .digitize_batch_line import BATCH_MAX_LINES, image_size_mb
-from .digitize_client import DIGITIZE_ALLOWED_EXTENSIONS, _get_session_id, post_digitize
+from .digitize_client import DIGITIZE_ALLOWED_EXTENSIONS, post_digitize
 
 _logger = logging.getLogger(__name__)
 
@@ -238,6 +239,26 @@ class DigitizeWizard(models.TransientModel):
         """
         return (self._get_param('l10n_ve_chat.auth_token') or '').strip()
 
+    def _get_assistant_token(self):
+        """Firma un token efímero con el uid y la compañía del usuario.
+
+        Devuelve ``''`` cuando falta el secreto compartido: cada acción decide
+        cómo avisar (error del wizard o excepción del lote). Nunca se envía el
+        ``sid`` de Odoo al asistente (P0-04).
+        """
+        secret = self._get_api_key()
+        if not secret:
+            return ''
+        try:
+            return generate_assistant_token(
+                secret,
+                uid=self.env.user.id,
+                company_id=self.env.company.id,
+            )
+        except ValueError:
+            _logger.exception("No se pudo firmar el token efímero del asistente.")
+            return ''
+
     # ------------------------------------------------------------------
     # Input validation
     # ------------------------------------------------------------------
@@ -375,10 +396,11 @@ class DigitizeWizard(models.TransientModel):
                 )
             )
 
-        session_id = _get_session_id()
-        if not session_id:
+        token = self._get_assistant_token()
+        if not token:
             return self._set_error(
-                _("\U0001f510 Sesión no detectada. Recarg\xe1 Odoo e intent\xe1 de nuevo.")
+                _("\U0001f510 Falta configurar el secreto compartido del Asistente "
+                  "de IA. Configuralo en Ajustes \u2192 ContaFis AI.")
             )
 
         payload = {
@@ -392,7 +414,7 @@ class DigitizeWizard(models.TransientModel):
         start_time = time.time()
         try:
             response = post_digitize(
-                url, session_id, payload, timeout=timeout, api_key=self._get_api_key()
+                url, token, payload, timeout=timeout, api_key=self._get_api_key()
             )
         except requests.Timeout:
             _logger.warning(
@@ -419,7 +441,7 @@ class DigitizeWizard(models.TransientModel):
 
         elapsed = time.time() - start_time
         status = response.status_code
-        # Only metadata is logged: never the base64 image nor the session id.
+        # Only metadata is logged: never the base64 image nor the signed token.
         _logger.info(
             "Digitize request for %s (%.2f MB) -> HTTP %s in %.2fs",
             self._get_payload_filename(),
@@ -430,7 +452,8 @@ class DigitizeWizard(models.TransientModel):
 
         if status in (401, 403):
             return self._set_error(
-                _("\U0001f510 Tu sesi\xf3n de Odoo expir\xf3 o no es v\xe1lida. Recarg\xe1 Odoo e intent\xe1 de nuevo.")
+                _("\U0001f510 El asistente rechaz\xf3 la autenticaci\xf3n. "
+                  "Verific\xe1 el secreto compartido en Ajustes \u2192 ContaFis AI.")
             )
         if status == 503:
             return self._set_error(
@@ -883,8 +906,8 @@ class DigitizeWizard(models.TransientModel):
     def action_digitize_batch(self):
         """Analyze up to BATCH_MAX_LINES receipts in one click (plan 007-B).
 
-        Global preconditions (batch size, URL, session) abort the whole batch
-        before any POST. Everything else isolates the failure on the line.
+        Global preconditions (batch size, URL, shared secret) abort the whole
+        batch before any POST. Everything else isolates the failure on the line.
         """
         self.ensure_one()
         lines = self.line_ids
@@ -907,10 +930,10 @@ class DigitizeWizard(models.TransientModel):
                 )
             )
 
-        session_id = _get_session_id()
-        if not session_id:
+        if not self._get_api_key():
             raise UserError(
-                _("\U0001f510 Sesión no detectada. Recarg\xe1 Odoo e intent\xe1 de nuevo.")
+                _("\U0001f510 Falta configurar el secreto compartido del Asistente "
+                  "de IA. Configuralo en Ajustes \u2192 ContaFis AI.")
             )
 
         # Reset before reprocessing so the button is idempotent.
@@ -923,7 +946,7 @@ class DigitizeWizard(models.TransientModel):
 
         for line in lines:
             try:
-                self._process_batch_line(line, url, session_id, timeout, max_mb)
+                self._process_batch_line(line, url, timeout, max_mb)
             except Exception:  # last-resort safety net for one item.
                 _logger.exception("Batch line %s failed unexpectedly", line.id)
                 line.write(
@@ -972,10 +995,10 @@ class DigitizeWizard(models.TransientModel):
                     "Configure la URL en Ajustes \u2192 ContaFis AI."
                 )
             )
-        session_id = _get_session_id()
-        if not session_id:
+        if not self._get_api_key():
             raise UserError(
-                _("\U0001f510 Sesi\xf3n no detectada. Recarg\xe1 Odoo e intent\xe1 de nuevo.")
+                _("\U0001f510 Falta configurar el secreto compartido del Asistente "
+                  "de IA. Configuralo en Ajustes \u2192 ContaFis AI.")
             )
 
         line.write(
@@ -984,7 +1007,6 @@ class DigitizeWizard(models.TransientModel):
         self._process_batch_line(
             line,
             url,
-            session_id,
             self._get_timeout(),
             self._get_max_image_mb(),
         )
@@ -994,7 +1016,7 @@ class DigitizeWizard(models.TransientModel):
             'error_message': line.error_message or '',
         }
 
-    def _process_batch_line(self, line, url, session_id, timeout, max_mb):
+    def _process_batch_line(self, line, url, timeout, max_mb):
         """Analyze a single receipt: every error lives on the line, not raised."""
         start_time = time.time()
         try:
@@ -1003,9 +1025,23 @@ class DigitizeWizard(models.TransientModel):
             line.write({'status': 'error', 'error_message': str(error)})
             return
 
+        # Fresh token per item: a 20-receipt batch can outlive the 60 s TTL.
+        token = self._get_assistant_token()
+        if not token:
+            line.write(
+                {
+                    'status': 'error',
+                    'error_message': _(
+                        "\U0001f510 Falta configurar el secreto compartido del "
+                        "Asistente de IA."
+                    ),
+                }
+            )
+            return
+
         try:
             response = post_digitize(
-                url, session_id, payload, timeout=timeout, api_key=self._get_api_key()
+                url, token, payload, timeout=timeout, api_key=self._get_api_key()
             )
         except requests.Timeout:
             _logger.warning(
@@ -1044,7 +1080,7 @@ class DigitizeWizard(models.TransientModel):
             return
 
         status = response.status_code
-        # Only metadata is logged: never the base64 image nor the session id.
+        # Only metadata is logged: never the base64 image nor the signed token.
         _logger.info(
             "Batch line %s (%s, %.2f MB) -> HTTP %s in %.2fs",
             line.id,
@@ -1110,8 +1146,8 @@ class DigitizeWizard(models.TransientModel):
         """HTTP error message for the batch; ``None`` when not an error."""
         if status in (401, 403):
             return _(
-                "\U0001f510 Tu sesi\xf3n de Odoo expir\xf3 o no es v\xe1lida. "
-                "Recarg\xe1 Odoo e intent\xe1 de nuevo."
+                "\U0001f510 El asistente rechaz\xf3 la autenticaci\xf3n. "
+                "Verific\xe1 el secreto compartido en Ajustes \u2192 ContaFis AI."
             )
         if status == 503:
             return _(

@@ -2,8 +2,10 @@ import base64
 import json
 from unittest.mock import patch
 
-import odoo.addons.l10n_ve_compliance_manager.models.digitize_client as digitize_client_module
 import requests
+from odoo.addons.l10n_ve_compliance_manager.models.assistant_token import (
+    verify_assistant_token,
+)
 from odoo.exceptions import UserError, ValidationError
 from odoo.tests import TransactionCase, tagged
 
@@ -69,9 +71,8 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         return wizard.line_ids.sorted('id')
 
     def _run_batch(self, wizard, **patch_kwargs):
-        """Ejecuta el lote con ``requests.post`` mockeado y sesión simulada."""
-        with patch('requests.post', **patch_kwargs) as mock_post, \
-                self._patch_session('sid-batch'):
+        """Ejecuta el lote con ``requests.post`` mockeado (cero red real)."""
+        with patch('requests.post', **patch_kwargs) as mock_post:
             wizard.action_digitize_batch()
         return mock_post
 
@@ -107,7 +108,7 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         """21 líneas abortan el lote con ValidationError antes de cualquier POST."""
         wizard = self._batch_wizard(rows=21)
 
-        with patch('requests.post') as mock_post, self._patch_session('sid-batch'):
+        with patch('requests.post') as mock_post:
             with self.assertRaises(ValidationError):
                 wizard.action_digitize_batch()
 
@@ -119,7 +120,7 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         """Un lote sin líneas aborta con ValidationError y sin POST."""
         wizard = self._batch_wizard(rows=0)
 
-        with patch('requests.post') as mock_post, self._patch_session('sid-batch'):
+        with patch('requests.post') as mock_post:
             with self.assertRaises(ValidationError):
                 wizard.action_digitize_batch()
 
@@ -171,7 +172,7 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         self.assertEqual(mock_post.call_count, 2)
 
     def test_batch_isolates_line_http_401(self):
-        """401 en la línea 1 marca error de sesión y no aborta el lote."""
+        """401 en la línea 1 marca error de autenticación y no aborta el lote."""
         wizard = self._batch_wizard(rows=2)
 
         mock_post = self._run_batch(
@@ -181,7 +182,7 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
 
         lines = self._lines(wizard)
         self.assertEqual(lines[0].status, 'error')
-        self.assertIn('sesión de Odoo expiró', lines[0].error_message)
+        self.assertIn('rechazó la autenticación', lines[0].error_message)
         self.assertEqual(lines[1].status, 'done')
         self.assertEqual(mock_post.call_count, 2)
 
@@ -233,7 +234,7 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         self.config.set_param('l10n_ve_digitize.url', '')
         wizard = self._batch_wizard(rows=2)
 
-        with patch('requests.post') as mock_post, self._patch_session('sid-batch'):
+        with patch('requests.post') as mock_post:
             with self.assertRaises(UserError):
                 wizard.action_digitize_batch()
 
@@ -241,17 +242,17 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         for line in self._lines(wizard):
             self.assertEqual(line.status, 'pending')
 
-    def test_batch_requires_session(self):
-        """Sin contexto HTTP (sin sid) el lote aborta con UserError y sin POST."""
+    def test_batch_requires_shared_secret(self):
+        """Sin secreto compartido no hay token: el lote aborta sin POST."""
+        self.config.set_param('l10n_ve_chat.auth_token', '')
         wizard = self._batch_wizard(rows=2)
 
-        with patch('requests.post') as mock_post, \
-                patch.object(digitize_client_module, 'request', None):
+        with patch('requests.post') as mock_post:
             with self.assertRaises(UserError) as capture:
                 wizard.action_digitize_batch()
 
         mock_post.assert_not_called()
-        self.assertIn('Sesión no detectada', str(capture.exception))
+        self.assertIn('secreto compartido', str(capture.exception))
 
     def test_batch_builds_payload_per_line(self):
         """Cada POST lleva la imagen/nombre de su línea y el hint del wizard."""
@@ -280,8 +281,13 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         self.assertEqual(payloads[0]['document_type'], 'nota_credito')
         self.assertEqual(payloads[1]['document_type'], 'nota_credito')
         headers = mock_post.call_args.kwargs['headers']
-        self.assertEqual(headers['X-Odoo-Session'], 'sid-batch')
+        self.assertNotIn('X-Odoo-Session', headers)
+        token = headers['X-ContaFis-Token']
+        claims = verify_assistant_token(token, API_KEY)
+        self.assertEqual(claims.uid, self.env.user.id)
+        self.assertEqual(claims.company_id, self.env.company.id)
         self.assertEqual(headers['X-API-Key'], API_KEY)
+        self.assertFalse(mock_post.call_args.kwargs['allow_redirects'])
 
     def test_batch_merges_local_warnings_in_result_json(self):
         """result_json fusiona warnings del servicio (ganador) con los locales."""
@@ -349,8 +355,7 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         wizard = self._batch_wizard(rows=2)
         lines = self._lines(wizard)
 
-        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post, \
-                self._patch_session('sid-line'):
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)) as mock_post:
             result = wizard.action_digitize_line(lines[0].id)
 
         self.assertEqual(mock_post.call_count, 1)
@@ -363,8 +368,7 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         wizard = self._batch_wizard(rows=2)
         lines = self._lines(wizard)
 
-        with patch('requests.post', side_effect=requests.Timeout('t')), \
-                self._patch_session('sid-line'):
+        with patch('requests.post', side_effect=requests.Timeout('t')):
             result = wizard.action_digitize_line(lines[0].id)
 
         self.assertEqual(result['status'], 'error')
@@ -377,23 +381,23 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         wizard = self._batch_wizard(rows=1)
         other = self._batch_wizard(rows=1)
 
-        with patch('requests.post') as mock_post, self._patch_session('sid-line'):
+        with patch('requests.post') as mock_post:
             with self.assertRaises(UserError):
                 wizard.action_digitize_line(other.line_ids.id)
 
         mock_post.assert_not_called()
 
-    def test_single_line_requires_session(self):
-        """Sin sesion HTTP el RPC por linea aborta sin POST y deja la fila pending."""
+    def test_single_line_requires_shared_secret(self):
+        """Sin secreto compartido el RPC por linea aborta sin POST y deja pending."""
+        self.config.set_param('l10n_ve_chat.auth_token', '')
         wizard = self._batch_wizard(rows=1)
 
-        with patch('requests.post') as mock_post, \
-                patch.object(digitize_client_module, 'request', None):
+        with patch('requests.post') as mock_post:
             with self.assertRaises(UserError) as capture:
                 wizard.action_digitize_line(wizard.line_ids.id)
 
         mock_post.assert_not_called()
-        self.assertIn('Sesión no detectada', str(capture.exception))
+        self.assertIn('secreto compartido', str(capture.exception))
         self.assertEqual(wizard.line_ids.status, 'pending')
 
     def test_single_line_reprocess_clears_previous_result(self):
@@ -401,14 +405,12 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         wizard = self._batch_wizard(rows=1)
         line = self._lines(wizard)[0]
 
-        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)), \
-                self._patch_session('sid-line'):
+        with patch('requests.post', return_value=_make_response(200, VALID_RESPONSE)):
             wizard.action_digitize_line(line.id)
         self.assertEqual(line.status, 'done')
         self.assertTrue(line.result_json)
 
-        with patch('requests.post', return_value=_make_response(503)), \
-                self._patch_session('sid-line'):
+        with patch('requests.post', return_value=_make_response(503)):
             result = wizard.action_digitize_line(line.id)
 
         self.assertEqual(result['status'], 'error')
@@ -419,7 +421,7 @@ class TestDigitizeBatch(DigitizeTestMixin, TransactionCase):
         """21 filas abortan el RPC por linea antes de cualquier POST."""
         wizard = self._batch_wizard(rows=21)
 
-        with patch('requests.post') as mock_post, self._patch_session('sid-line'):
+        with patch('requests.post') as mock_post:
             with self.assertRaises(ValidationError):
                 wizard.action_digitize_line(wizard.line_ids[0].id)
 

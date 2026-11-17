@@ -3,8 +3,9 @@ import time
 
 import requests
 from odoo import models
-from odoo.http import request
 from odoo.tools.translate import _
+
+from .assistant_token import generate_assistant_token
 
 _logger = logging.getLogger(__name__)
 
@@ -113,44 +114,47 @@ class DiscussChannel(models.Model):
 
         webhook_url = self.env['ir.config_parameter'].sudo().get_param('l10n_ve_chat.webhook_url', '')
 
-        # Get session ID from HTTP request context.
-        # `request` may be unbound (crons, unit tests, RPC without an HTTP
-        # request), in which case any attribute access raises. Never let that
-        # break the caller: fall back to an empty session and warn instead.
-        session_id = ''
-        try:
-            if request and hasattr(request, 'session') and request.session:
-                session_id = request.session.sid or ''
-        except Exception:
-            _logger.warning(
-                "No se pudo obtener session_id desde el request (contexto no HTTP)."
-            )
-
-        # Without a session there is nothing the external agent can authenticate
-        # against, so fail friendly instead of sending an anonymous request.
-        if not session_id:
-            _logger.warning("No hay session_id disponible: se cancela la llamada al agente.")
-            self._post_bot_error(
-                _("🔐 Sesión no detectada. Por favor, recargá Odoo e intentá de nuevo.")
-            )
-            return None
-
-        # FastAPI expects: {"message": "text"} with header X-Odoo-Session: <session_id>
-        payload = {'message': question}
-        headers = {
-            'Content-Type': 'application/json',
-            'X-Odoo-Session': session_id,
-        }
-        api_key = (
+        secret = (
             self.env['ir.config_parameter']
             .sudo()
             .get_param('l10n_ve_chat.auth_token', '')
             or ''
         ).strip()
-        if api_key:
-            headers['X-API-Key'] = api_key
+        if not secret:
+            # Fail closed: without the shared secret the assistant cannot
+            # verify the signed token, so there is nothing to authenticate.
+            _logger.warning(
+                "No hay secreto compartido configurado: se cancela la llamada al agente."
+            )
+            self._post_bot_error(
+                _("🔐 Falta configurar el secreto compartido del Asistente de IA. "
+                  "Ve a Ajustes → General → Asistente de IA.")
+            )
+            return None
 
-        # Never log header values: they carry the session id and the shared
+        try:
+            token = generate_assistant_token(
+                secret,
+                uid=user.id,
+                company_id=self.env.company.id,
+            )
+        except ValueError:
+            _logger.exception("No se pudo firmar el token efímero del asistente.")
+            self._post_bot_error(
+                _("🔐 No se pudo firmar la solicitud al Asistente de IA. "
+                  "Verificá el secreto compartido en Ajustes.")
+            )
+            return None
+
+        # FastAPI expects: {"message": "text"} with X-ContaFis-Token: <token>
+        payload = {'message': question}
+        headers = {
+            'Content-Type': 'application/json',
+            'X-ContaFis-Token': token,
+            'X-API-Key': secret,
+        }
+
+        # Never log header values: they carry the signed token and the shared
         # secret of the assistant.
         _logger.info(
             "BOT WEBHOOK - URL: %s, Payload keys: %s, Header names: %s",
@@ -161,7 +165,13 @@ class DiscussChannel(models.Model):
 
         start_time = time.time()
         try:
-            response = requests.post(webhook_url, json=payload, headers=headers, timeout=60)
+            response = requests.post(
+                webhook_url,
+                json=payload,
+                headers=headers,
+                timeout=60,
+                allow_redirects=False,
+            )
         except requests.Timeout:
             elapsed = time.time() - start_time
             _logger.error("Timeout calling webhook after %.2fs: %s", elapsed, webhook_url)
@@ -176,17 +186,25 @@ class DiscussChannel(models.Model):
         elapsed = time.time() - start_time
         _logger.info("BOT WEBHOOK - Response received in %.2fs, status: %s", elapsed, response.status_code)
 
-        if response.status_code in (401, 403):
-            # Session auth: 401/403 means the Odoo session is no longer valid,
-            # it is not a webhook token problem anymore.
+        if 300 <= response.status_code < 400:
+            # The token must never follow a redirect to another origin.
             self._post_bot_error(
-                _("🔐 Tu sesión de Odoo expiró o no es válida. Recargá Odoo e intentá de nuevo.")
+                _("❌ La URL del agente redirige a otro destino. "
+                  "Configurá la URL final del webhook en Ajustes.")
+            )
+            return None
+        if response.status_code in (401, 403):
+            # The assistant rejected the signed token (wrong/absent shared
+            # secret or a clock outside the allowed skew).
+            self._post_bot_error(
+                _("🔐 El asistente rechazó la autenticación. "
+                  "Verificá el secreto compartido en Ajustes → ContaFis AI.")
             )
             return None
         if response.status_code == 503:
-            # The agent could not validate the session against Odoo (Odoo down/slow).
+            # The agent could not validate the signed token right now.
             self._post_bot_error(
-                _("🔄 No se pudo validar tu sesión en este momento. Reintentá en unos minutos.")
+                _("🔄 No se pudo validar tu identidad en este momento. Reintentá en unos minutos.")
             )
             return None
         if response.status_code >= 500:

@@ -3,6 +3,7 @@ from . import (
     account_move,
     account_tax,
     alert,
+    assistant_token,
     bank_holiday,
     cartelera_evidence,
     cartelera_evidence_wizard,
