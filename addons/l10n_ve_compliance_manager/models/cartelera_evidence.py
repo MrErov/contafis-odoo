@@ -17,6 +17,14 @@ class CarteleraEvidence(models.Model):
         required=True,
         ondelete='cascade',
     )
+    company_id = fields.Many2one(
+        'res.company',
+        string='Compañía',
+        related='cartelera_status_id.company_id',
+        store=True,
+        index=True,
+        readonly=True,
+    )
     filename = fields.Char(string='Nombre del archivo')
     image = fields.Binary(
         string='Imagen',
