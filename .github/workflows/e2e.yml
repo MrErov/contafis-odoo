@@ -105,7 +105,7 @@ jobs:
       - name: Run E2E tests
         env:
           ODOO_URL: http://localhost:8069
-        run: npx playwright test --reporter=list
+        run: npx playwright test --reporter=list,html
 
       - name: Upload Playwright report
         if: always()

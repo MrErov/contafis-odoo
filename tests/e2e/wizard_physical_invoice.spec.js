@@ -77,8 +77,13 @@ test.describe('Wizard Factura Física', () => {
     await page.keyboard.press('Tab');
     await page.waitForTimeout(500);
 
-    // Submit
-    await page.getByRole('button', { name: 'Crear y Postear' }).click();
+    // Submit (por atributo `name`, no por etiqueta: sobrevive a renombres y traducciones)
+    const btn = page.locator('button[name="action_create_and_post"]');
+    await expect(btn).toBeVisible({ timeout: 15000 });
+    // Odoo mantiene tráfico de fondo (bus/websocket): `networkidle` no se alcanza
+    // nunca, así que se espera como best-effort con timeout corto y sin abortar.
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+    await btn.click();
 
     // Esperar un momento para que el submit procese
     await page.waitForTimeout(3000);
