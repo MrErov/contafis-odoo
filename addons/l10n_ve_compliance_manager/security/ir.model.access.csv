@@ -46,6 +46,7 @@ access_l10n_ve_vat_book_line_user,l10n.ve.vat.book.line.user,model_l10n_ve_vat_b
 access_l10n_ve_vat_book_line_manager,l10n.ve.vat.book.line.manager,model_l10n_ve_vat_book_line,account.group_account_manager,1,1,1,1
 access_l10n_ve_vat_book_line_accountant,l10n.ve.vat.book.line.accountant,model_l10n_ve_vat_book_line,l10n_ve_compliance_accountant,1,1,1,1
 access_l10n_ve_vat_book_generate_manager,l10n.ve.vat.book.generate.manager,model_l10n_ve_vat_book_generate,account.group_account_manager,1,1,1,1
+access_l10n_ve_vat_book_generate_accountant,l10n.ve.vat.book.generate.accountant,model_l10n_ve_vat_book_generate,l10n_ve_compliance_accountant,1,1,1,1
 access_l10n_ve_vat_return_user,l10n.ve.vat.return.user,model_l10n_ve_vat_return,account.group_account_user,1,0,0,0
 access_l10n_ve_vat_return_manager,l10n.ve.vat.return.manager,model_l10n_ve_vat_return,account.group_account_manager,1,1,1,1
 access_l10n_ve_vat_return_accountant,l10n.ve.vat.return.accountant,model_l10n_ve_vat_return,l10n_ve_compliance_accountant,1,1,1,1

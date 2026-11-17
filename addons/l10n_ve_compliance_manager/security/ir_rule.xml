@@ -125,6 +125,33 @@
             <field name="domain_force">[('company_id', 'in', company_ids)]</field>
         </record>
 
+        <!-- P0-01: cartera de la cartelera fiscal (snapshots + evidencias). -->
+        <record id="rule_l10n_ve_cartelera_status_accountant" model="ir.rule">
+            <field name="name">Snapshot Cartelera: solo mi cartera asignada</field>
+            <field name="model_id" ref="model_l10n_ve_cartelera_status"/>
+            <field name="domain_force">[('client_id.accountant_id', '=', user.id)]</field>
+            <field name="groups" eval="[(6, 0, [ref('account.group_account_user'), ref('l10n_ve_compliance_accountant')])]"/>
+        </record>
+        <record id="rule_l10n_ve_cartelera_status_admin" model="ir.rule">
+            <field name="name">Snapshot Cartelera: el administrador ve todo</field>
+            <field name="model_id" ref="model_l10n_ve_cartelera_status"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        </record>
+
+        <record id="rule_l10n_ve_cartelera_evidence_accountant" model="ir.rule">
+            <field name="name">Evidencia Cartelera: solo mi cartera asignada</field>
+            <field name="model_id" ref="model_l10n_ve_cartelera_evidence"/>
+            <field name="domain_force">[('cartelera_status_id.client_id.accountant_id', '=', user.id)]</field>
+            <field name="groups" eval="[(6, 0, [ref('account.group_account_user'), ref('l10n_ve_compliance_accountant')])]"/>
+        </record>
+        <record id="rule_l10n_ve_cartelera_evidence_admin" model="ir.rule">
+            <field name="name">Evidencia Cartelera: el administrador ve todo</field>
+            <field name="model_id" ref="model_l10n_ve_cartelera_evidence"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+        </record>
+
         <!-- P0-01/P0-02: reglas globales de compañía (aplican también al admin). -->
         <record id="rule_l10n_ve_cartelera_status_company" model="ir.rule">
             <field name="name">Snapshot Cartelera: aislamiento por compañía</field>
