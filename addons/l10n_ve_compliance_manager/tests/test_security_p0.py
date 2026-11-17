@@ -4,6 +4,8 @@ Cubre:
 - P0-03: el bot de ContaFis no debe tener una contraseña utilizable.
 - P0-01/P0-02: aislamiento por compañía de cartelera, retenciones,
   planilla IVA y generador de libro.
+- P0-01 (residual): aislamiento por cartera de cartelera y acceso del
+  contador de cumplimiento al generador de libro.
 - P0-02: el generador de libro deja de estar expuesto a ``base.group_user``.
 """
 
@@ -192,6 +194,112 @@ class TestSecurityP0CompanyIsolation(TransactionCase):
                 in_a = self._as_company(model_name, self.company_a)
                 with self.assertRaises(AccessError):
                     in_a.browse(record.id).read(['id'])
+
+
+@tagged('post_install', '-at_install')
+class TestSecurityP0PortfolioIsolation(TransactionCase):
+    """P0-01 residual: cartera de cartelera y ACL del contador en el libro."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.company = cls.env.company
+        cls.compliance_group = cls.env.ref(
+            'l10n_ve_compliance_manager.l10n_ve_compliance_accountant'
+        )
+        base_user_group = cls.env.ref('base.group_user')
+
+        def create_user(login, extra_groups):
+            return cls.env['res.users'].create({
+                'name': login,
+                'login': login,
+                'company_id': cls.company.id,
+                'company_ids': [(6, 0, [cls.company.id])],
+                'group_ids': [(6, 0, [base_user_group.id] + [
+                    group.id for group in extra_groups
+                ])],
+            })
+
+        cls.accountant_1 = create_user('p0_portfolio_a', [cls.compliance_group])
+        cls.accountant_2 = create_user('p0_portfolio_b', [cls.compliance_group])
+        cls.manager = create_user(
+            'p0_portfolio_manager',
+            [cls.env.ref('account.group_account_manager')],
+        )
+
+        partner_1 = cls.env['res.partner'].create({'name': 'P0 Portfolio Partner 1'})
+        partner_2 = cls.env['res.partner'].create({'name': 'P0 Portfolio Partner 2'})
+        Client = cls.env['l10n.ve.compliance.client']
+        cls.client_1 = Client.create({
+            'name': 'P0 Portfolio Client 1',
+            'partner_id': partner_1.id,
+            'company_id': cls.company.id,
+            'accountant_id': cls.accountant_1.id,
+        })
+        cls.client_2 = Client.create({
+            'name': 'P0 Portfolio Client 2',
+            'partner_id': partner_2.id,
+            'company_id': cls.company.id,
+            'accountant_id': cls.accountant_2.id,
+        })
+
+        document_type = cls.env['l10n.ve.document.type'].create({
+            'name': 'P0 Portfolio Document Type',
+            'code': 'P0P',
+        })
+        status_vals = {
+            'year': 2026,
+            'month': '2',
+            'document_type_id': document_type.id,
+            'state': 'valid',
+        }
+        Status = cls.env['l10n.ve.cartelera.status']
+        cls.status_1 = Status.create(dict(status_vals, client_id=cls.client_1.id))
+        cls.status_2 = Status.create(dict(status_vals, client_id=cls.client_2.id))
+
+        Evidence = cls.env['l10n.ve.cartelera.evidence']
+        cls.evidence_1 = Evidence.create({'cartelera_status_id': cls.status_1.id})
+        cls.evidence_2 = Evidence.create({'cartelera_status_id': cls.status_2.id})
+
+    def test_accountant_cannot_see_other_portfolio_snapshots(self):
+        """Un contador solo ve los snapshots de los clientes que tiene asignados."""
+        Status = self.env['l10n.ve.cartelera.status'].with_user(self.accountant_1)
+        record_ids = (self.status_1 + self.status_2).ids
+        visible = Status.search([('id', 'in', record_ids)])
+        self.assertIn(self.status_1, visible)
+        self.assertNotIn(self.status_2, visible)
+        with self.assertRaises(AccessError):
+            self.status_2.with_user(self.accountant_1).read(['id'])
+
+    def test_accountant_cannot_see_other_portfolio_evidence(self):
+        """La evidencia hereda la cartera del snapshot al que pertenece."""
+        Evidence = self.env['l10n.ve.cartelera.evidence'].with_user(self.accountant_1)
+        record_ids = (self.evidence_1 + self.evidence_2).ids
+        visible = Evidence.search([('id', 'in', record_ids)])
+        self.assertIn(self.evidence_1, visible)
+        self.assertNotIn(self.evidence_2, visible)
+        with self.assertRaises(AccessError):
+            self.evidence_2.with_user(self.accountant_1).read(['id'])
+
+    def test_manager_still_sees_all_portfolios(self):
+        """La regla de cartera es condicional y no bloquea al manager."""
+        Status = self.env['l10n.ve.cartelera.status'].with_user(self.manager)
+        record_ids = (self.status_1 + self.status_2).ids
+        visible = Status.search([('id', 'in', record_ids)])
+        self.assertEqual(set(visible.ids), set(record_ids))
+
+    def test_compliance_accountant_can_read_and_create_vat_book_generate(self):
+        """El grupo de contador recupera lectura y creación del generador de libro."""
+        Generate = self.env['l10n.ve.vat.book.generate'].with_user(self.accountant_1)
+        record = Generate.create({
+            'company_id': self.company.id,
+            'period_month': '2026-01',
+            'book_type': 'both',
+        })
+        self.assertTrue(record.exists())
+        visible = Generate.search([('id', '=', record.id)])
+        self.assertEqual(visible.ids, [record.id])
+        self.assertEqual(visible.read(['id'])[0]['id'], record.id)
 
 
 @tagged('post_install', '-at_install')
