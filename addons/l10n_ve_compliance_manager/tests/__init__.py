@@ -35,6 +35,7 @@ from . import (
     test_vat_book_line,
     test_vat_book_line_fields,
     test_vat_book_line_sync,
+    test_vat_book_parity,
     test_vat_book_roundtrip,
     test_vat_return,
 )

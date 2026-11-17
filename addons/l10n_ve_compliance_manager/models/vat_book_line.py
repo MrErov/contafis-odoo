@@ -1,5 +1,32 @@
 from odoo import api, fields, models
 
+#: Campos del libro que alimenta cada tipo de tasa SENIAT.
+#: El segundo elemento es el campo de IVA (None si la columna no lleva IVA).
+RATE_TYPE_FIELDS = {
+    'general': ('base_general', 'vat_general'),
+    'additional': ('base_general', 'vat_general'),
+    'non_contrib': ('base_general', 'vat_general'),
+    'reduced': ('base_reduced', 'vat_reduced'),
+    'import': ('base_import_16', 'vat_import_16'),
+    'no_credit': ('base_no_credit', None),
+    'not_subject': ('base_not_subject', None),
+    'exempt': ('base_not_taxed', None),
+    'not_taxed': ('base_not_taxed', None),
+}
+
+#: Importes acumulados por línea del libro.
+EMPTY_BOOK_AMOUNTS = {
+    'base_general': 0.0,
+    'vat_general': 0.0,
+    'base_import_16': 0.0,
+    'vat_import_16': 0.0,
+    'base_reduced': 0.0,
+    'vat_reduced': 0.0,
+    'base_no_credit': 0.0,
+    'base_not_subject': 0.0,
+    'base_not_taxed': 0.0,
+}
+
 
 class VatBookLine(models.Model):
     _name = 'l10n.ve.vat.book.line'
@@ -229,6 +256,101 @@ class VatBookLine(models.Model):
                 return '30'
 
     @api.model
+    def _is_vat_tax(self, tax):
+        """True si el impuesto es de IVA y debe entrar al libro fiscal."""
+        if tax.l10n_ve_tax_type:
+            return True
+        group_name = (tax.tax_group_id.name or '').upper()
+        return 'IVA' in group_name or 'VAT' in group_name
+
+    @api.model
+    def _get_tax_rate_type(self, tax):
+        """Clasifica un impuesto en la columna SENIAT del libro.
+
+        Los impuestos con ``l10n_ve_tax_type`` usan esa clasificación. Sin
+        metadatos SENIAT (datos de prueba o impuestos genéricos) se infiere
+        desde la tasa, igual que hacía el wizard.
+        """
+        if tax.l10n_ve_tax_type:
+            return tax.l10n_ve_tax_type
+        if tax.amount == 8:
+            return 'reduced'
+        if tax.amount >= 16:
+            return 'general'
+        return 'not_taxed'
+
+    @api.model
+    def _get_tax_operation_code(self, tax, book_type):
+        """Código de operación SENIAT para un impuesto."""
+        if tax.l10n_ve_tax_type in (
+            'general', 'reduced', 'no_credit', 'not_subject', 'exempt',
+            'non_contrib', 'import',
+        ):
+            return self._get_operation_code(tax.l10n_ve_tax_type, book_type)
+        return self._get_operation_code_for_rate(tax.amount, book_type)
+
+    @api.model
+    def _prepare_from_move(self, move):
+        """Prepara las líneas del libro IVA de una factura.
+
+        Centraliza el cálculo usado por la generación automática
+        (``account.move._generate_vat_book_line``) y por el wizard. El IVA se
+        obtiene con ``tax.compute_all`` para respetar impuestos fijos,
+        redondeos e impuestos incluidos en el precio, y la numeración fiscal
+        sale de los campos SENIAT con fallback a los campos internos.
+
+        Returns:
+            list[dict]: valores listos para ``create()``, uno por tasa/código.
+        """
+        book_type = 'sale' if move.move_type in (
+            'out_invoice', 'out_refund',
+        ) else 'purchase'
+        retention_direction = 'by_buyer' if book_type == 'sale' else 'to_vendor'
+        is_refund = move.move_type in ('in_refund', 'out_refund')
+
+        lines_by_taxes = {}
+        for line in move.invoice_line_ids:
+            taxes = line.tax_ids.filtered(self._is_vat_tax)
+            if not taxes:
+                continue
+
+            computed = taxes.compute_all(
+                line.price_unit,
+                currency=line.currency_id or move.currency_id,
+                quantity=line.quantity,
+                product=line.product_id,
+                partner=line.partner_id or move.partner_id,
+                is_refund=is_refund,
+            )
+            for tax_data in computed.get('taxes', []):
+                tax = self.env['account.tax'].browse(tax_data['id'])
+                if tax not in taxes:
+                    continue
+                rate_type = self._get_tax_rate_type(tax)
+                op_code = self._get_tax_operation_code(tax, book_type)
+                amounts = lines_by_taxes.setdefault(
+                    (rate_type, op_code), dict(EMPTY_BOOK_AMOUNTS),
+                )
+                base_field, vat_field = RATE_TYPE_FIELDS[rate_type]
+                amounts[base_field] += tax_data['base']
+                if vat_field:
+                    amounts[vat_field] += tax_data['amount']
+
+        if not lines_by_taxes:
+            fallback = dict(EMPTY_BOOK_AMOUNTS)
+            fallback['base_not_taxed'] = move.amount_untaxed
+            lines_by_taxes[(
+                'not_taxed', self._get_operation_code_for_rate(0, book_type),
+            )] = fallback
+
+        return [
+            self._prepare_book_line_vals(
+                move, 0.0, amounts, retention_direction, op_code,
+            )
+            for (_rate_type, op_code), amounts in lines_by_taxes.items()
+        ]
+
+    @api.model
     def _prepare_book_line_vals(self, move, rate, amounts, retention_direction, op_code):
         """Prepara valores para crear una línea de libro desde una factura y una tasa."""
         if move.move_type in ('out_invoice', 'out_refund'):
@@ -237,24 +359,38 @@ class VatBookLine(models.Model):
             book_type = 'purchase'
 
         sign = -1 if move.move_type in ('out_refund', 'in_refund') else 1
+        period_date = move.invoice_date or move.date
+        period_month = (
+            period_date.strftime('%Y-%m')
+            if period_date else fields.Date.today().strftime('%Y-%m')
+        )
+        total_with_vat = (
+            amounts.get('base_general', 0.0) + amounts.get('vat_general', 0.0)
+            + amounts.get('base_reduced', 0.0) + amounts.get('vat_reduced', 0.0)
+            + amounts.get('base_no_credit', 0.0) + amounts.get('base_not_subject', 0.0)
+            + amounts.get('base_not_taxed', 0.0)
+            + amounts.get('base_import_16', 0.0) + amounts.get('vat_import_16', 0.0)
+        )
 
         vals = {
             'book_type': book_type,
-            'period_month': move.invoice_date.strftime('%Y-%m') if move.invoice_date else fields.Date.today().strftime('%Y-%m'),
+            'period_month': period_month,
             'partner_id': move.partner_id.id,
-            'invoice_number': move.name or '',
+            'invoice_number': move.l10n_ve_invoice_number or move.name or '',
             'invoice_date': move.invoice_date or False,
             'invoice_type': '03' if move.move_type in ('in_refund', 'out_refund') else '01',
-            'control_number': move.ref or move.name or '',
+            'control_number': move.l10n_ve_control_number or move.ref or move.name or '',
             'operation_code': op_code,
-            'total_with_vat': sign * (amounts['base_general'] + amounts['vat_general'] + amounts['base_reduced'] + amounts['vat_reduced'] + amounts['base_not_taxed']),
-            'base_general': sign * amounts['base_general'],
-            'vat_general': sign * amounts['vat_general'],
-            'base_reduced': sign * amounts['base_reduced'],
-            'vat_reduced': sign * amounts['vat_reduced'],
-            'base_no_credit': sign * amounts['base_no_credit'],
-            'base_not_subject': sign * amounts['base_not_subject'],
-            'base_not_taxed': sign * amounts['base_not_taxed'],
+            'total_with_vat': sign * total_with_vat,
+            'base_general': sign * amounts.get('base_general', 0.0),
+            'vat_general': sign * amounts.get('vat_general', 0.0),
+            'base_import_16': sign * amounts.get('base_import_16', 0.0),
+            'vat_import_16': sign * amounts.get('vat_import_16', 0.0),
+            'base_reduced': sign * amounts.get('base_reduced', 0.0),
+            'vat_reduced': sign * amounts.get('vat_reduced', 0.0),
+            'base_no_credit': sign * amounts.get('base_no_credit', 0.0),
+            'base_not_subject': sign * amounts.get('base_not_subject', 0.0),
+            'base_not_taxed': sign * amounts.get('base_not_taxed', 0.0),
             'retention_number': False,
             'vat_retained': 0.0,
             'retention_direction': retention_direction,
@@ -279,9 +415,22 @@ class VatBookLine(models.Model):
             'book_type': 'both',
         })
         line_vals_list = wizard_dummy._create_book_lines_from_move(move)
+        BookLine = self.with_company(move.company_id)
         for vals in line_vals_list:
             vals['wizard_id'] = wizard_dummy.id
-            self.with_company(move.company_id).create(vals)
+            existing = BookLine.search([
+                ('partner_id', '=', vals['partner_id']),
+                ('invoice_number', '=', vals['invoice_number']),
+                ('control_number', '=', vals['control_number']),
+                ('period_month', '=', vals['period_month']),
+                ('company_id', '=', vals['company_id']),
+                ('operation_code', '=', vals['operation_code']),
+                ('retention_direction', '=', vals['retention_direction']),
+            ], limit=1)
+            if existing:
+                existing.write(vals)
+            else:
+                BookLine.create(vals)
         return True
 
     def action_open_export_wizard(self):

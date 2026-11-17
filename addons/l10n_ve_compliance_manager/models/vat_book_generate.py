@@ -97,66 +97,15 @@ class VatBookGenerate(models.Model):
         return self.env['l10n.ve.vat.book.line']._get_operation_code_for_rate(rate, book_type)
 
     def _create_book_lines_from_move(self, move):
+        """Prepara las líneas del libro para una factura.
+
+        Delega en ``l10n.ve.vat.book.line._prepare_from_move`` para que la
+        generación manual y la automática compartan exactamente el mismo
+        cálculo de IVA y numeración fiscal.
         """
-        Crea líneas de libro para una factura, una por cada tasa de IVA distinta.
-        Retorna lista de diccionarios listos para create().
-        """
-        lines_by_rate = {}
-
-        for line in move.invoice_line_ids:
-            for tax in line.tax_ids:
-                # Filtrar impuestos de IVA: grupo con nombre que contenga 'IVA' o 'VAT'
-                tax_group = tax.tax_group_id
-                if not tax_group:
-                    continue
-                group_name = (tax_group.name or '').upper()
-                if 'IVA' not in group_name and 'VAT' not in group_name:
-                    continue
-
-                rate = tax.amount
-                base = line.price_subtotal
-                vat = line.price_total - line.price_subtotal
-
-                if rate not in lines_by_rate:
-                    lines_by_rate[rate] = {
-                        'base_general': 0.0, 'vat_general': 0.0,
-                        'base_reduced': 0.0, 'vat_reduced': 0.0,
-                        'base_no_credit': 0.0, 'base_not_subject': 0.0, 'base_not_taxed': 0.0,
-                    }
-
-                if rate == 16:
-                    lines_by_rate[rate]['base_general'] += base
-                    lines_by_rate[rate]['vat_general'] += vat
-                elif rate == 8:
-                    lines_by_rate[rate]['base_reduced'] += base
-                    lines_by_rate[rate]['vat_reduced'] += vat
-                elif rate > 16:
-                    lines_by_rate[rate]['base_general'] += base
-                    lines_by_rate[rate]['vat_general'] += vat
-                else:
-                    lines_by_rate[rate]['base_not_taxed'] += base
-
-        if not lines_by_rate:
-            lines_by_rate[0] = {
-                'base_general': 0.0, 'vat_general': 0.0,
-                'base_reduced': 0.0, 'vat_reduced': 0.0,
-                'base_no_credit': 0.0, 'base_not_subject': 0.0, 'base_not_taxed': move.amount_untaxed,
-            }
-
-        if move.move_type in ('out_invoice', 'out_refund'):
-            retention_direction = 'by_buyer'
-        else:
-            retention_direction = 'to_vendor'
-
-        result = []
-        for rate, amounts in lines_by_rate.items():
-            op_code = self._get_operation_code_for_rate(rate, 'sale' if move.move_type in ('out_invoice', 'out_refund') else 'purchase')
-            vals = self.env['l10n.ve.vat.book.line']._prepare_book_line_vals(
-                move, rate, amounts, retention_direction, op_code
-            )
+        result = self.env['l10n.ve.vat.book.line']._prepare_from_move(move)
+        for vals in result:
             vals['wizard_id'] = self.id
-            result.append(vals)
-
         return result
 
     def action_generate(self):
